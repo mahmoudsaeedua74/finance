@@ -57,7 +57,7 @@
     "registerDesc": "New accounts are allowed. After signing up, sign in on the next screen.",
     "accountCreatedSignIn": "Account created. Sign in with the email and password you just chose.",
     "registerClosed": "Registration is closed",
-    "registerClosedDesc": "An account already exists. Ask the owner to share access or enable ALLOW_REGISTER in the server .env to add new users.",
+    "registerClosedDesc": "Use the register page to create a new account.",
     "registerFail": "Could not create account",
     "autoLoginFail": "Account created. Sign in manually.",
     "backToSignIn": "Back to sign in",
