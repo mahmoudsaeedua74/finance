@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +16,18 @@ function LoginForm() {
   const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const didWelcome = useRef(false);
+
+  useEffect(() => {
+    if (searchParams.get("registered") !== "1" || didWelcome.current) return;
+    didWelcome.current = true;
+    toast.success(t("accountCreatedSignIn"));
+    router.replace(pathname);
+  }, [searchParams, pathname, router, t]);
 
   const callback = searchParams.get("callbackUrl") || "/";
   return (

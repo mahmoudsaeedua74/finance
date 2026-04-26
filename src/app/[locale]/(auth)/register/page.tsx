@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,59 +17,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [closed, setClosed] = useState(false);
-  const [policyError, setPolicyError] = useState(false);
-  const [policyLoading, setPolicyLoading] = useState(true);
   const [dbHint, setDbHint] = useState<string | null>(null);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    const to = setTimeout(() => ac.abort(), 20_000);
-    fetch("/api/auth/registration-open", { signal: ac.signal })
-      .then(async (r) => {
-        const d = (await r.json().catch(() => ({}))) as { open?: boolean; dbError?: boolean };
-        if (!r.ok) {
-          setClosed(false);
-          setPolicyError(true);
-          const h = await checkDbOnClient();
-          if (!h.ok) setDbHint(h.message);
-          return;
-        }
-        setClosed(!d.open);
-        setPolicyError(false);
-        setDbHint(null);
-      })
-      .catch(() => {
-        setPolicyError(true);
-        void checkDbOnClient().then((h) => {
-          if (!h.ok) setDbHint(h.message);
-        });
-      })
-      .finally(() => {
-        setPolicyLoading(false);
-        clearTimeout(to);
-      });
-    return () => {
-      ac.abort();
-      clearTimeout(to);
-    };
-  }, []);
-
-  if (closed) {
-    return (
-      <Card className="w-full max-w-md border-border/80 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl">{t("registerClosed")}</CardTitle>
-          <CardDescription>{t("registerClosedDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link href="/login" className={cn(buttonVariants(), "h-11 w-full")}>
-            {t("backToSignIn")}
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-md border-border/80 shadow-lg">
@@ -80,29 +26,13 @@ export default function RegisterPage() {
         <CardDescription>{t("registerDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {policyLoading && (
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {t("registerPolicyWait")}
-          </p>
-        )}
-        {policyError && !policyLoading && (
+        {dbHint && (
           <div
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
             role="status"
           >
             <p className="font-medium text-destructive">{t("registerDbError")}</p>
-            <p className="mt-1 text-muted-foreground">{t("registerBannerDb")}</p>
-            {dbHint && <p className="mt-2 font-mono text-xs text-muted-foreground break-words">{dbHint}</p>}
-            <a
-              href="/api/health/db"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              /api/health/db
-            </a>
-            <p className="mt-2 text-xs text-muted-foreground">{t("registerDbErrorDesc")}</p>
-            <p className="mt-2 text-xs text-muted-foreground">{t("registerDbErrorNote")}</p>
+            <p className="mt-1 font-mono text-xs break-words text-muted-foreground">{dbHint}</p>
           </div>
         )}
         <form
@@ -110,16 +40,14 @@ export default function RegisterPage() {
           onSubmit={async (e) => {
             e.preventDefault();
             setLoading(true);
+            setDbHint(null);
             const h = await checkDbOnClient();
             if (!h.ok) {
               setDbHint(h.message);
-              setPolicyError(true);
               toast.error(t("registerDbError"), { description: h.message, duration: 12_000 });
               setLoading(false);
               return;
             }
-            setPolicyError(false);
-            setDbHint(null);
             try {
               const r = await fetch("/api/auth/register", {
                 method: "POST",
@@ -132,19 +60,8 @@ export default function RegisterPage() {
                 setLoading(false);
                 return;
               }
-              const sign = await signIn("credentials", {
-                email: email.trim().toLowerCase(),
-                password,
-                redirect: false,
-              });
-              if (sign?.error) {
-                toast.error(t("autoLoginFail"));
-                router.push("/login");
-                return;
-              }
-              router.push("/");
+              router.push("/login?registered=1");
               router.refresh();
-              toast.success(t("signedIn"));
             } catch {
               toast.error(t("registerFail"));
             } finally {
@@ -188,7 +105,7 @@ export default function RegisterPage() {
             />
             <p className="text-xs text-muted-foreground">{t("passwordRule")}</p>
           </div>
-          <Button type="submit" className="h-11 w-full" disabled={loading || policyLoading}>
+          <Button type="submit" className="h-11 w-full" disabled={loading}>
             {loading ? "…" : t("createAccount")}
           </Button>
         </form>

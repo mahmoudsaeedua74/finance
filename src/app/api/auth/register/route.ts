@@ -26,14 +26,6 @@ export async function POST(req: Request) {
       );
     }
     await connectDB();
-    const count = await User.countDocuments();
-    const allow = process.env.ALLOW_REGISTER === "true" || count === 0;
-    if (!allow) {
-      return NextResponse.json(
-        { error: "Registration is closed. Set ALLOW_REGISTER=true to allow new users." },
-        { status: 403 }
-      );
-    }
     const exists = await User.findOne({ email });
     if (exists) {
       return NextResponse.json({ error: "That email is already registered" }, { status: 409 });

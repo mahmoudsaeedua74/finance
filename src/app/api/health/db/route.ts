@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 
@@ -17,6 +18,7 @@ export async function GET() {
       details: {
         hasMongoUri: Boolean(uri),
         mongoUriPreview: sanitizeMongoUri(uri),
+        activeDatabase: mongoose.connection.db?.databaseName ?? null,
         nodeEnv: process.env.NODE_ENV ?? "unknown",
       },
     });

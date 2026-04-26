@@ -34,6 +34,32 @@ const cache: MongooseCache = g._mongooseCache ?? {
 };
 g._mongooseCache = cache;
 
+const BASE_OPTS = {
+  bufferCommands: false,
+  // Fail fast on Vercel/serverless instead of hanging the UI 30+ seconds
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 10_000,
+  connectTimeoutMS: 10_000,
+  socketTimeoutMS: 10_000,
+} as const;
+
+/**
+ * Many Atlas "connection strings" are `...mongodb.net/?appName=...` with no DB path.
+ * The driver may then use a different default than you see in Compass. We pin a name.
+ * Set MONGODB_DB to match where your data lives, or add `/your-db` to MONGODB_URI.
+ */
+function dbNameForUri(uri: string): string | undefined {
+  if (process.env.MONGODB_DB) return process.env.MONGODB_DB;
+  const noQuery = uri.split("?")[0];
+  if (!noQuery.startsWith("mongodb+srv://")) return undefined;
+  const mark = ".mongodb.net/";
+  const i = noQuery.indexOf(mark);
+  if (i === -1) return undefined;
+  const after = noQuery.slice(i + mark.length);
+  if (after.length > 0) return undefined; // e.g. .../personal-finance
+  return "personal-finance";
+}
+
 /**
  * Reuses a single Mongoose connection across hot reloads in dev.
  * Use this in all Next.js Route Handlers that talk to MongoDB.
@@ -46,13 +72,10 @@ export async function connectDB(): Promise<typeof mongoose> {
   ensureDnsForAtlasSrv(uri);
   if (cache.conn) return cache.conn;
   if (!cache.promise) {
+    const dbName = dbNameForUri(uri);
     cache.promise = mongoose.connect(uri, {
-      bufferCommands: false,
-      // Fail fast on Vercel/serverless instead of hanging the UI 30+ seconds
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 10_000,
-      connectTimeoutMS: 10_000,
-      socketTimeoutMS: 10_000,
+      ...BASE_OPTS,
+      ...(dbName ? { dbName } : {}),
     });
   }
   try {
