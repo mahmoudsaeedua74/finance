@@ -1,11 +1,13 @@
 import { startOfMonth } from "date-fns";
 import { Expense, Income, Project, type IExpense } from "@/lib/models";
 import {
-  addToMap,
-  isDateInMonth,
-  templateAppliesInMonth,
-  topEntry,
-} from "@/lib/monthly";
+  expenseNonTemplateInMonth,
+  expenseTemplatesApplyingInMonth,
+  incomeInMonth,
+  monthDateBoundsUTC,
+  projectPayoutInMonth,
+} from "@/lib/db-month-filters";
+import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
 import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { buildSmartInsights } from "@/lib/services/insight-service";
@@ -13,20 +15,22 @@ import { buildSmartInsights } from "@/lib/services/insight-service";
 export type MonthlyReportData = Awaited<ReturnType<typeof buildMonthlyReport>>;
 
 export async function buildMonthlyReport(year: number, month: number, userId: string) {
-  const [incomes, projects, expenses, budgetUsage, smartInsights] = await Promise.all([
-    Income.find({ userId }).lean(),
-    Project.find({ userId }).lean(),
-    Expense.find({ userId }).lean(),
-    getBudgetUsage(userId, year, month),
-    buildSmartInsights(userId, year, month),
-  ]);
-
-  const incomeRows = incomes.filter((i) =>
-    isDateInMonth(new Date(i.date), year, month)
-  );
-  const projectRows = projects.filter((p) =>
-    isDateInMonth(new Date(p.date), year, month)
-  );
+  const { mStart, mEnd } = monthDateBoundsUTC(year, month);
+  const nq = expenseNonTemplateInMonth(userId, mStart, mEnd);
+  const tq = expenseTemplatesApplyingInMonth(userId, mStart, mEnd);
+  const [incomeRows, projectRows, expNon, expTpl, budgetUsage, smartInsights] =
+    await Promise.all([
+      Income.find(incomeInMonth(userId, mStart, mEnd)).lean(),
+      Project.find(projectPayoutInMonth(userId, mStart, mEnd)).lean(),
+      Expense.find(nq).lean(),
+      Expense.find(tq).lean(),
+      getBudgetUsage(userId, year, month),
+      buildSmartInsights(userId, year, month),
+    ]);
+  const expenses = [
+    ...((expNon as IExpense[]) ?? []),
+    ...((expTpl as IExpense[]) ?? []),
+  ];
 
   let totalIncomeFromIncomes = 0;
   const incomeByType: Record<string, number> = {};
@@ -53,11 +57,8 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
     projectName?: string;
   }[] = [];
 
-  for (const e of expenses as IExpense[]) {
+  for (const e of expenses) {
     if (e.isTemplate && e.recurring) {
-      if (!templateAppliesInMonth(new Date(e.validFrom), e.validTo, year, month)) {
-        continue;
-      }
       totalExpenses += e.amount;
       addToMap(expenseByCategory, e.category, e.amount);
       expenseLineItems.push({
@@ -70,19 +71,17 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
         projectName: e.projectName?.trim() || undefined,
       });
     } else if (!e.isTemplate) {
-      if (isDateInMonth(new Date(e.date), year, month)) {
-        totalExpenses += e.amount;
-        addToMap(expenseByCategory, e.category, e.amount);
-        expenseLineItems.push({
-          _id: String(e._id),
-          title: e.title,
-          amount: e.amount,
-          date: e.date,
-          category: e.category,
-          source: e.kind === "fixed" ? "fixed_once" : "variable",
-          projectName: e.projectName?.trim() || undefined,
-        });
-      }
+      totalExpenses += e.amount;
+      addToMap(expenseByCategory, e.category, e.amount);
+      expenseLineItems.push({
+        _id: String(e._id),
+        title: e.title,
+        amount: e.amount,
+        date: e.date,
+        category: e.category,
+        source: e.kind === "fixed" ? "fixed_once" : "variable",
+        projectName: e.projectName?.trim() || undefined,
+      });
     }
   }
 

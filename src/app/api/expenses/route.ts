@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
-import { isDateInMonth, templateAppliesInMonth } from "@/lib/monthly";
+import {
+  expenseNonTemplateInMonth,
+  expenseTemplatesApplyingInMonth,
+  monthDateBoundsUTC,
+} from "@/lib/db-month-filters";
 import { queueAfterExpense } from "@/lib/services/activity-notifications";
 import { startOfMonth } from "date-fns";
 
@@ -54,10 +58,13 @@ export async function GET(req: Request) {
     const yearQ = searchParams.get("year");
     const monthQ = searchParams.get("month");
     await connectDB();
-    const all = await Expense.find({ userId: user.id }).sort({ date: -1 }).lean();
     if (yearQ == null || monthQ == null) {
+      /** Unscoped: only recurring templates (UI filters to this; avoids full-table scans). */
+      const templates = await Expense.find({ userId: user.id, isTemplate: true })
+        .sort({ date: -1 })
+        .lean();
       return NextResponse.json({
-        data: all.map((d) => ({
+        data: templates.map((d) => ({
           ...serialize(d as never),
           rowKind: d.isTemplate
             ? "recurring"
@@ -69,35 +76,45 @@ export async function GET(req: Request) {
     }
     const year = Number(yearQ);
     const month = Number(monthQ);
-    const entries: ExpenseRow[] = [];
+    const { mStart, mEnd } = monthDateBoundsUTC(year, month);
+    const [nonT, templateDocs] = await Promise.all([
+      Expense.find(
+        expenseNonTemplateInMonth(user.id, mStart, mEnd)
+      )
+        .sort({ date: -1 })
+        .lean(),
+      Expense.find(
+        expenseTemplatesApplyingInMonth(user.id, mStart, mEnd)
+      ).lean(),
+    ]);
 
-    for (const d of all) {
-      const e = d as {
-        _id: unknown;
-        title: string;
-        amount: number;
-        date: Date;
-        category: string;
-        kind: "variable" | "fixed";
-        recurring: boolean;
-        isTemplate: boolean;
-        validFrom: Date;
-        validTo: Date | null;
-        createdAt?: Date;
-        updatedAt?: Date;
-      };
+    type ERow = {
+      _id: unknown;
+      title: string;
+      amount: number;
+      date: Date;
+      category: string;
+      kind: "variable" | "fixed";
+      recurring: boolean;
+      isTemplate: boolean;
+      validFrom: Date;
+      validTo: Date | null;
+      createdAt?: Date;
+      updatedAt?: Date;
+    };
+    const combined: ERow[] = [...(nonT as ERow[]), ...(templateDocs as ERow[])].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    const entries: ExpenseRow[] = [];
+    for (const e of combined) {
       if (e.isTemplate && e.recurring) {
-        if (templateAppliesInMonth(new Date(e.validFrom), e.validTo, year, month)) {
-          const mStart = startOfMonth(new Date(year, month - 1, 1));
-          entries.push({
-            ...serialize(e),
-            rowKind: "recurring",
-            displayDate: mStart.toISOString(),
-          });
-        }
-        continue;
-      }
-      if (!e.isTemplate && isDateInMonth(new Date(e.date), year, month)) {
+        const rowStart = startOfMonth(new Date(year, month - 1, 1));
+        entries.push({
+          ...serialize(e),
+          rowKind: "recurring",
+          displayDate: rowStart.toISOString(),
+        });
+      } else if (!e.isTemplate) {
         entries.push({
           ...serialize(e),
           rowKind: e.kind === "fixed" ? "fixed_once" : "variable",
