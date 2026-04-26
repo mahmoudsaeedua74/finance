@@ -40,4 +40,17 @@ export type MonthlyReportDto = {
     biggestExpenseCategory: { name: string; amount: number } | null;
     moneyLeft: number;
   };
+  budgetUsage?: {
+    category: string;
+    limit: number;
+    spent: number;
+    remaining: number;
+    percentage: number;
+    status: "safe" | "warning" | "over";
+  }[];
+  smartInsights?: {
+    key: string;
+    message: string;
+    severity: "info" | "warning";
+  }[];
 };

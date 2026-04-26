@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-auth";
+import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
 import { isDateInMonth, templateAppliesInMonth } from "@/lib/monthly";
@@ -44,14 +44,14 @@ export type ExpenseRow = ReturnType<typeof serialize> & {
 };
 
 export async function GET(req: Request) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
     const yearQ = searchParams.get("year");
     const monthQ = searchParams.get("month");
     await connectDB();
-    const all = await Expense.find().sort({ date: -1 }).lean();
+    const all = await Expense.find({ userId: user.id }).sort({ date: -1 }).lean();
     if (yearQ == null || monthQ == null) {
       return NextResponse.json({
         data: all.map((d) => ({
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
@@ -149,6 +149,7 @@ export async function POST(req: Request) {
       const vt = validTo ? new Date(validTo) : null;
       await connectDB();
       const doc = await Expense.create({
+        userId: user.id,
         title: String(title),
         amount: Number(amount),
         date: vf,
@@ -171,6 +172,7 @@ export async function POST(req: Request) {
     const dt = new Date(date);
     await connectDB();
     const doc = await Expense.create({
+      userId: user.id,
       title: String(title),
       amount: Number(amount),
       date: dt,

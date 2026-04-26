@@ -123,6 +123,39 @@ export default function ReportPage() {
       </div>
       <p className="text-xs text-muted-foreground">{t("emailNote")}</p>
 
+      {report?.budgetUsage && report.budgetUsage.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Budget usage</CardTitle>
+            <CardDescription>Spent vs monthly category limits</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {report.budgetUsage.map((b) => (
+              <div key={b.category} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="capitalize">{b.category}</span>
+                  <span className="text-muted-foreground">
+                    {formatMoney(b.spent)} / {formatMoney(b.limit)}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={
+                      b.status === "over"
+                        ? "h-full bg-destructive"
+                        : b.status === "warning"
+                          ? "h-full bg-amber-500"
+                          : "h-full bg-emerald-500"
+                    }
+                    style={{ width: `${Math.min(100, b.percentage)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <SummaryCards report={!isLoading ? report : undefined} />
       <InsightsPanel report={!isLoading ? report : undefined} />
 

@@ -6,14 +6,18 @@ import {
   templateAppliesInMonth,
   topEntry,
 } from "@/lib/monthly";
+import { getBudgetUsage } from "@/lib/services/budget-usage-service";
+import { buildSmartInsights } from "@/lib/services/insight-service";
 
 export type MonthlyReportData = Awaited<ReturnType<typeof buildMonthlyReport>>;
 
-export async function buildMonthlyReport(year: number, month: number) {
-  const [incomes, projects, expenses] = await Promise.all([
-    Income.find().lean(),
-    Project.find().lean(),
-    Expense.find().lean(),
+export async function buildMonthlyReport(year: number, month: number, userId: string) {
+  const [incomes, projects, expenses, budgetUsage, smartInsights] = await Promise.all([
+    Income.find({ userId }).lean(),
+    Project.find({ userId }).lean(),
+    Expense.find({ userId }).lean(),
+    getBudgetUsage(userId, year, month),
+    buildSmartInsights(userId, year, month),
   ]);
 
   const incomeRows = incomes.filter((i) =>
@@ -127,5 +131,7 @@ export async function buildMonthlyReport(year: number, month: number) {
       source: r.source,
     })),
     insights,
+    budgetUsage: budgetUsage.rows,
+    smartInsights,
   };
 }

@@ -5,6 +5,7 @@ export type ExpenseKind = "variable" | "fixed";
 
 export interface IExpense {
   _id: string;
+  userId: mongoose.Types.ObjectId;
   title: string;
   amount: number;
   /** For non-templates: the date of the expense. For templates, set to validFrom. */
@@ -26,6 +27,7 @@ export interface IExpense {
 
 const ExpenseSchema = new Schema<IExpense>(
   {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: { type: String, required: true, trim: true },
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
@@ -39,8 +41,8 @@ const ExpenseSchema = new Schema<IExpense>(
   { timestamps: true }
 );
 
-ExpenseSchema.index({ date: -1 });
-ExpenseSchema.index({ isTemplate: 1, validFrom: 1 });
+ExpenseSchema.index({ userId: 1, date: -1 });
+ExpenseSchema.index({ userId: 1, isTemplate: 1, validFrom: 1 });
 
 export const Expense: Model<IExpense> =
   mongoose.models.Expense ||

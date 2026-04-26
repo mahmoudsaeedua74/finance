@@ -63,12 +63,30 @@ export default function IncomeListPage() {
       jsonFetch<{ data: Row[] }>(`/api/incomes?year=${year}&month=${month}`),
   });
   const rows = data?.data ?? [];
+  const { data: recurringData } = useQuery({
+    queryKey: ["recurring-incomes"],
+    queryFn: () =>
+      jsonFetch<{
+        data: {
+          _id: string;
+          title: string;
+          amount: number;
+          frequency: "monthly" | "weekly";
+          active: boolean;
+        }[];
+      }>("/api/recurring-incomes"),
+  });
+  const recurringRows = recurringData?.data ?? [];
 
   const [edit, setEdit] = useState<Row | null>(null);
   const [tx, setTx] = useState("");
   const [a, setA] = useState("");
   const [d, setD] = useState("");
   const [ty, setTy] = useState("other");
+  const [rt, setRt] = useState("");
+  const [ra, setRa] = useState("");
+  const [rf, setRf] = useState<"monthly" | "weekly">("monthly");
+  const [rs, setRs] = useState(new Date().toISOString().slice(0, 10));
 
   const del = useMutation({
     mutationFn: (id: string) => jsonFetch(`/api/incomes/${id}`, { method: "DELETE" }),
@@ -112,6 +130,27 @@ export default function IncomeListPage() {
         toast.error(e.message);
       }
     },
+  });
+  const createRecurring = useMutation({
+    mutationFn: () =>
+      jsonFetch("/api/recurring-incomes", {
+        method: "POST",
+        body: JSON.stringify({
+          title: rt,
+          amount: Number(ra),
+          frequency: rf,
+          startDate: new Date(rs).toISOString(),
+        }),
+      }),
+    onSuccess: () => {
+      toast.success("Recurring income saved");
+      setRt("");
+      setRa("");
+      setRf("monthly");
+      setRs(new Date().toISOString().slice(0, 10));
+      invalidateIncomes({ allQueries: true });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const typeLabel = (v: string) =>
@@ -197,6 +236,65 @@ export default function IncomeListPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recurring income</CardTitle>
+          <CardDescription>Templates that auto-generate entries by schedule.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <Input
+              className="h-11 sm:col-span-2"
+              placeholder="Title"
+              value={rt}
+              onChange={(e) => setRt(e.target.value)}
+            />
+            <Input
+              className="h-11"
+              type="number"
+              placeholder="Amount"
+              value={ra}
+              onChange={(e) => setRa(e.target.value)}
+            />
+            <Input
+              className="h-11"
+              type="date"
+              value={rs}
+              onChange={(e) => setRs(e.target.value)}
+            />
+            <Select value={rf} onValueChange={(v) => v && setRf(v as "monthly" | "weekly")}>
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              className="h-11 sm:col-span-1"
+              onClick={() => createRecurring.mutate()}
+              disabled={!rt || !ra || createRecurring.isPending}
+            >
+              Add template
+            </Button>
+          </div>
+          {recurringRows.length > 0 && (
+            <div className="space-y-2 rounded-md border p-3">
+              {recurringRows.map((r) => (
+                <div key={r._id} className="flex items-center justify-between text-sm">
+                  <span>{r.title}</span>
+                  <span className="text-muted-foreground">
+                    {r.frequency} · {formatMoney(r.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

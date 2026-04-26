@@ -4,7 +4,7 @@
  */
 import "dotenv/config";
 import { connectDB } from "../src/lib/mongodb";
-import { Income, Project, Expense } from "../src/lib/models";
+import { Income, Project, Expense, User } from "../src/lib/models";
 import { startOfMonth } from "date-fns";
 
 async function run() {
@@ -18,6 +18,12 @@ async function run() {
   const m = now.getMonth() + 1;
   const day = 15;
   const mid = new Date(y, m - 1, day);
+  const user = await User.findOne().sort({ createdAt: 1 });
+  if (!user) {
+    console.error("Create a user first: npm run create-user");
+    process.exit(1);
+  }
+  const userId = String(user._id);
 
   await Promise.all([
     Income.deleteMany({}),
@@ -27,12 +33,14 @@ async function run() {
 
   await Income.insertMany([
     {
+      userId,
       title: "Full-time salary",
       amount: 4500,
       date: mid,
       incomeType: "salary",
     },
     {
+      userId,
       title: "Client retainer",
       amount: 1200,
       date: new Date(y, m - 1, 8),
@@ -41,6 +49,7 @@ async function run() {
   ]);
 
   await Project.create({
+    userId,
     name: "E-commerce relaunch",
     amount: 800,
     date: new Date(y, m - 1, 22),
@@ -48,6 +57,7 @@ async function run() {
 
   await Expense.insertMany([
     {
+      userId,
       title: "Grocery + dining",
       amount: 480,
       date: new Date(y, m - 1, 5),
@@ -59,6 +69,7 @@ async function run() {
       validTo: null,
     },
     {
+      userId,
       title: "Gym",
       amount: 45,
       date: startOfMonth(mid),
@@ -70,6 +81,7 @@ async function run() {
       validTo: null,
     },
     {
+      userId,
       title: "Part-time help",
       amount: 1500,
       date: startOfMonth(mid),

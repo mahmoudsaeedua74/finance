@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-auth";
+import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
 import mongoose from "mongoose";
@@ -9,14 +9,14 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: { id: string } };
 
 export async function GET(_req: Request, { params }: Ctx) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     await connectDB();
-    const doc = await Expense.findById(params.id).lean();
+    const doc = await Expense.findOne({ _id: params.id, userId: user.id }).lean();
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ data: { ...doc, _id: String(doc._id) } });
   } catch (e) {
@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 }
 
 export async function PUT(req: Request, { params }: Ctx) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     if (!mongoose.isValidObjectId(params.id)) {
@@ -58,7 +58,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     if (validFrom != null) update.validFrom = new Date(validFrom);
     if (validTo !== undefined) update.validTo = validTo ? new Date(validTo) : null;
 
-    const doc = await Expense.findByIdAndUpdate(params.id, update, {
+    const doc = await Expense.findOneAndUpdate({ _id: params.id, userId: user.id }, update, {
       new: true,
     });
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -72,14 +72,14 @@ export async function PUT(req: Request, { params }: Ctx) {
 }
 
 export async function DELETE(_req: Request, { params }: Ctx) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     await connectDB();
-    const res = await Expense.findByIdAndDelete(params.id);
+    const res = await Expense.findOneAndDelete({ _id: params.id, userId: user.id });
     if (!res) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (e) {

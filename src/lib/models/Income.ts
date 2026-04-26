@@ -4,6 +4,7 @@ export type IncomeType = "salary" | "freelance" | "other";
 
 export interface IIncome {
   _id: string;
+  userId: mongoose.Types.ObjectId;
   title: string;
   amount: number;
   date: Date;
@@ -14,6 +15,7 @@ export interface IIncome {
 
 const IncomeSchema = new Schema<IIncome>(
   {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: { type: String, required: true, trim: true },
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
@@ -26,7 +28,7 @@ const IncomeSchema = new Schema<IIncome>(
   { timestamps: true }
 );
 
-IncomeSchema.index({ date: -1 });
+IncomeSchema.index({ userId: 1, date: -1 });
 
 export const Income: Model<IIncome> =
   mongoose.models.Income ||

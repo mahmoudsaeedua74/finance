@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-auth";
+import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       );
     }
     await connectDB();
-    const data = await buildMonthlyReport(y, m);
+    const data = await buildMonthlyReport(y, m, user.id);
     return NextResponse.json({ data });
   } catch (e) {
     console.error(e);

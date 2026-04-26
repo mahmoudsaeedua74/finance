@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-auth";
+import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Project } from "@/lib/models";
 import { isDateInMonth } from "@/lib/monthly";
@@ -7,14 +7,14 @@ import { isDateInMonth } from "@/lib/monthly";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
     const year = searchParams.get("year");
     const month = searchParams.get("month");
     await connectDB();
-    const raw = await Project.find().sort({ date: -1 }).lean();
+    const raw = await Project.find({ userId: user.id }).sort({ date: -1 }).lean();
     const list = raw
       .map((d) => ({
         _id: String(d._id),
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
     }
     await connectDB();
     const doc = await Project.create({
+      userId: user.id,
       name: String(name),
       amount: Number(amount),
       date: new Date(date),

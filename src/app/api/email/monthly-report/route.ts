@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/api-auth";
+import { requireAuthUser } from "@/lib/api-auth";
 import nodemailer from "nodemailer";
 import { connectDB } from "@/lib/mongodb";
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
@@ -34,7 +34,7 @@ function formatReportTextShort(
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireSession();
+  const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json().catch(() => ({}));
@@ -63,9 +63,9 @@ export async function POST(req: Request) {
     const port = process.env.SMTP_PORT
       ? Number(process.env.SMTP_PORT)
       : undefined;
-    const user = process.env.SMTP_USER;
+    const smtpUser = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
-    if (!host || !port || !user || !pass) {
+    if (!host || !port || !smtpUser || !pass) {
       return NextResponse.json(
         {
           error:
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
-    const report = await buildMonthlyReport(year, month);
+    const report = await buildMonthlyReport(year, month, user.id);
     const dto = report as unknown as MonthlyReportDto;
     const period = `${year}-${String(month).padStart(2, "0")}`;
     const pdfBuffer = monthlyReportPdfToBuffer(dto);
@@ -102,14 +102,14 @@ export async function POST(req: Request) {
       host,
       port,
       secure,
-      auth: { user, pass },
+      auth: { user: smtpUser, pass },
       requireTLS: !secure,
       tls: {
         servername: host,
         ...(skipTlsVerify ? { rejectUnauthorized: false } : {}),
       },
     });
-    const from = process.env.SMTP_FROM || user;
+    const from = process.env.SMTP_FROM || smtpUser;
     const subject = `Monthly report ${period} — summary + PDF`;
     await transporter.sendMail({
       from,
