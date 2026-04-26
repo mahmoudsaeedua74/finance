@@ -25,7 +25,7 @@ import {
   type ReportFilterState,
 } from "@/lib/report-filters";
 import { Separator } from "@/components/ui/separator";
-import { isPresetExpenseCategory, labelExpenseCategory } from "@/lib/expense-categories";
+import { labelExpenseCategory } from "@/lib/expense-categories";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
@@ -132,41 +132,6 @@ export default function ReportPage() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">{t("emailNote")}</p>
-
-      {report?.budgetUsage && report.budgetUsage.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("budgetUsageTitle")}</CardTitle>
-            <CardDescription>{t("budgetUsageDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {report.budgetUsage.map((b) => (
-              <div key={b.category} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="capitalize">
-                    {isPresetExpenseCategory(b.category) ? tCat(b.category) : b.category}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {formatMoney(b.spent)} / {formatMoney(b.limit)}
-                  </span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={
-                      b.status === "over"
-                        ? "h-full bg-destructive"
-                        : b.status === "warning"
-                          ? "h-full bg-amber-500"
-                          : "h-full bg-emerald-500"
-                    }
-                    style={{ width: `${Math.min(100, b.percentage)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       <SummaryCards report={!isLoading ? report : undefined} />
       <InsightsPanel report={!isLoading ? report : undefined} />

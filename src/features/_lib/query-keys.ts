@@ -35,6 +35,4 @@ export const queryKeys = {
   monthCompare: (cy: number, cm: number, py: number, pm: number) =>
     ["report-compare", cy, cm, py, pm] as const,
   forecast: (year: number, month: number) => ["forecast", year, month] as const,
-  budgetUsage: (year: number, month: number) => ["budgets-usage", year, month] as const,
-  goals: () => ["goals"] as const,
 } as const;

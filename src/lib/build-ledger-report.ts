@@ -4,7 +4,6 @@ import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
 import { sumRecurringThroughDate } from "@/lib/lifetime-ledger";
 import type { MonthlyReportDto } from "@/types/report";
-import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { buildSmartInsights } from "@/lib/services/insight-service";
 
 type ObjId = string | mongoose.Types.ObjectId;
@@ -24,8 +23,10 @@ export async function buildLedgerReport(userId: ObjId) {
 
   const incomeByType: Record<string, number> = {};
   let totalIncomeFromIncomes = 0;
+  let salaryIncomeAllTime = 0;
   for (const i of incomeRows) {
     totalIncomeFromIncomes += i.amount;
+    if (i.incomeType === "salary") salaryIncomeAllTime += i.amount;
     const key = chartKeyForIncomeType(i.incomeType);
     addToMap(incomeByType, key, i.amount);
   }
@@ -67,10 +68,9 @@ export async function buildLedgerReport(userId: ObjId) {
   const yNow = d.getFullYear();
   const mNow = d.getMonth() + 1;
 
-  const [budgetUsage, smartInsights] = await Promise.all([
-    getBudgetUsage(String(userId), yNow, mNow),
-    buildSmartInsights(String(userId), yNow, mNow),
-  ]);
+  const smartInsights = await buildSmartInsights(String(userId), yNow, mNow);
+  const basisIncome = salaryIncomeAllTime > 0 ? salaryIncomeAllTime : totalIncome;
+  const netFromBasis = basisIncome - totalExpenses;
 
   const projectLineItems = projectRows.map((p) => ({
     _id: String(p._id),
@@ -118,6 +118,7 @@ export async function buildLedgerReport(userId: ObjId) {
       netBalance: net,
       totalIncomeFromIncomes,
       projectIncome: projectTotal,
+      salaryIncomeAllTime,
     },
     incomeByType,
     expenseByCategory,
@@ -137,13 +138,12 @@ export async function buildLedgerReport(userId: ObjId) {
     })),
     expenseLineItems,
     insights: {
-      overspent: totalExpenses > totalIncome,
+      overspent: totalExpenses > basisIncome,
       biggestExpenseCategory: topCat
         ? { name: topCat.key, amount: topCat.value }
         : null,
-      moneyLeft: net,
+      moneyLeft: netFromBasis,
     },
-    budgetUsage: budgetUsage.rows,
     smartInsights,
   };
   return report;

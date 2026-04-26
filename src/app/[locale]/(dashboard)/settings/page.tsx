@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import { Settings } from "lucide-react";
 
 type Pref = {
-  nearBudgetThresholdPct: number;
+  /** @deprecated no UI — kept for API compatibility */
+  nearBudgetThresholdPct?: number;
   inactivityDays: number;
   digestCadence: "daily" | "weekly";
   criticalEmailEnabled: boolean;
@@ -133,22 +134,6 @@ export default function SettingsPage() {
           <CardTitle className="text-base">{t("rulesSection")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor="thr">{t("budgetThreshold")}</Label>
-            <Input
-              id="thr"
-              type="number"
-              min={1}
-              max={100}
-              className="h-11"
-              value={form.nearBudgetThresholdPct}
-              onChange={(e) =>
-                setForm((f) =>
-                  f ? { ...f, nearBudgetThresholdPct: Number(e.target.value) || 80 } : f
-                )
-              }
-            />
-          </div>
           <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor="inact">{t("inactivityDays")}</Label>
             <Input

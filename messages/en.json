@@ -108,11 +108,13 @@
     "settings": "Settings"
   },
   "monthCompare": {
-    "title": "Month over month",
-    "subtitle": "{current} vs {previous} — net and totals for the two selected calendar months (same month view as the header).",
+    "title": "This month vs last (salary focus)",
+    "subtitle": "{current} vs {previous} — salary inflows, all expenses, and net from salary (gam3eya and other types are not in the salary line).",
     "income": "Total income",
+    "incomeSalary": "Salary recorded",
     "expenses": "Total expenses",
-    "net": "Net balance"
+    "net": "Net balance",
+    "netFromSalary": "Net (salary − expenses)"
   },
   "settings": {
     "title": "Notifications & email",
@@ -204,15 +206,27 @@
     "expenseHint": "Variable + fixed this month",
     "expenseHintAllTime": "One-off spend + each recurring month counted through today",
     "net": "Net balance",
-    "netHint": "Income minus expenses"
+    "netHint": "Income minus expenses",
+    "salarySubline": "Recorded salary: {amount}"
   },
   "insight": {
-    "title": "Smart insights",
-    "over": "Expenses are higher than income this month. Review variable spending and recurring items.",
-    "ok": "Your spending is within or below your income. Keep the habit.",
+    "title": "Highlights (salary-based)",
+    "over": "Spending is above your salary recorded for the period. Other income (e.g. gam3eya) is not part of this comparison.",
+    "ok": "Spending is within or below your salary for the period. Other income (e.g. gam3eya) is not part of this comparison.",
     "largest": "Largest category:",
     "largestAt": "at {amount}.",
-    "moneyLeft": "Money left after expenses:"
+    "moneyLeft": "From salary after expenses (ignores non-salary inflow like gam3eya):",
+    "smart": {
+      "title": "Quick insights (salary only)",
+      "noSalary": "No salary lines this month — quick view compares spending vs last month only. Add salary to see the full picture.",
+      "leftFromSalary": "This month: spent {expenses}; {left} left from your salary lines.",
+      "overVsSalary": "Spent {expenses} vs {salary} salary: short by {over} (salary-only comparison).",
+      "spendShareOfSalary": "You used about {pct}% of this month’s salary on expenses (salary only).",
+      "expensesUp": "This month’s spending is up about {pct}% vs the previous month.",
+      "expensesDown": "This month’s spending is down about {pct}% vs the previous month.",
+      "salaryUpVsPrev": "Salary entries are up about {pct}% vs last month.",
+      "salaryDownVsPrev": "Salary entries are down about {pct}% vs last month."
+    }
   },
   "chart": {
     "byCategory": "Expenses by category",
@@ -229,6 +243,14 @@
   },
   "income": {
     "pageTitle": "Income",
+    "lifetimeTitle": "All-time totals",
+    "lifetimeDesc": "All sources vs expenses since you started, plus the salary slice and what’s left from salary after spending.",
+    "totalIncome": "Total income (all types)",
+    "totalSalary": "Of which salary",
+    "totalExpenses": "Total spent",
+    "netAll": "Net (all income)",
+    "netFromSalary": "From salary after expenses",
+    "lifetimeNetHint": "Uses salary lines only, same rule as the dashboard “money left” card.",
     "pageDescAll": "All income lines (any month).",
     "pageDesc": "Records for {month}",
     "add": "Add income",

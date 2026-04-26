@@ -17,7 +17,6 @@ import {
   getRecurringDueTimezone,
 } from "@/lib/due-day-of-month";
 import type { NotificationSeverity } from "@/lib/models";
-import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { notifyOnce } from "@/lib/services/notification-service";
 import { maybeNotifyLowNetBalance } from "@/lib/services/activity-notifications";
 import { materializeRecurringIncomes } from "@/lib/services/recurring-income-service";
@@ -28,7 +27,6 @@ import { sendEmail, isSmtpConfigured } from "@/lib/services/email-service";
 const appName = () => process.env.EMAIL_APP_NAME || "Personal Finance";
 
 type Prefs = {
-  nearBudgetThresholdPct: number;
   inactivityDays: number;
   mirrorInAppToEmail: boolean;
   noLoginReminderEmail: boolean;
@@ -48,7 +46,6 @@ function startOfUtcDay(d: Date) {
 async function loadPrefs(userId: string): Promise<Prefs> {
   const p = await NotificationPreference.findOne({ userId }).lean();
   return {
-    nearBudgetThresholdPct: p?.nearBudgetThresholdPct ?? 80,
     inactivityDays: p?.inactivityDays ?? 5,
     mirrorInAppToEmail: p?.mirrorInAppToEmail !== false,
     noLoginReminderEmail: p?.noLoginReminderEmail !== false,
@@ -226,54 +223,6 @@ export async function runDailyJobs() {
       }
     }
 
-    const usage = await getBudgetUsage(uid, y, m);
-    for (const row of usage.rows) {
-      const thresh = Math.min(100, Math.max(1, prefs.nearBudgetThresholdPct));
-      if (row.percentage >= 100) {
-        const title = "Over budget";
-        const body = `${row.category} exceeded the limit (${row.percentage.toFixed(0)}% used).`;
-        if (prefs.criticalEmailEnabled) {
-          await notifyMirrorEmail(
-            { _id: u._id, email },
-            prefs,
-            {
-              type: "budget.over",
-              severity: "critical",
-              title,
-              body,
-              dedupKey: `budget-over-${usage.monthKey}-${row.category}`,
-              dedupWindowHours: 24,
-            }
-          );
-        } else {
-          await notifyOnce({
-            userId: uid,
-            type: "budget.over",
-            severity: "critical",
-            title,
-            body,
-            dedupKey: `budget-over-${usage.monthKey}-${row.category}`,
-            dedupWindowHours: 24,
-          });
-        }
-      } else if (row.percentage >= thresh) {
-        const title = "Budget warning";
-        const body = `${row.category} is at ${row.percentage.toFixed(0)}% of the limit (alerts at ${thresh}%).`;
-        await notifyMirrorEmail(
-          { _id: u._id, email },
-          prefs,
-          {
-            type: "budget.near_limit",
-            severity: "warning",
-            title,
-            body,
-            dedupKey: `budget-warn-${usage.monthKey}-${row.category}`,
-            dedupWindowHours: 24,
-          }
-        );
-      }
-    }
-
     const since = subDays(now, prefs.inactivityDays);
     const anyActivity = await Promise.all([
       Income.exists({ userId: uid, createdAt: { $gte: since } }),
@@ -319,9 +268,7 @@ export async function runDailyJobs() {
         appName: appName(),
         totalSpent,
         remainingBalance: remaining,
-        warnings: usage.rows
-          .filter((r) => r.status !== "safe")
-          .map((r) => `${r.category}: ${r.percentage.toFixed(0)}% used`),
+        warnings: [],
         insights: [
           `Calendar month: ${y}-${String(m).padStart(2, "0")} · Cadence: ${prefs.digestCadence}`,
         ],

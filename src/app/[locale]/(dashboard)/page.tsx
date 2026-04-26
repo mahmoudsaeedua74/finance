@@ -5,12 +5,8 @@ import { useTranslations } from "next-intl";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { ReportChartsLazy } from "@/components/dashboard/report-charts-lazy";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
-import { BudgetCards } from "@/components/dashboard/budget-cards";
-import { GoalsWidget } from "@/components/dashboard/goals-widget";
 import { AlertsWidget } from "@/components/dashboard/alerts-widget";
 import { SmartInsightsWidget } from "@/components/dashboard/insights-widget";
-import { BudgetManager } from "@/components/dashboard/budget-manager";
-import { GoalManager } from "@/components/dashboard/goal-manager";
 import { jsonFetch } from "@/lib/fetcher";
 import type { MonthlyReportDto } from "@/types/report";
 import { queryKeys } from "@/features/_lib/query-keys";
@@ -72,15 +68,7 @@ export default function DashboardPage() {
 
       <SummaryCards report={!isLoading ? report : undefined} allTime />
       <MonthCompareSection />
-      <BudgetCards />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <BudgetManager />
-        <GoalManager />
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <GoalsWidget />
-        <AlertsWidget />
-      </div>
+      <AlertsWidget />
       <SmartInsightsWidget report={!isLoading ? report : undefined} />
 
       <InsightsPanel report={!isLoading ? report : undefined} />

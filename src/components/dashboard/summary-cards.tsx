@@ -52,6 +52,11 @@ function SummaryCardsInner({
             <p className="text-xl font-bold tabular-nums tracking-tight min-[400px]:text-2xl">
               {formatMoney(s.totalIncome)}
             </p>
+            {allTime && s.salaryIncomeAllTime != null && s.salaryIncomeAllTime > 0 ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("salarySubline", { amount: formatMoney(s.salaryIncomeAllTime) })}
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-muted-foreground">{incHint}</p>
           </CardContent>
         </Card>

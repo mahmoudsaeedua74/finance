@@ -9,7 +9,6 @@ import {
 } from "@/lib/db-month-filters";
 import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
-import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { buildSmartInsights } from "@/lib/services/insight-service";
 
 export type MonthlyReportData = Awaited<ReturnType<typeof buildMonthlyReport>>;
@@ -18,24 +17,24 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
   const { mStart, mEnd } = monthDateBoundsUTC(year, month);
   const nq = expenseNonTemplateInMonth(userId, mStart, mEnd);
   const tq = expenseTemplatesApplyingInMonth(userId, mStart, mEnd);
-  const [incomeRows, projectRows, expNon, expTpl, budgetUsage, smartInsights] =
-    await Promise.all([
-      Income.find(incomeInMonth(userId, mStart, mEnd)).lean(),
-      Project.find(projectPayoutInMonth(userId, mStart, mEnd)).lean(),
-      Expense.find(nq).lean(),
-      Expense.find(tq).lean(),
-      getBudgetUsage(userId, year, month),
-      buildSmartInsights(userId, year, month),
-    ]);
+  const [incomeRows, projectRows, expNon, expTpl, smartInsights] = await Promise.all([
+    Income.find(incomeInMonth(userId, mStart, mEnd)).lean(),
+    Project.find(projectPayoutInMonth(userId, mStart, mEnd)).lean(),
+    Expense.find(nq).lean(),
+    Expense.find(tq).lean(),
+    buildSmartInsights(userId, year, month),
+  ]);
   const expenses = [
     ...((expNon as IExpense[]) ?? []),
     ...((expTpl as IExpense[]) ?? []),
   ];
 
   let totalIncomeFromIncomes = 0;
+  let salaryIncome = 0;
   const incomeByType: Record<string, number> = {};
   for (const i of incomeRows) {
     totalIncomeFromIncomes += i.amount;
+    if (i.incomeType === "salary") salaryIncome += i.amount;
     const key = chartKeyForIncomeType(i.incomeType);
     addToMap(incomeByType, key, i.amount);
   }
@@ -87,12 +86,14 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
 
   const net = totalIncome - totalExpenses;
   const topCat = topEntry(expenseByCategory);
+  /** If there is any salary in the month, use it as the "what matters" baseline (excludes جمعية / freelance). */
+  const basisIncome = salaryIncome > 0 ? salaryIncome : totalIncome;
   const insights = {
-    overspent: totalExpenses > totalIncome,
+    overspent: totalExpenses > basisIncome,
     biggestExpenseCategory: topCat
       ? { name: topCat.key, amount: topCat.value }
       : null,
-    moneyLeft: net,
+    moneyLeft: basisIncome - totalExpenses,
   };
 
   return {
@@ -104,6 +105,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       netBalance: net,
       totalIncomeFromIncomes,
       projectIncome: projectTotal,
+      salaryIncome,
     },
     incomeByType,
     expenseByCategory,
@@ -131,7 +133,6 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       ...(r.projectName ? { projectName: r.projectName } : {}),
     })),
     insights,
-    budgetUsage: budgetUsage.rows,
     smartInsights,
   };
 }

@@ -92,6 +92,11 @@ export function MonthCompareSection() {
   const p = data?.prev?.summary;
   if (!c || !p) return null;
 
+  const cSal = c.salaryIncome ?? 0;
+  const pSal = p.salaryIncome ?? 0;
+  const cNetSal = cSal - c.totalExpenses;
+  const pNetSal = pSal - p.totalExpenses;
+
   return (
     <Card>
       <CardHeader>
@@ -104,14 +109,14 @@ export function MonthCompareSection() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <DeltaLine label={t("income")} cur={c.totalIncome} prev={p.totalIncome} />
+        <DeltaLine label={t("incomeSalary")} cur={cSal} prev={pSal} />
         <DeltaLine
           label={t("expenses")}
           cur={c.totalExpenses}
           prev={p.totalExpenses}
           invertGoodBad
         />
-        <DeltaLine label={t("net")} cur={c.netBalance} prev={p.netBalance} />
+        <DeltaLine label={t("netFromSalary")} cur={cNetSal} prev={pNetSal} />
       </CardContent>
     </Card>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
 import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { useLocale, useTranslations } from "next-intl";
@@ -45,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { MonthlyReportDto } from "@/types/report";
 
 type Row = {
   _id: string;
@@ -70,6 +71,15 @@ export default function IncomeListPage() {
     queryKey: queryKeys.incomes.all(),
     getUrl: (off, lim) => `/api/incomes?offset=${off}&limit=${lim}`,
   });
+
+  const { data: ledgerRes, isLoading: ledgerLoading } = useQuery({
+    queryKey: queryKeys.ledgerReport(),
+    queryFn: () => jsonFetch<{ data: MonthlyReportDto }>("/api/summary/ledger"),
+  });
+  const ledger = ledgerRes?.data;
+  const S = ledger?.summary;
+  const sat = S?.salaryIncomeAllTime ?? 0;
+  const netFromSal = S ? sat - S.totalExpenses : 0;
   type RecRow = {
     _id: string;
     title: string;
@@ -253,6 +263,66 @@ export default function IncomeListPage() {
       />
 
       {error && <QueryErrorAlert error={error} />}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("lifetimeTitle")}</CardTitle>
+          <CardDescription>{t("lifetimeDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {ledgerLoading || !S ? (
+            <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2 min-[800px]:grid-cols-3">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2 min-[800px]:grid-cols-3 text-sm">
+              <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+                <p className="text-xs text-muted-foreground">{t("totalIncome")}</p>
+                <p className="text-lg font-semibold tabular-nums">{formatMoney(S.totalIncome)}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+                <p className="text-xs text-muted-foreground">{t("totalSalary")}</p>
+                <p className="text-lg font-semibold tabular-nums">{formatMoney(sat)}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+                <p className="text-xs text-muted-foreground">{t("totalExpenses")}</p>
+                <p className="text-lg font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                  {formatMoney(S.totalExpenses)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+                <p className="text-xs text-muted-foreground">{t("netAll")}</p>
+                <p
+                  className={cn(
+                    "text-lg font-semibold tabular-nums",
+                    S.netBalance >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
+                  )}
+                >
+                  {formatMoney(S.netBalance)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card/50 p-3 min-[500px]:col-span-2 min-[800px]:col-span-1">
+                <p className="text-xs text-muted-foreground">{t("netFromSalary")}</p>
+                <p
+                  className={cn(
+                    "text-lg font-semibold tabular-nums",
+                    netFromSal >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
+                  )}
+                >
+                  {formatMoney(netFromSal)}
+                </p>
+                <p className="mt-1 text-[0.7rem] text-muted-foreground">{t("lifetimeNetHint")}</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

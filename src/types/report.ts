@@ -11,6 +11,9 @@ export type MonthlyReportDto = {
     netBalance: number;
     totalIncomeFromIncomes: number;
     projectIncome: number;
+    /** In monthly reports: total `salary` lines in that month. In all-time ledger: cumulative salary only. */
+    salaryIncome?: number;
+    salaryIncomeAllTime?: number;
   };
   incomeByType: Record<string, number>;
   expenseByCategory: Record<string, number>;
@@ -43,17 +46,15 @@ export type MonthlyReportDto = {
     biggestExpenseCategory: { name: string; amount: number } | null;
     moneyLeft: number;
   };
-  budgetUsage?: {
-    category: string;
-    limit: number;
-    spent: number;
-    remaining: number;
-    percentage: number;
-    status: "safe" | "warning" | "over";
-  }[];
-  smartInsights?: {
-    key: string;
-    message: string;
-    severity: "info" | "warning";
-  }[];
+  smartInsights?: SmartInsightDto[];
 };
+
+/** Short dashboard tips (i18n on client) — based on **salary** for the “what matters” row. */
+export type SmartInsightDto =
+  | { kind: "noSalary" }
+  | { kind: "leftFromSalary"; left: number; expenses: number }
+  | { kind: "overVsSalary"; over: number; expenses: number; salary: number }
+  | { kind: "spendShareOfSalary"; pct: number }
+  | { kind: "expensesUp"; pct: number }
+  | { kind: "expensesDown"; pct: number }
+  | { kind: "salaryVsPrev"; pct: number };
