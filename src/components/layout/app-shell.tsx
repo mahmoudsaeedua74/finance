@@ -217,7 +217,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <SheetHeader>
                     <SheetTitle>{tLayout("monthOverview")}</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-2 flex min-h-0 flex-1 flex-col flex flex-col gap-3 overflow-y-auto px-1 pb-6">
+                  <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 pb-6">
                     <div className="px-0.5">
                       <LanguageSwitcher className="w-full justify-center" />
                     </div>

@@ -163,7 +163,7 @@ export default function NewExpensePage() {
         <Tabs defaultValue="variable" className="w-full">
           <div className="p-4 sm:p-5 sm:pt-4">
             <TabsList
-              className="!h-auto !w-full min-w-0  flex flex-col gap-3 rounded-xl border border-border/50 bg-muted/50 p-1.5"
+              className="!h-auto !w-full min-w-0 grid grid-cols-3 gap-1 rounded-xl border border-border/50 bg-muted/50 p-1.5"
               aria-label={t("typeCardT")}
             >
               <TabsTrigger
