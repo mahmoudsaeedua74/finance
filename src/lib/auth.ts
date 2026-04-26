@@ -9,6 +9,17 @@ const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 export const authOptions: NextAuthOptions = {
   secret: secret || "dev-only-change-in-production",
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  events: {
+    async signIn({ user }) {
+      if (!user?.id) return;
+      try {
+        await connectDB();
+        await User.updateOne({ _id: user.id }, { $set: { lastLoginAt: new Date() } });
+      } catch (e) {
+        console.error("[next-auth] signIn lastLoginAt update failed", e);
+      }
+    },
+  },
   pages: {
     signIn: "/login",
     /* Avoid bare /api/auth/error; send users to login with ?error=… so the UI can toast */

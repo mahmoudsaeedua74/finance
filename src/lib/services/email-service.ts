@@ -27,3 +27,7 @@ export async function sendEmail(input: {
   await transport.sendMail({ from, to: input.to, subject: input.subject, html: input.html, text: input.text });
   return { sent: true as const };
 }
+
+export function isSmtpConfigured(): boolean {
+  return getTransport() != null;
+}

@@ -92,12 +92,48 @@
     "registerBannerDb": "Server cannot reach MongoDB. Fix MONGODB_URI and Atlas network access, then try again.",
     "registerPolicyWait": "Checking if sign-up is allowed…"
   },
+  "metadata": {
+    "title": "Personal Finance",
+    "description": "Track income, expenses, and projects in one place."
+  },
   "nav": {
     "dashboard": "Dashboard",
     "income": "Income",
     "expenses": "Expenses",
     "projects": "Projects",
-    "report": "Report"
+    "report": "Report",
+    "settings": "Settings"
+  },
+  "monthCompare": {
+    "title": "Month over month",
+    "subtitle": "{current} vs {previous} — net and totals for the two selected calendar months (same month view as the header).",
+    "income": "Total income",
+    "expenses": "Total expenses",
+    "net": "Net balance"
+  },
+  "settings": {
+    "title": "Notifications & email",
+    "description": "Control alerts in the app and which jobs send you email. SMTP must be configured on the server.",
+    "emailSection": "Email & copies",
+    "emailSectionDesc": "Digest emails show income vs spending for the current calendar month and key budget lines.",
+    "mirrorInApp": "Mirror in-app alerts to email",
+    "mirrorInAppDesc": "Sends a message for each automated alert (no login, budget, net drop, etc.) when your mail is set up.",
+    "digestEmail": "Financial digest (periodic email)",
+    "digestEmailDesc": "Sends a summary with spent amount and a simple remaining-balance line on your chosen schedule.",
+    "criticalEmail": "Over-budget (critical) emails",
+    "criticalEmailDesc": "If off, you still get in-app alerts, but 100% over budget will not be emailed (only in-app).",
+    "noLogin": "Nudge if you have not signed in today",
+    "noLoginDesc": "Once per day, after the account is at least 12h old, if you have not opened the app this UTC day.",
+    "netDrop": "When net balance is lower than the previous month",
+    "netDropDesc": "Compares the last two completed months and emails if the newer month is worse.",
+    "inactivityNudge": "No new entries in N days",
+    "inactivityNudgeDesc": "Warns (and can email) when you have not added any income or expense in the number of days below.",
+    "rulesSection": "Rules",
+    "budgetThreshold": "Near-budget % (default 80%)",
+    "inactivityDays": "Inactivity lookback (days)",
+    "digestCadence": "Digest schedule",
+    "cadDaily": "Daily",
+    "cadWeekly": "Weekly"
   },
   "navM": { "home": "Home", "income": "Income", "spend": "Spend", "work": "Work", "report": "Report" },
   "layout": {

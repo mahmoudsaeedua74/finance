@@ -22,6 +22,7 @@ import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { BarChart3 } from "lucide-react";
+import { MonthCompareSection } from "@/components/dashboard/month-compare-section";
 
 export default function DashboardPage() {
   const { year, month } = useMonth();
@@ -79,6 +80,7 @@ export default function DashboardPage() {
       )}
 
       <SummaryCards report={!isLoading ? report : undefined} />
+      <MonthCompareSection />
       <BudgetCards />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <BudgetManager />

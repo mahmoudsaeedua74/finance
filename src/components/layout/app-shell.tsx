@@ -10,6 +10,7 @@ import {
   Receipt,
   FolderKanban,
   FileBarChart2,
+  Settings,
   Wallet,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -45,6 +46,7 @@ const sideLinks = [
   { href: "/expense", k: "expenses" as const, Icon: Receipt },
   { href: "/projects", k: "projects" as const, Icon: FolderKanban },
   { href: "/report", k: "report" as const, Icon: FileBarChart2 },
+  { href: "/settings", k: "settings" as const, Icon: Settings },
 ] as const;
 
 function useSummaryChip() {

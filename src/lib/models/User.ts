@@ -5,6 +5,8 @@ export interface IUser {
   email: string;
   passwordHash: string;
   name?: string;
+  /** Updated on every successful sign-in (for inactivity & email nudges). */
+  lastLoginAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -14,6 +16,7 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     passwordHash: { type: String, required: true },
     name: { type: String, trim: true, default: "" },
+    lastLoginAt: { type: Date, default: null, index: true },
   },
   { timestamps: true }
 );

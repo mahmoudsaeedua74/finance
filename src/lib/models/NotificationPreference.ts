@@ -8,6 +8,11 @@ export interface INotificationPreference {
   digestCadence: "daily" | "weekly";
   criticalEmailEnabled: boolean;
   digestEmailEnabled: boolean;
+  /** If true, in-app job notifications are also sent by email (when SMTP is configured). */
+  mirrorInAppToEmail: boolean;
+  noLoginReminderEmail: boolean;
+  netDecreaseEmail: boolean;
+  inactivityNudgeEmail: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +25,10 @@ const NotificationPreferenceSchema = new Schema<INotificationPreference>(
     digestCadence: { type: String, enum: ["daily", "weekly"], default: "weekly" },
     criticalEmailEnabled: { type: Boolean, default: true },
     digestEmailEnabled: { type: Boolean, default: true },
+    mirrorInAppToEmail: { type: Boolean, default: true },
+    noLoginReminderEmail: { type: Boolean, default: true },
+    netDecreaseEmail: { type: Boolean, default: true },
+    inactivityNudgeEmail: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
