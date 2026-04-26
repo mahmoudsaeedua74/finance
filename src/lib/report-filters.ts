@@ -1,5 +1,10 @@
 import type { MonthlyReportDto } from "@/types/report";
 import {
+  chartKeyForIncomeType,
+  INCOME_BY_TYPE_CHART_KEYS,
+  type IncomeTypeSlug,
+} from "@/lib/income-types";
+import {
   EXPENSE_CATEGORY_PRESETS,
   isPresetExpenseCategory,
 } from "./expense-categories";
@@ -7,6 +12,8 @@ import {
 export type ReportFilterState = {
   expenseCategory: string;
   projectId: string;
+  /** Filters general income lines (not project payouts). */
+  incomeSource: "all" | IncomeTypeSlug;
   search: string;
 };
 
@@ -44,6 +51,9 @@ export function applyReportFilters(
     inc = [];
     proj = proj.filter((p) => p._id === f.projectId);
   }
+  if (f.incomeSource && f.incomeSource !== "all") {
+    inc = inc.filter((i) => i.incomeType === f.incomeSource);
+  }
   if (f.expenseCategory && f.expenseCategory !== "all") {
     exp = exp.filter((e) => e.category === f.expenseCategory);
   }
@@ -62,16 +72,12 @@ export function applyReportFilters(
 
   const incomeByType: Record<string, number> = {};
   for (const i of inc) {
-    const key =
-      i.incomeType === "salary"
-        ? "Salary & payroll"
-        : i.incomeType === "freelance"
-          ? "Freelance & projects (income)"
-          : "Other income";
+    const key = chartKeyForIncomeType(i.incomeType);
     incomeByType[key] = (incomeByType[key] || 0) + i.amount;
   }
   if (projectIncome > 0) {
-    incomeByType["Project payouts"] = (incomeByType["Project payouts"] || 0) + projectIncome;
+    const pk = INCOME_BY_TYPE_CHART_KEYS.projectPayouts;
+    incomeByType[pk] = (incomeByType[pk] || 0) + projectIncome;
   }
 
   const expenseByCategory: Record<string, number> = {};
@@ -114,12 +120,16 @@ export function getDefaultReportFilters(): ReportFilterState {
   return {
     expenseCategory: "all",
     projectId: "all",
+    incomeSource: "all",
     search: "",
   };
 }
 
 export function isReportFilterDefault(f: ReportFilterState): boolean {
   return (
-    f.expenseCategory === "all" && f.projectId === "all" && !f.search.trim()
+    f.expenseCategory === "all" &&
+    f.projectId === "all" &&
+    f.incomeSource === "all" &&
+    !f.search.trim()
   );
 }

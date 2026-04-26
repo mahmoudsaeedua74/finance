@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
+import { normalizeIncomeType } from "@/lib/income-types";
 import { isDateInMonth } from "@/lib/monthly";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
       title: String(title),
       amount: Number(amount),
       date: new Date(date),
-      incomeType: incomeType || "other",
+      incomeType: normalizeIncomeType(incomeType),
     });
     return NextResponse.json(
       { data: { ...doc.toObject(), _id: String(doc._id) } },

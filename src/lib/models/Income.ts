@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
 
-export type IncomeType = "salary" | "freelance" | "other";
+export type IncomeType = "salary" | "freelance" | "gam3eya" | "other";
 
 export interface IIncome {
   _id: string;
@@ -21,7 +21,7 @@ const IncomeSchema = new Schema<IIncome>(
     date: { type: Date, required: true },
     incomeType: {
       type: String,
-      enum: ["salary", "freelance", "other"],
+      enum: ["salary", "freelance", "gam3eya", "other"],
       default: "other",
     },
   },

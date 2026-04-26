@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import { useMonth } from "@/context/month-context";
 
-const values = ["salary", "freelance", "other"] as const;
+const values = ["salary", "freelance", "gam3eya", "other"] as const;
 
 export default function NewIncomePage() {
   const t = useTranslations("income");

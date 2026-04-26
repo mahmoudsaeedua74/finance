@@ -176,14 +176,21 @@
     "byCategory": "Expenses by category",
     "incomeSrc": "Income sources",
     "noExp": "No expenses this month.",
-    "noInc": "No income this month."
+    "noInc": "No income this month.",
+    "incomeByTypeLabels": {
+      "salaryPayroll": "Salary & payroll",
+      "freelance": "Freelance & project income",
+      "gam3eya": "Savings circle (جمعية)",
+      "other": "Other income",
+      "projectPayouts": "Project payouts"
+    }
   },
   "income": {
     "pageTitle": "Income",
     "pageDesc": "Records for {month}",
     "add": "Add income",
     "lineTitle": "Line items",
-    "lineDesc": "Salary, freelance, and ad-hoc income in this month.",
+    "lineDesc": "Salary, freelance, savings circle, and ad-hoc income in this month.",
     "table": { "date": "Date", "type": "Type" },
     "noRows": "No income this month yet.",
     "editTitle": "Edit income",
@@ -196,7 +203,12 @@
     "newCardT": "Details",
     "newCardD": "Amounts are shown in your default currency.",
     "phTitle": "e.g. April salary, Client Acme",
-    "types": { "salary": "Salary", "freelance": "Freelance / project", "other": "Other" },
+    "types": {
+      "salary": "Salary",
+      "freelance": "Freelance / project",
+      "gam3eya": "Savings circle (جمعية)",
+      "other": "Other"
+    },
     "recurringSectionTitle": "Recurring income",
     "recurringSectionDesc": "Templates that auto-generate entries by schedule.",
     "recurringSaved": "Recurring income saved",
@@ -300,9 +312,12 @@
     "subtitle": "{month} — filter, then download PDF or Excel (exports match the current view).",
     "filters": "Filters",
     "customView": "Custom view",
-    "filterDesc": "Search across income titles, project names, and expense text. The two menus narrow the view: expenses by category, and project income by one project (or all).",
+    "filterDesc": "Search across titles and text. Use the menus to narrow expenses by category, general income by source (salary, freelance, savings circle, etc.), and project payouts by one project or all.",
     "filterCatSub": "Every preset category plus any custom labels used this month.",
     "filterProjSub": "All payouts in the month, or one project by name.",
+    "incSource": "Income source (general)",
+    "filterIncSub": "Salary, freelance, savings circle (جمعية), or other — does not include project payouts. Choose “All” to see every general line.",
+    "allIncSources": "All sources",
     "phSearch": "e.g. Cursor, network, جمعية…",
     "expCat": "Expense category",
     "allCats": "All categories",

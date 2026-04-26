@@ -6,6 +6,7 @@ import {
   templateAppliesInMonth,
   topEntry,
 } from "@/lib/monthly";
+import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
 import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { buildSmartInsights } from "@/lib/services/insight-service";
 
@@ -31,17 +32,12 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
   const incomeByType: Record<string, number> = {};
   for (const i of incomeRows) {
     totalIncomeFromIncomes += i.amount;
-    const key =
-      i.incomeType === "salary"
-        ? "Salary & payroll"
-        : i.incomeType === "freelance"
-          ? "Freelance & projects (income)"
-          : "Other income";
+    const key = chartKeyForIncomeType(i.incomeType);
     addToMap(incomeByType, key, i.amount);
   }
 
   const projectTotal = projectRows.reduce((s, p) => s + p.amount, 0);
-  addToMap(incomeByType, "Project payouts", projectTotal);
+  addToMap(incomeByType, INCOME_BY_TYPE_CHART_KEYS.projectPayouts, projectTotal);
 
   const totalIncome = totalIncomeFromIncomes + projectTotal;
 

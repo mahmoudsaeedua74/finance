@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
+import { normalizeIncomeType } from "@/lib/income-types";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         ...(title != null && { title: String(title) }),
         ...(amount != null && { amount: Number(amount) }),
         ...(date != null && { date: new Date(date) }),
-        ...(incomeType != null && { incomeType }),
+        ...(incomeType != null && { incomeType: normalizeIncomeType(incomeType) }),
       },
       { new: true }
     );

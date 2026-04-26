@@ -60,7 +60,9 @@ export default function ReportPage() {
   const xlsxName = `${filenameBase}${suffix}.xlsx`;
 
   const incomeTypeLabel = (v: string) =>
-    v === "salary" || v === "freelance" || v === "other" ? tInc(`types.${v}`) : v;
+    v === "salary" || v === "freelance" || v === "gam3eya" || v === "other"
+      ? tInc(`types.${v}`)
+      : v;
 
   const emailMut = useMutation({
     mutationFn: () =>

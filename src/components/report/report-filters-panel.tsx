@@ -26,6 +26,7 @@ import {
   isReportFilterDefault,
   type ReportFilterState,
 } from "@/lib/report-filters";
+import { INCOME_TYPES } from "@/lib/income-types";
 import {
   EXPENSE_CATEGORY_PRESETS,
   isPresetExpenseCategory,
@@ -53,6 +54,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
   const t = useTranslations("report");
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
+  const tInc = useTranslations("income.types");
 
   const monthCategoryKeys = useMemo(
     () => (raw ? getUniqueExpenseCategories(raw) : []),
@@ -98,7 +100,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
 
       <div className="p-4 sm:p-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end sm:gap-4 lg:grid-cols-12 lg:gap-x-4">
-          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-4">
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
             <div className={filterLabelSlotClass}>
               <Label htmlFor="rep-search" className={filterLabelClass}>
                 {tC("search")}
@@ -115,7 +117,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
               className="h-11 w-full rounded-xl border-border/80 bg-background shadow-sm"
             />
           </div>
-          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-4">
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
             <div className={filterLabelSlotClass}>
               <Label htmlFor="filter-expense-cat" className={filterLabelClass}>
                 {t("expCat")}
@@ -179,7 +181,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-4">
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
             <div className={filterLabelSlotClass}>
               <Label htmlFor="filter-project" className={filterLabelClass}>
                 {t("projInc")}
@@ -223,6 +225,48 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
                         {formatMoney(p.amount)}
                       </span>
                     </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
+            <div className={filterLabelSlotClass}>
+              <Label htmlFor="filter-income-src" className={filterLabelClass}>
+                {t("incSource")}
+              </Label>
+              <p className="text-[0.7rem] leading-snug text-muted-foreground sm:text-xs">
+                {t("filterIncSub")}
+              </p>
+            </div>
+            <Select
+              value={filter.incomeSource}
+              onValueChange={(v) =>
+                v && setFilter((f) => ({ ...f, incomeSource: v as ReportFilterState["incomeSource"] }))
+              }
+            >
+              <SelectTrigger className={reportSelectTriggerClass} id="filter-income-src">
+                <SelectValue>
+                  {filter.incomeSource === "all" ? t("allIncSources") : tInc(filter.incomeSource)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent
+                className={reportSelectContentClass}
+                align="start"
+                sideOffset={6}
+              >
+                <SelectItem value="all" className="cursor-pointer rounded-lg py-2.5">
+                  {t("allIncSources")}
+                </SelectItem>
+                <SelectSeparator className="my-1" />
+                {INCOME_TYPES.map((key) => (
+                  <SelectItem
+                    key={key}
+                    value={key}
+                    className="cursor-pointer rounded-lg py-2.5"
+                    title={tInc(key)}
+                  >
+                    {tInc(key)}
                   </SelectItem>
                 ))}
               </SelectContent>

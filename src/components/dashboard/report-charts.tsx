@@ -17,7 +17,16 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MonthlyReportDto } from "@/types/report";
 import { labelExpenseCategory } from "@/lib/expense-categories";
+import { INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
 import { useMemo, memo } from "react";
+
+const CHART_TO_I18N: Record<string, string> = {
+  [INCOME_BY_TYPE_CHART_KEYS.salary]: "salaryPayroll",
+  [INCOME_BY_TYPE_CHART_KEYS.freelance]: "freelance",
+  [INCOME_BY_TYPE_CHART_KEYS.gam3eya]: "gam3eya",
+  [INCOME_BY_TYPE_CHART_KEYS.other]: "other",
+  [INCOME_BY_TYPE_CHART_KEYS.projectPayouts]: "projectPayouts",
+};
 
 // oklch CSS vars are not always valid in SVG; use a fixed palette in charts
 const PIE = ["#22c55e", "#0ea5e9", "#a855f7", "#f97316", "#64748b", "#e11d48"];
@@ -36,11 +45,17 @@ function ReportChartsInner({ report }: { report: MonthlyReportDto | undefined })
 
   const incomeData = useMemo(() => {
     if (!report) return [];
-    return Object.entries(report.incomeByType).map(([name, value]) => ({
-      name,
-      value,
-    }));
-  }, [report]);
+    return Object.entries(report.incomeByType).map(([name, value]) => {
+      const sub = CHART_TO_I18N[name];
+      let label = name;
+      if (sub === "salaryPayroll") label = t("incomeByTypeLabels.salaryPayroll");
+      else if (sub === "freelance") label = t("incomeByTypeLabels.freelance");
+      else if (sub === "gam3eya") label = t("incomeByTypeLabels.gam3eya");
+      else if (sub === "other") label = t("incomeByTypeLabels.other");
+      else if (sub === "projectPayouts") label = t("incomeByTypeLabels.projectPayouts");
+      return { name: label, value };
+    });
+  }, [report, t]);
 
   if (!report) {
     return (

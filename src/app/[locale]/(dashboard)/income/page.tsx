@@ -154,7 +154,7 @@ export default function IncomeListPage() {
   });
 
   const typeLabel = (v: string) =>
-    v === "salary" || v === "freelance" || v === "other" ? t(`types.${v}`) : v;
+    v === "salary" || v === "freelance" || v === "gam3eya" || v === "other" ? t(`types.${v}`) : v;
 
   return (
     <div className="max-w-4xl space-y-4">
@@ -333,6 +333,7 @@ export default function IncomeListPage() {
                 <SelectContent>
                   <SelectItem value="salary">{t("types.salary")}</SelectItem>
                   <SelectItem value="freelance">{t("types.freelance")}</SelectItem>
+                  <SelectItem value="gam3eya">{t("types.gam3eya")}</SelectItem>
                   <SelectItem value="other">{t("types.other")}</SelectItem>
                 </SelectContent>
               </Select>
