@@ -45,9 +45,14 @@ export async function GET(req: Request) {
       },
       { $sort: { total: -1 } },
     ]);
+    const totalSum =
+      byName.length > 0
+        ? byName.reduce((s, r) => s + r.total, 0)
+        : 0;
     return NextResponse.json({
       data: {
         byName: byName.map((r) => ({ name: r._id, total: r.total })),
+        totalAmount: totalSum,
       },
     });
   } catch (e) {

@@ -38,6 +38,7 @@ import {
   type ExpenseRow,
 } from "@/features/expenses/hooks";
 import { PageHeader } from "@/components/ui/page-header";
+import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
 import { Loader2 } from "lucide-react";
@@ -200,11 +201,21 @@ export default function ExpenseListPage() {
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
   const { year, month } = useMonth();
-  const { data, isLoading, error } = useExpensesForMonth();
-  const { data: allData } = useExpenseTemplatesList();
-
-  const rows = data?.data ?? [];
-  const templates = (allData?.data ?? []).filter((r) => r.isTemplate) as ExpenseRow[];
+  const {
+    flatData: rows,
+    isLoading,
+    error,
+    fetchNextPage: fetchNextMonth,
+    hasNextPage: hasNextMonth,
+    isFetchingNextPage: isFetchingMonth,
+  } = useExpensesForMonth();
+  const {
+    flatData: templateRows,
+    fetchNextPage: fetchNextTmpl,
+    hasNextPage: hasNextTmpl,
+    isFetchingNextPage: isFetchingTmpl,
+  } = useExpenseTemplatesList();
+  const templates = templateRows.filter((r) => r.isTemplate) as ExpenseRow[];
 
   const [edit, setEdit] = useState<ExpenseRow | null>(null);
 
@@ -303,6 +314,16 @@ export default function ExpenseListPage() {
                   })}
                 </TableBody>
               </Table>
+              {rows.length > 0 && (
+                <PaginatedListFooter
+                  hasNextPage={!!hasNextMonth}
+                  isFetchingNextPage={isFetchingMonth}
+                  onLoadMore={() => void fetchNextMonth()}
+                  labelLoadMore={tC("loadMore")}
+                  labelLoading={tC("loadingMore")}
+                  labelEnd={tC("endOfList")}
+                />
+              )}
             </div>
           )}
         </CardContent>
@@ -376,6 +397,16 @@ export default function ExpenseListPage() {
                   })}
                 </TableBody>
               </Table>
+              {templates.length > 0 && (
+                <PaginatedListFooter
+                  hasNextPage={!!hasNextTmpl}
+                  isFetchingNextPage={isFetchingTmpl}
+                  onLoadMore={() => void fetchNextTmpl()}
+                  labelLoadMore={tC("loadMore")}
+                  labelLoading={tC("loadingMore")}
+                  labelEnd={tC("endOfList")}
+                />
+              )}
             </div>
           )}
         </CardContent>

@@ -37,7 +37,10 @@
     "noneInView": "None in this view.",
     "savingChanges": "Saving changes…",
     "savingIncome": "Saving income…",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "loadMore": "Load more",
+    "loadingMore": "Loading more…",
+    "endOfList": "End of list"
   },
   "dashboard": {
     "forecastTitle": "Forecast (next month)",

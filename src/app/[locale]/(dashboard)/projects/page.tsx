@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
+import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
@@ -51,8 +53,6 @@ type Row = {
   date: string;
   note?: string;
 };
-
-type ExpenseRowLite = { projectName?: string; amount: number };
 
 function EditP({
   row,
@@ -174,19 +174,55 @@ export default function ProjectsPage() {
   const locale = useLocale();
   const { year, month } = useMonth();
   const { invalidateProjects } = useFinanceInvalidation();
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["projects", year, month],
-    queryFn: () =>
-      jsonFetch<{ data: Row[] }>(`/api/projects?year=${year}&month=${month}`),
+  const {
+    flatData: monthRowsRaw,
+    isLoading,
+    error,
+    fetchNextPage: fetchNextMonth,
+    hasNextPage: hasNextMonth,
+    isFetchingNextPage: isFetchingMonth,
+  } = useInfiniteOffsetQuery<Row>({
+    queryKey: ["projects", year, month, "paged"],
+    getUrl: (off, lim) =>
+      `/api/projects?year=${year}&month=${month}&offset=${off}&limit=${lim}`,
   });
-  const { data: allQ } = useQuery({
-    queryKey: ["projects", "all"],
-    queryFn: () => jsonFetch<{ data: Row[] }>("/api/projects"),
+  const {
+    flatData: allRows,
+    fetchNextPage: fetchNextAll,
+    hasNextPage: hasNextAll,
+    isFetchingNextPage: isFetchingAll,
+  } = useInfiniteOffsetQuery<Row>({
+    queryKey: ["projects", "all", "paged"],
+    getUrl: (off, lim) => `/api/projects?offset=${off}&limit=${lim}`,
   });
-  const { data: expensesMonth } = useQuery({
-    queryKey: ["expenses", year, month],
+  const { data: plData } = useQuery({
+    queryKey: ["projects", "monthPl", year, month],
     queryFn: () =>
-      jsonFetch<{ data: ExpenseRowLite[] }>(`/api/expenses?year=${year}&month=${month}`),
+      jsonFetch<{
+        data: {
+          rows: {
+            key: string;
+            label: string;
+            received: number;
+            spent: number;
+            net: number;
+          }[];
+        };
+      }>(`/api/projects/month-pl?year=${year}&month=${month}`),
+  });
+  const { data: sumAll } = useQuery({
+    queryKey: ["projects", "summary", "all"],
+    queryFn: () =>
+      jsonFetch<{
+        data: { byName: { name: string; total: number }[]; totalAmount: number };
+      }>("/api/projects/summary"),
+  });
+  const { data: sumMonth } = useQuery({
+    queryKey: ["projects", "summary", year, month],
+    queryFn: () =>
+      jsonFetch<{
+        data: { byName: { name: string; total: number }[]; totalAmount: number };
+      }>(`/api/projects/summary?year=${year}&month=${month}`),
   });
 
   const [name, setName] = useState("");
@@ -240,12 +276,10 @@ export default function ProjectsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const monthRows = useMemo(() => data?.data ?? [], [data?.data]);
-  const allRows = useMemo(() => allQ?.data ?? [], [allQ?.data]);
-
   const monthView = useMemo(
-    () => sortRowsByNameAmountDate(filterRowsByNameQuery(monthRows, q), sortBy, sortDir),
-    [monthRows, q, sortBy, sortDir]
+    () =>
+      sortRowsByNameAmountDate(filterRowsByNameQuery(monthRowsRaw, q), sortBy, sortDir),
+    [monthRowsRaw, q, sortBy, sortDir]
   );
 
   const allView = useMemo(
@@ -253,57 +287,8 @@ export default function ProjectsPage() {
     [allRows, q, sortBy, sortDir]
   );
 
-  const byName = useMemo(() => {
-    const m2 = new Map<string, number>();
-    for (const r of allRows) {
-      m2.set(r.name, (m2.get(r.name) || 0) + r.amount);
-    }
-    return Array.from(m2.entries())
-      .map(([n, total]) => ({ name: n, total }))
-      .sort((a, b) => b.total - a.total);
-  }, [allRows]);
-
-  const projectPlRows = useMemo(() => {
-    const payouts = data?.data ?? [];
-    const expRows = expensesMonth?.data ?? [];
-    const spendByKey = new Map<string, { amount: number; display: string }>();
-    for (const e of expRows) {
-      const raw = e.projectName?.trim();
-      if (!raw) continue;
-      const k = raw.toLowerCase();
-      const prev = spendByKey.get(k);
-      const display = prev?.display ?? raw;
-      spendByKey.set(k, { amount: (prev?.amount ?? 0) + e.amount, display });
-    }
-    const receivedByKey = new Map<string, { amount: number; display: string }>();
-    for (const r of payouts) {
-      const n = r.name?.trim();
-      if (!n) continue;
-      const k = n.toLowerCase();
-      const prev = receivedByKey.get(k);
-      const display = prev?.display ?? n;
-      receivedByKey.set(k, { amount: (prev?.amount ?? 0) + r.amount, display });
-    }
-    const keys = new Set<string>();
-    for (const k of Array.from(spendByKey.keys())) keys.add(k);
-    for (const k of Array.from(receivedByKey.keys())) keys.add(k);
-    return Array.from(keys)
-      .map((k) => {
-        const rec = receivedByKey.get(k);
-        const sp = spendByKey.get(k);
-        const display = rec?.display ?? sp?.display ?? k;
-        return {
-          key: k,
-          label: display,
-          received: rec?.amount ?? 0,
-          spent: sp?.amount ?? 0,
-          net: (rec?.amount ?? 0) - (sp?.amount ?? 0),
-        };
-      })
-      .sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
-      );
-  }, [data?.data, expensesMonth?.data]);
+  const byName = sumAll?.data?.byName ?? [];
+  const projectPlRows = plData?.data?.rows ?? [];
 
   return (
     <div className="max-w-4xl space-y-4">

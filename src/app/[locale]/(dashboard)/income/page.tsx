@@ -1,6 +1,8 @@
 "use client";
 
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
+import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { useLocale, useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
 import { jsonFetch } from "@/lib/fetcher";
@@ -57,26 +59,34 @@ export default function IncomeListPage() {
   const locale = useLocale();
   const { year, month } = useMonth();
   const { invalidateIncomes } = useFinanceInvalidation();
-  const { data, isLoading, error } = useQuery({
+  const {
+    flatData: rows,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteOffsetQuery<Row>({
     queryKey: ["incomes", year, month],
-    queryFn: () =>
-      jsonFetch<{ data: Row[] }>(`/api/incomes?year=${year}&month=${month}`),
+    getUrl: (off, lim) =>
+      `/api/incomes?year=${year}&month=${month}&offset=${off}&limit=${lim}`,
   });
-  const rows = data?.data ?? [];
-  const { data: recurringData } = useQuery({
+  type RecRow = {
+    _id: string;
+    title: string;
+    amount: number;
+    frequency: "monthly" | "weekly";
+    active: boolean;
+  };
+  const {
+    flatData: recurringRows,
+    fetchNextPage: fetchNextRecurring,
+    hasNextPage: hasNextRecurring,
+    isFetchingNextPage: isFetchingRecurring,
+  } = useInfiniteOffsetQuery<RecRow>({
     queryKey: ["recurring-incomes"],
-    queryFn: () =>
-      jsonFetch<{
-        data: {
-          _id: string;
-          title: string;
-          amount: number;
-          frequency: "monthly" | "weekly";
-          active: boolean;
-        }[];
-      }>("/api/recurring-incomes"),
+    getUrl: (off, lim) => `/api/recurring-incomes?offset=${off}&limit=${lim}`,
   });
-  const recurringRows = recurringData?.data ?? [];
 
   const [edit, setEdit] = useState<Row | null>(null);
   const [tx, setTx] = useState("");
@@ -236,6 +246,16 @@ export default function IncomeListPage() {
                   ))}
                 </TableBody>
               </Table>
+              {rows.length > 0 && (
+                <PaginatedListFooter
+                  hasNextPage={!!hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  onLoadMore={() => void fetchNextPage()}
+                  labelLoadMore={tC("loadMore")}
+                  labelLoading={tC("loadingMore")}
+                  labelEnd={tC("endOfList")}
+                />
+              )}
             </div>
           )}
         </CardContent>
@@ -286,16 +306,26 @@ export default function IncomeListPage() {
             </Button>
           </div>
           {recurringRows.length > 0 && (
-            <div className="space-y-2 rounded-md border p-3">
-              {recurringRows.map((r) => (
-                <div key={r._id} className="flex items-center justify-between text-sm">
-                  <span>{r.title}</span>
-                  <span className="text-muted-foreground">
-                    {r.frequency === "monthly" ? t("freqMonthly") : t("freqWeekly")} ·{" "}
-                    {formatMoney(r.amount)}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <div className="space-y-2 rounded-md border p-3">
+                {recurringRows.map((r) => (
+                  <div key={r._id} className="flex items-center justify-between text-sm">
+                    <span>{r.title}</span>
+                    <span className="text-muted-foreground">
+                      {r.frequency === "monthly" ? t("freqMonthly") : t("freqWeekly")} ·{" "}
+                      {formatMoney(r.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <PaginatedListFooter
+                hasNextPage={!!hasNextRecurring}
+                isFetchingNextPage={isFetchingRecurring}
+                onLoadMore={() => void fetchNextRecurring()}
+                labelLoadMore={tC("loadMore")}
+                labelLoading={tC("loadingMore")}
+                labelEnd={tC("endOfList")}
+              />
             </div>
           )}
         </CardContent>

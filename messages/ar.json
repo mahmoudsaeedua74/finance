@@ -37,7 +37,10 @@
     "noneInView": "لا شيء يطابق هذا العرض.",
     "savingChanges": "جارٍ حفظ التغييرات…",
     "savingIncome": "جارٍ حفظ الدخل…",
-    "saving": "جارٍ الحفظ…"
+    "saving": "جارٍ الحفظ…",
+    "loadMore": "تحميل المزيد",
+    "loadingMore": "جارٍ تحميل المزيد…",
+    "endOfList": "نهاية القائمة"
   },
   "dashboard": {
     "forecastTitle": "توقعات (الشهر القادم)",

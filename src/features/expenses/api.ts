@@ -1,4 +1,5 @@
 import { jsonFetch } from "@/lib/fetcher";
+import type { PaginatedBody } from "@/lib/api/list-pagination";
 import type {
   CreateRecurringTemplateInput,
   CreateVariableExpenseInput,
@@ -6,17 +7,24 @@ import type {
   UpdateExpenseInput,
 } from "./types";
 
-export type ExpenseListResponse = { data: ExpenseRow[] };
+export type ExpenseListPage = PaginatedBody<ExpenseRow>;
 
 export async function fetchExpensesByMonth(
   year: number,
-  month: number
-): Promise<ExpenseListResponse> {
-  return jsonFetch<ExpenseListResponse>(`/api/expenses?year=${year}&month=${month}`);
+  month: number,
+  offset: number,
+  limit: number
+): Promise<ExpenseListPage> {
+  return jsonFetch<ExpenseListPage>(
+    `/api/expenses?year=${year}&month=${month}&offset=${offset}&limit=${limit}`
+  );
 }
 
-export async function fetchAllExpensesForTemplates(): Promise<ExpenseListResponse> {
-  return jsonFetch<ExpenseListResponse>("/api/expenses");
+export async function fetchExpenseTemplatesPage(
+  offset: number,
+  limit: number
+): Promise<ExpenseListPage> {
+  return jsonFetch<ExpenseListPage>(`/api/expenses?offset=${offset}&limit=${limit}`);
 }
 
 export async function createExpense(

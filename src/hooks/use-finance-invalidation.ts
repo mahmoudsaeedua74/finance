@@ -46,6 +46,8 @@ export function useFinanceInvalidation() {
         void qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
         void qc.invalidateQueries({ queryKey: queryKeys.projects.allForSpend() });
         void qc.invalidateQueries({ queryKey: queryKeys.projects.distinctNames() });
+        void qc.invalidateQueries({ queryKey: ["projects", "summary"] });
+        void qc.invalidateQueries({ queryKey: ["projects", "monthPl"] });
         void qc.invalidateQueries({ queryKey: queryKeys.report(year, month) });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
       },

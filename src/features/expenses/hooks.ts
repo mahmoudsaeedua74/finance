@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
@@ -9,27 +10,32 @@ import { withMutationToasts, toastErrorOnly } from "@/features/_lib/mutation-toa
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { resolveExpenseCategoryForSave } from "@/lib/expense-categories";
 import type { ExpenseRow, UpdateExpenseInput } from "./types";
-import {
-  createExpense,
-  deleteExpense,
-  fetchAllExpensesForTemplates,
-  fetchExpensesByMonth,
-  updateExpense,
-} from "./api";
+import { createExpense, deleteExpense, updateExpense } from "./api";
 import type { CreateRecurringTemplateInput, CreateVariableExpenseInput } from "./types";
 
 export function useExpensesForMonth() {
   const { year, month } = useMonth();
-  return useQuery({
+  return useInfiniteOffsetQuery<ExpenseRow>({
     queryKey: queryKeys.expenses.month(year, month),
-    queryFn: () => fetchExpensesByMonth(year, month),
+    getUrl: (off, lim) => {
+      const params = new URLSearchParams({
+        year: String(year),
+        month: String(month),
+        offset: String(off),
+        limit: String(lim),
+      });
+      return `/api/expenses?${params.toString()}`;
+    },
   });
 }
 
 export function useExpenseTemplatesList() {
-  return useQuery({
+  return useInfiniteOffsetQuery<ExpenseRow>({
     queryKey: queryKeys.expenses.all(),
-    queryFn: () => fetchAllExpensesForTemplates(),
+    getUrl: (off, lim) => {
+      const params = new URLSearchParams({ offset: String(off), limit: String(lim) });
+      return `/api/expenses?${params.toString()}`;
+    },
   });
 }
 
