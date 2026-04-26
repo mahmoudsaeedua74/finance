@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { checkDbOnClient } from "@/lib/client-db-health";
 
 function LoginForm() {
   const t = useTranslations("auth");
@@ -18,14 +19,6 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [regOpen, setRegOpen] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/auth/registration-open")
-      .then((r) => r.json())
-      .then((d: { open?: boolean }) => setRegOpen(Boolean(d.open)))
-      .catch(() => setRegOpen(false));
-  }, []);
 
   const callback = searchParams.get("callbackUrl") || "/";
   return (
@@ -40,6 +33,15 @@ function LoginForm() {
           onSubmit={async (e) => {
             e.preventDefault();
             setLoading(true);
+            const health = await checkDbOnClient();
+            if (!health.ok) {
+              setLoading(false);
+              toast.error(t("registerDbError"), {
+                description: health.message,
+                duration: 14_000,
+              });
+              return;
+            }
             const res = await signIn("credentials", {
               email: email.trim().toLowerCase(),
               password,
@@ -83,14 +85,12 @@ function LoginForm() {
             {loading ? "…" : t("signIn")}
           </Button>
         </form>
-        {regOpen && (
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            {t("noAccount")}{" "}
-            <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
-              {t("createAccount")}
-            </Link>
-          </p>
-        )}
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          {t("noAccount")}{" "}
+          <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+            {t("createAccount")}
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

@@ -62,7 +62,10 @@
     "backToSignIn": "Back to sign in",
     "registerChecking": "Checking registration…",
     "registerDbError": "Cannot reach the database",
-    "registerDbErrorDesc": "The server could not connect to MongoDB. In Vercel, set MONGODB_URI to your Atlas “Drivers” connection string, allow Network Access (e.g. 0.0.0.0/0), and ensure the DB user and password (URL-encode special characters) are correct."
+    "registerDbErrorDesc": "The server on Vercel could not open a MongoDB connection. Set MONGODB_URI (Atlas “Drivers” URI), add Network Access in Atlas (e.g. 0.0.0.0/0), and URL-encode special characters in the password. Registration still needs the database; this message explains the failure.",
+    "registerDbErrorNote": "This app has no “sign up without a server” mode—users are stored in MongoDB.",
+    "registerBannerDb": "Server cannot reach MongoDB. Fix MONGODB_URI and Atlas network access, then try again.",
+    "registerPolicyWait": "Checking if sign-up is allowed…"
   },
   "nav": {
     "dashboard": "Dashboard",

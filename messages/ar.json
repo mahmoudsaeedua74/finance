@@ -61,8 +61,11 @@
     "autoLoginFail": "تم إنشاء الحساب. سجّل الدخول يدويًا.",
     "backToSignIn": "العودة لتسجيل الدخول",
     "registerChecking": "التحقق من التسجيل…",
-    "registerDbError": "تعذر الاتصال بقاعدة البيانات",
-    "registerDbErrorDesc": "الخادم لا يتصل بـ MongoDB. في Vercel عيّن MONGODB_URI (سلسلة اتصال Driver من Atlas)، وافتح Network Access (مثلاً 0.0.0.0/0)، وتأكد من المستخدم وكلمة المرور (رموز خاصة بترميز URL)."
+    "registerDbError": "تعذر الالاتصال بقاعدة البيانات",
+    "registerDbErrorDesc": "الخادم على Vercel لا يتصل بـ MongoDB. عيّن MONGODB_URI (رابط Driver من Atlas) وشبكة Atlas (مثلاً 0.0.0.0/0) ورمز فك تشفير URL لكلمة المرور. إنشاء الحساب يحتاج قاعدة بيانات؛ هذه الرسالة توضح سبب المشكلة.",
+    "registerDbErrorNote": "لا يوجد تسجيل دون خادم—المستخدمون يُحفَظون في MongoDB.",
+    "registerBannerDb": "الخادم لا يتصل بـ MongoDB. صحح MONGODB_URI ووصول الشبكة في Atlas ثم أعد المحاولة.",
+    "registerPolicyWait": "جارٍ التحقق مما إذا كان التسجيل مسموحًا…"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
