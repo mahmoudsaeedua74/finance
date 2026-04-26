@@ -36,6 +36,7 @@ import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
+import { Loader2 } from "lucide-react";
 
 type Row = {
   _id: string;
@@ -119,18 +120,32 @@ function EditForm({
         }),
       });
     },
-    onSuccess: () => {
-      toast.success(tC("updated"));
+    onMutate: () => {
+      const toastId = toast.loading("Saving changes...");
+      return { toastId };
+    },
+    onSuccess: (_d, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.success(tC("updated"), { id: ctx.toastId });
+      } else {
+        toast.success(tC("updated"));
+      }
       invalidateExpenses({ includeAllList: true });
       onDone();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.error(e.message, { id: ctx.toastId });
+      } else {
+        toast.error(e.message);
+      }
+    },
   });
 
   return (
     <>
       {row.isTemplate ? (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <Label>{tC("title")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -163,7 +178,7 @@ function EditForm({
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div>
             <Label>{tC("title")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -193,11 +208,18 @@ function EditForm({
         </div>
       )}
       <DialogFooter className="mt-4">
-        <Button type="button" onClick={onDone} variant="outline">
+        <Button type="button" onClick={onDone} variant="outline" disabled={save.isPending}>
           {tC("close")}
         </Button>
-        <Button type="button" onClick={() => save.mutate()}>
-          {tC("save")}
+        <Button type="button" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? (
+            <>
+              <Loader2 className="me-2 size-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            tC("save")
+          )}
         </Button>
       </DialogFooter>
     </>

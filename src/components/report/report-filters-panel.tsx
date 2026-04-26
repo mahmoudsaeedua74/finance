@@ -34,6 +34,7 @@ import {
 import type { MonthlyReportDto } from "@/types/report";
 
 const filterLabelClass = "text-xs font-medium text-foreground/80";
+const filterLabelSlotClass = "flex min-h-9 flex-col justify-end";
 
 const reportSelectTriggerClass = cn(
   "h-11 w-full min-w-0 justify-between gap-2 rounded-xl border border-border/80 bg-background px-3 text-left text-sm font-normal shadow-sm transition-[box-shadow,background-color,border-color] hover:border-border hover:bg-muted/40 data-[size=default]:h-11 data-placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
@@ -76,7 +77,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Filter className="size-5" aria-hidden />
             </div>
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base font-semibold tracking-tight sm:text-lg">
                   {t("filters")}
@@ -96,11 +97,16 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
       </div>
 
       <div className="p-4 sm:p-5">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-12 lg:gap-x-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end sm:gap-4 lg:grid-cols-12 lg:gap-x-4">
           <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-4">
-            <Label htmlFor="rep-search" className={filterLabelClass}>
-              {tC("search")}
-            </Label>
+            <div className={filterLabelSlotClass}>
+              <Label htmlFor="rep-search" className={filterLabelClass}>
+                {tC("search")}
+              </Label>
+              <p className="text-[0.7rem] leading-snug text-transparent sm:text-xs" aria-hidden>
+                .
+              </p>
+            </div>
             <Input
               id="rep-search"
               value={filter.search}
@@ -110,7 +116,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
             />
           </div>
           <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-4">
-            <div className="space-y-0.5">
+            <div className={filterLabelSlotClass}>
               <Label htmlFor="filter-expense-cat" className={filterLabelClass}>
                 {t("expCat")}
               </Label>
@@ -174,7 +180,7 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
             </Select>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-4">
-            <div className="space-y-0.5">
+            <div className={filterLabelSlotClass}>
               <Label htmlFor="filter-project" className={filterLabelClass}>
                 {t("projInc")}
               </Label>

@@ -10,13 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import { jsonFetch } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
@@ -48,12 +42,26 @@ export default function NewIncomePage() {
           incomeType,
         }),
       }),
-    onSuccess: () => {
-      toast.success(t("saved"));
+    onMutate: () => {
+      const toastId = toast.loading("Saving income...");
+      return { toastId };
+    },
+    onSuccess: (_d, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.success(t("saved"), { id: ctx.toastId });
+      } else {
+        toast.success(t("saved"));
+      }
       invalidateIncomes({ allQueries: true });
       router.push("/income");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.error(e.message, { id: ctx.toastId });
+      } else {
+        toast.error(e.message);
+      }
+    },
   });
 
   return (
@@ -106,34 +114,42 @@ export default function NewIncomePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label>{tC("type")}</Label>
-            <Select value={incomeType} onValueChange={(v) => v && setIncomeType(v)}>
-              <SelectTrigger className="h-11 min-h-11 w-full data-[size=default]:h-11">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {values.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {t(`types.${v}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="income-type">{tC("type")}</Label>
+            <select
+              id="income-type"
+              className="h-11 w-full rounded-lg border border-input !bg-black px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={incomeType}
+              onChange={(e) => setIncomeType(e.target.value)}
+            >
+              {values.map((v) => (
+                <option key={v} value={v}>
+                  {t(`types.${v}`)}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col-reverse gap-2 min-[400px]:flex-row">
             <Button
               type="button"
               className="min-h-12 w-full touch-manipulation min-[400px]:w-auto"
               onClick={() => m.mutate()}
-              disabled={!title || !amount}
+              disabled={!title || !amount || m.isPending}
             >
-              {tC("save")}
+              {m.isPending ? (
+                <>
+                  <Loader2 className="me-2 size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                tC("save")
+              )}
             </Button>
             <Button
               type="button"
               className="min-h-12 w-full touch-manipulation min-[400px]:w-auto"
               variant="outline"
               onClick={() => router.back()}
+              disabled={m.isPending}
             >
               {tC("cancel")}
             </Button>

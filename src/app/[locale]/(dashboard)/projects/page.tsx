@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { exportProjectListExcel } from "@/lib/export-excel";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, ArrowUpDown, Search, Plus } from "lucide-react";
+import { FileSpreadsheet, ArrowUpDown, Search, Plus, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -38,6 +38,9 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+
+const controlLabelClass = "text-xs text-foreground/80";
+const controlLabelSlotClass = "flex min-h-5 items-center";
 
 type Row = {
   _id: string;
@@ -69,17 +72,31 @@ function EditP({
           date: new Date(date).toISOString(),
         }),
       }),
-    onSuccess: () => {
-      toast.success(t("done"));
+    onMutate: () => {
+      const toastId = toast.loading("Saving changes...");
+      return { toastId };
+    },
+    onSuccess: (_d, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.success(t("done"), { id: ctx.toastId });
+      } else {
+        toast.success(t("done"));
+      }
       invalidateProjects();
       onDone();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.error(e.message, { id: ctx.toastId });
+      } else {
+        toast.error(e.message);
+      }
+    },
   });
   return (
     <>
-      <div className="space-y-3">
-        <div className="space-y-1.5">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <Label htmlFor={`edit-proj-name-${row._id}`}>{tC("name")}</Label>
           <Input
             id={`edit-proj-name-${row._id}`}
@@ -88,7 +105,7 @@ function EditP({
             onChange={(e) => setName(e.target.value)}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-2.5">
           <Label htmlFor={`edit-proj-amt-${row._id}`}>{t("incomeAmt")}</Label>
           <Input
             id={`edit-proj-amt-${row._id}`}
@@ -99,7 +116,7 @@ function EditP({
             onChange={(e) => setAmount(e.target.value)}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-2.5">
           <Label htmlFor={`edit-proj-date-${row._id}`}>{tC("date")}</Label>
           <Input
             id={`edit-proj-date-${row._id}`}
@@ -110,15 +127,22 @@ function EditP({
           />
         </div>
         <DialogFooter className="gap-2 sm:gap-0 sm:pt-0">
-          <Button type="button" variant="outline" onClick={onDone}>
+          <Button type="button" variant="outline" onClick={onDone} disabled={save.isPending}>
             {tC("close")}
           </Button>
           <Button
             type="button"
             onClick={() => save.mutate()}
-            disabled={!name.trim() || !amount}
+            disabled={!name.trim() || !amount || save.isPending}
           >
-            {tC("save")}
+            {save.isPending ? (
+              <>
+                <Loader2 className="me-2 size-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              tC("save")
+            )}
           </Button>
         </DialogFooter>
       </div>
@@ -221,24 +245,28 @@ export default function ProjectsPage() {
 
       {error && <QueryErrorAlert error={error} />}
 
-      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
-        <div className="space-y-1.5 sm:col-span-2 lg:col-span-5">
-          <Label className="text-xs text-foreground/80" htmlFor="projects-search">
-            {tC("search")}
-          </Label>
+      <div className="flex w-full flex-wrap items-end gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1 basis-full flex flex-col gap-2.5 lg:basis-[22rem]">
+          <div className={controlLabelSlotClass}>
+            <Label className={controlLabelClass} htmlFor="projects-search">
+              {tC("search")}
+            </Label>
+          </div>
           <div className="relative">
-            <Search className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
             <Input
               id="projects-search"
-              className="h-11 ps-9"
+              className="h-11 ps-10"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={t("phSearch")}
             />
           </div>
         </div>
-        <div className="space-y-1.5 lg:col-span-3">
-          <Label className="text-xs text-foreground/80">{t("sortBy")}</Label>
+        <div className="min-w-0 flex-1 basis-[12rem] flex flex-col gap-2.5">
+          <div className={controlLabelSlotClass}>
+            <Label className={controlLabelClass}>{t("sortBy")}</Label>
+          </div>
           <Select
             value={sortBy}
             onValueChange={(v) => v && setSortBy(v as "date" | "name" | "amount")}
@@ -253,8 +281,10 @@ export default function ProjectsPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5 lg:col-span-2">
-          <Label className="text-xs text-foreground/80">{t("order")}</Label>
+        <div className="min-w-0 basis-[10.5rem] flex flex-col gap-2.5">
+          <div className={controlLabelSlotClass}>
+            <Label className={controlLabelClass}>{t("order")}</Label>
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -265,14 +295,14 @@ export default function ProjectsPage() {
             <ArrowUpDown className="size-4 shrink-0" />
           </Button>
         </div>
-        <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
-          <Label className="text-xs text-transparent select-none" aria-hidden>
-            .
-          </Label>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+        <div className="min-w-0 basis-full flex flex-col gap-2.5 sm:basis-auto">
+          <div className={controlLabelSlotClass}>
+            <Label className={controlLabelClass}>{tC("actions")}</Label>
+          </div>
+          <div className="flex min-w-0 gap-2 sm:justify-end">
             <Button
               type="button"
-              className="h-11 min-w-0 flex-1"
+              className="h-11 min-w-0 flex-1 sm:flex-none"
               onClick={openAddDialog}
             >
               <Plus className="me-2 size-4 shrink-0" />
@@ -281,7 +311,10 @@ export default function ProjectsPage() {
             <Button
               type="button"
               variant="secondary"
-              className="h-11 min-w-0 flex-1 sm:max-w-[12rem] lg:max-w-none"
+              size="icon"
+              title={t("excel")}
+              aria-label={t("excel")}
+              className="h-11 w-11 shrink-0"
               onClick={() => {
                 exportProjectListExcel(
                   allView,
@@ -290,8 +323,8 @@ export default function ProjectsPage() {
                 toast.success(t("excelOk"));
               }}
             >
-              <FileSpreadsheet className="me-2 size-4 shrink-0" />
-              {t("excel")}
+              <FileSpreadsheet className="size-4 shrink-0" />
+              <span className="sr-only">{t("excel")}</span>
             </Button>
           </div>
         </div>
@@ -439,35 +472,38 @@ export default function ProjectsPage() {
           setAddOpen(o);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle>{t("add")}</DialogTitle>
             <DialogDescription>{t("addDesc")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               <Label htmlFor="add-proj-name">{t("projName")}</Label>
               <Input
                 id="add-proj-name"
+                className="h-11"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-2.5">
               <Label htmlFor="add-proj-amt">{tC("amount")}</Label>
               <Input
                 id="add-proj-amt"
+                className="h-11"
                 type="number"
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-2.5">
               <Label htmlFor="add-proj-date">{tC("date")}</Label>
               <Input
                 id="add-proj-date"
+                className="h-11"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}

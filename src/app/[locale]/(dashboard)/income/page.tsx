@@ -25,6 +25,7 @@ import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -91,12 +92,26 @@ export default function IncomeListPage() {
         }),
       });
     },
-    onSuccess: () => {
-      toast.success(tC("updated"));
+    onMutate: () => {
+      const toastId = toast.loading("Saving changes...");
+      return { toastId };
+    },
+    onSuccess: (_d, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.success(tC("updated"), { id: ctx.toastId });
+      } else {
+        toast.success(tC("updated"));
+      }
       setEdit(null);
       invalidateIncomes();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.toastId) {
+        toast.error(e.message, { id: ctx.toastId });
+      } else {
+        toast.error(e.message);
+      }
+    },
   });
 
   const typeLabel = (v: string) =>
@@ -192,12 +207,12 @@ export default function IncomeListPage() {
           <DialogHeader>
             <DialogTitle>{t("editTitle")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <Label>{tC("title")}</Label>
               <Input value={tx} onChange={(e) => setTx(e.target.value)} />
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-2">
               <Label>{tC("amount")}</Label>
               <Input
                 type="number"
@@ -206,11 +221,11 @@ export default function IncomeListPage() {
                 onChange={(e) => setA(e.target.value)}
               />
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-2">
               <Label>{tC("date")}</Label>
               <Input type="date" value={d} onChange={(e) => setD(e.target.value)} />
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-2">
               <Label>{tC("type")}</Label>
               <Select value={ty} onValueChange={(v) => v && setTy(v)}>
                 <SelectTrigger>
@@ -225,10 +240,19 @@ export default function IncomeListPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEdit(null)}>
+            <Button variant="outline" onClick={() => setEdit(null)} disabled={update.isPending}>
               {tC("close")}
             </Button>
-            <Button onClick={() => update.mutate()}>{tC("save")}</Button>
+            <Button onClick={() => update.mutate()} disabled={update.isPending}>
+              {update.isPending ? (
+                <>
+                  <Loader2 className="me-2 size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                tC("save")
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

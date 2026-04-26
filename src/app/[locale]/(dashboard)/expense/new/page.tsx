@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { PageHeader } from "@/components/ui/page-header";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,10 +20,31 @@ import { Receipt, CalendarClock, Repeat } from "lucide-react";
 
 const field = "h-11 w-full min-w-0";
 const label = "text-xs font-medium text-muted-foreground leading-none";
-const formGrid = "grid grid-cols-1 gap-4 sm:grid-cols-2";
+const formGrid = "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4";
+const helperClass = "min-h-4 text-[0.7rem] leading-snug text-muted-foreground sm:text-xs";
+const actionRowClass = "sm:col-span-2 flex flex-col-reverse gap-2 pt-1 min-[420px]:flex-row";
 
 function FieldCol({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-col gap-2", className)}>{children}</div>;
+  return <div className={cn("flex min-w-0 flex-col gap-2", className)}>{children}</div>;
+}
+
+function FieldLabel({
+  htmlFor,
+  children,
+  helper,
+}: {
+  htmlFor: string;
+  children: ReactNode;
+  helper?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={htmlFor} className={label}>
+        {children}
+      </Label>
+      <p className={helperClass}>{helper ?? <span aria-hidden>&nbsp;</span>}</p>
+    </div>
+  );
 }
 
 export default function NewExpensePage() {
@@ -115,14 +137,7 @@ export default function NewExpensePage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {t("newTitle")}
-        </h1>
-        <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-muted-foreground">
-          {t("newDesc")}
-        </p>
-      </header>
+      <PageHeader title={t("newTitle")} description={t("newDesc")} />
 
       <section
         className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md"
@@ -146,28 +161,28 @@ export default function NewExpensePage() {
         </div>
 
         <Tabs defaultValue="variable" className="w-full">
-          <div className="px-3 pt-3 sm:px-4 sm:pt-4">
+          <div className="p-4 sm:p-5 sm:pt-4">
             <TabsList
-              className="!h-auto !w-full min-w-0 grid grid-cols-3 gap-1 rounded-xl border border-border/50 bg-muted/50 p-1.5"
+              className="!h-auto !w-full min-w-0  flex flex-col gap-3 rounded-xl border border-border/50 bg-muted/50 p-1.5"
               aria-label={t("typeCardT")}
             >
               <TabsTrigger
                 value="variable"
-                className="min-h-12 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
+                className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
               >
                 <Receipt className="size-3.5 shrink-0 sm:size-3.5" aria-hidden />
                 <span className="line-clamp-2 sm:line-clamp-1">{t("tabVar")}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="onetime"
-                className="min-h-12 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
+                className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
               >
                 <CalendarClock className="size-3.5 shrink-0" aria-hidden />
                 <span className="line-clamp-2 sm:line-clamp-1">{t("tabFix")}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="recurring"
-                className="min-h-12 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
+                className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
               >
                 <Repeat className="size-3.5 shrink-0" aria-hidden />
                 <span className="line-clamp-2 sm:line-clamp-1">{t("tabRec")}</span>
@@ -182,9 +197,7 @@ export default function NewExpensePage() {
               </p>
               <div className={formGrid}>
                 <FieldCol>
-                  <Label htmlFor="v-cat" className={label}>
-                    {tC("category")}
-                  </Label>
+                  <FieldLabel htmlFor="v-cat">{tC("category")}</FieldLabel>
                   <ExpenseCategoryField
                     id="v-cat"
                     value={varCat}
@@ -193,9 +206,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="v-amt" className={label}>
-                    {tC("amount")}
-                  </Label>
+                  <FieldLabel htmlFor="v-amt">{tC("amount")}</FieldLabel>
                   <Input
                     id="v-amt"
                     className={field}
@@ -206,15 +217,12 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol className="sm:col-span-2">
-                  <Label htmlFor="v-title" className={label}>
+                  <FieldLabel htmlFor="v-title" helper={t("varReasonHelp")}>
                     {t("varReason")}
-                  </Label>
-                  <p className="text-[0.7rem] leading-snug text-muted-foreground sm:text-xs">
-                    {t("varReasonHelp")}
-                  </p>
+                  </FieldLabel>
                   <Input
                     id="v-title"
-                    className={cn(field, "mt-1.5")}
+                    className={field}
                     value={varTitle}
                     onChange={(e) => setVarTitle(e.target.value)}
                     placeholder={t("varReasonPh")}
@@ -222,9 +230,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol className="sm:col-span-2">
-                  <Label htmlFor="v-date" className={label}>
-                    {tC("date")}
-                  </Label>
+                  <FieldLabel htmlFor="v-date">{tC("date")}</FieldLabel>
                   <Input
                     id="v-date"
                     className={field}
@@ -233,10 +239,18 @@ export default function NewExpensePage() {
                     onChange={(e) => setVarDate(e.target.value)}
                   />
                 </FieldCol>
-                <div className="sm:col-span-2">
+                <div className={actionRowClass}>
                   <Button
                     type="button"
-                    className="h-12 w-full touch-manipulation"
+                    variant="outline"
+                    className="h-11 w-full touch-manipulation min-[420px]:w-auto"
+                    onClick={() => router.back()}
+                  >
+                    {tC("cancel")}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 w-full touch-manipulation min-[420px]:w-auto"
                     onClick={() => mVar.mutate()}
                     disabled={!varTitle || !varAmount}
                   >
@@ -249,9 +263,7 @@ export default function NewExpensePage() {
             <TabsContent value="onetime" className="mt-0">
               <div className={formGrid}>
                 <FieldCol className="sm:col-span-2">
-                  <Label htmlFor="f-title" className={label}>
-                    {tC("title")}
-                  </Label>
+                  <FieldLabel htmlFor="f-title">{tC("title")}</FieldLabel>
                   <Input
                     id="f-title"
                     className={field}
@@ -261,9 +273,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="f-amt" className={label}>
-                    {tC("amount")}
-                  </Label>
+                  <FieldLabel htmlFor="f-amt">{tC("amount")}</FieldLabel>
                   <Input
                     id="f-amt"
                     className={field}
@@ -274,9 +284,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="f-cat" className={label}>
-                    {tC("category")}
-                  </Label>
+                  <FieldLabel htmlFor="f-cat">{tC("category")}</FieldLabel>
                   <ExpenseCategoryField
                     id="f-cat"
                     value={fixCat}
@@ -285,9 +293,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol className="sm:col-span-2">
-                  <Label htmlFor="f-date" className={label}>
-                    {t("dateInMonth")}
-                  </Label>
+                  <FieldLabel htmlFor="f-date">{t("dateInMonth")}</FieldLabel>
                   <Input
                     id="f-date"
                     className={field}
@@ -296,10 +302,18 @@ export default function NewExpensePage() {
                     onChange={(e) => setFixDate(e.target.value)}
                   />
                 </FieldCol>
-                <div className="sm:col-span-2">
+                <div className={actionRowClass}>
                   <Button
                     type="button"
-                    className="h-12 w-full touch-manipulation"
+                    variant="outline"
+                    className="h-11 w-full touch-manipulation min-[420px]:w-auto"
+                    onClick={() => router.back()}
+                  >
+                    {tC("cancel")}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 w-full touch-manipulation min-[420px]:w-auto"
                     onClick={() => mFix.mutate()}
                     disabled={!fixTitle || !fixAmount}
                   >
@@ -315,9 +329,7 @@ export default function NewExpensePage() {
               </p>
               <div className={formGrid}>
                 <FieldCol className="sm:col-span-2">
-                  <Label htmlFor="r-title" className={label}>
-                    {tC("title")}
-                  </Label>
+                  <FieldLabel htmlFor="r-title">{tC("title")}</FieldLabel>
                   <Input
                     id="r-title"
                     className={field}
@@ -327,9 +339,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="r-amt" className={label}>
-                    {t("formAmountPerMonth")}
-                  </Label>
+                  <FieldLabel htmlFor="r-amt">{t("formAmountPerMonth")}</FieldLabel>
                   <Input
                     id="r-amt"
                     className={field}
@@ -340,9 +350,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="r-cat" className={label}>
-                    {tC("category")}
-                  </Label>
+                  <FieldLabel htmlFor="r-cat">{tC("category")}</FieldLabel>
                   <ExpenseCategoryField
                     id="r-cat"
                     value={recCat}
@@ -351,9 +359,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="r-from" className={label}>
-                    {t("table.from")}
-                  </Label>
+                  <FieldLabel htmlFor="r-from">{t("table.from")}</FieldLabel>
                   <Input
                     id="r-from"
                     className={field}
@@ -363,9 +369,7 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <Label htmlFor="r-to" className={label}>
-                    {t("endOpt")}
-                  </Label>
+                  <FieldLabel htmlFor="r-to">{t("endOpt")}</FieldLabel>
                   <Input
                     id="r-to"
                     className={field}
@@ -374,10 +378,18 @@ export default function NewExpensePage() {
                     onChange={(e) => setRecTo(e.target.value)}
                   />
                 </FieldCol>
-                <div className="sm:col-span-2">
+                <div className={actionRowClass}>
                   <Button
                     type="button"
-                    className="h-12 w-full touch-manipulation"
+                    variant="outline"
+                    className="h-11 w-full touch-manipulation min-[420px]:w-auto"
+                    onClick={() => router.back()}
+                  >
+                    {tC("cancel")}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 w-full touch-manipulation min-[420px]:w-auto"
                     onClick={() => mRec.mutate()}
                     disabled={!recTitle || !recAmount}
                   >

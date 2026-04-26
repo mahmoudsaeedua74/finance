@@ -25,7 +25,7 @@ function InsightsPanelInner({ report }: { report: MonthlyReportDto | undefined }
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm leading-relaxed">
+      <CardContent className="flex flex-col gap-3 text-sm leading-relaxed">
         {insights.overspent && (
           <div className="flex gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] p-3.5 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-50">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-lg bg-amber-500/20">

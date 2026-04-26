@@ -40,7 +40,7 @@ export function DashboardRouteSkeleton() {
         <Skeleton className="h-56 w-full rounded-2xl border border-border/40" />
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-border/50 bg-card/40 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-card/40 p-4 sm:p-5">
         <div className="space-y-2">
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-3 w-72 max-w-full" />
