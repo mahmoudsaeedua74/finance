@@ -9,10 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTodayYearMonth } from "@/hooks/use-today-year-month";
 import { cn } from "@/lib/utils";
 import { resolveExpenseCategoryForSave } from "@/lib/expense-categories";
-import { toLocalYmd } from "@/lib/ymd";
+import { defaultFormDateYmd } from "@/lib/ymd";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { ProjectSpendField } from "@/components/expense/project-spend-field";
 import { Receipt, CalendarClock, Repeat } from "lucide-react";
@@ -62,36 +61,33 @@ export default function NewExpensePage() {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
   const router = useRouter();
-  const { year, month } = useTodayYearMonth();
   const { mVar, mFix, mRec } = useCreateExpenseFormMutations({
     onDone: () => router.push("/expense"),
     tSaved: { v: t("savedV"), f: t("savedF"), r: t("savedR") },
   });
-  const defDate = toLocalYmd(new Date(year, month - 1, 10));
-
   const [varTitle, setVarTitle] = useState("");
   const [varAmount, setVarAmount] = useState("");
   const [varCat, setVarCat] = useState("general");
-  const [varDate, setVarDate] = useState(defDate);
+  const [varDate, setVarDate] = useState(() => defaultFormDateYmd());
   const [varProjectName, setVarProjectName] = useState("");
 
   const [fixTitle, setFixTitle] = useState("");
   const [fixAmount, setFixAmount] = useState("");
   const [fixCat, setFixCat] = useState("subscription");
-  const [fixDate, setFixDate] = useState(defDate);
+  const [fixDate, setFixDate] = useState(() => defaultFormDateYmd());
   const [fixProjectName, setFixProjectName] = useState("");
 
   const [recTitle, setRecTitle] = useState("");
   const [recAmount, setRecAmount] = useState("");
   const [recCat, setRecCat] = useState("employee");
   const [recProjectName, setRecProjectName] = useState("");
-  /** First month the rule counts (default: first day of *next* month so new subscriptions don’t hit this month’s total). */
-  const [recFrom, setRecFrom] = useState(
-    toLocalYmd(new Date(year, month, 1)),
-  );
+  /** First day of the first month the rule applies (default: *today*; you can set next month or the 1st if you want). */
+  const [recFrom, setRecFrom] = useState(() => defaultFormDateYmd());
   const [recTo, setRecTo] = useState("");
-  /** Calendar day 1–30 for monthly due reminder (not the monthly report split). */
-  const [recDueDay, setRecDueDay] = useState("10");
+  /** Calendar day 1–30 for monthly due reminder; default = day-of-month of today. */
+  const [recDueDay, setRecDueDay] = useState(() =>
+    String(Math.min(30, Math.max(1, new Date().getDate())))
+  );
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">

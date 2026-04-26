@@ -14,7 +14,7 @@ import {
   sortRowsByNameAmountDate,
 } from "@/lib/sort-filter";
 import { useTodayYearMonth } from "@/hooks/use-today-year-month";
-import { toLocalYmd } from "@/lib/ymd";
+import { defaultFormDateYmd, toLocalYmd } from "@/lib/ymd";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, monthLabel, formatMoney } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -221,9 +221,7 @@ export default function ProjectsPage() {
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(
-    toLocalYmd(new Date(year, month - 1, 12))
-  );
+  const [date, setDate] = useState(() => defaultFormDateYmd());
   const [payoutNote, setPayoutNote] = useState("");
   const [edit, setEdit] = useState<Row | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -235,9 +233,9 @@ export default function ProjectsPage() {
     setName("");
     setAmount("");
     setPayoutNote("");
-    setDate(toLocalYmd(new Date(year, month - 1, 12)));
+    setDate(defaultFormDateYmd());
     setAddOpen(true);
-  }, [year, month]);
+  }, []);
 
   const m = useMutation({
     mutationFn: () =>

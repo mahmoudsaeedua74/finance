@@ -14,8 +14,7 @@ import { Loader2 } from "lucide-react";
 import { jsonFetch } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
-import { useTodayYearMonth } from "@/hooks/use-today-year-month";
-import { toLocalYmd } from "@/lib/ymd";
+import { defaultFormDateYmd } from "@/lib/ymd";
 
 const values = ["salary", "freelance", "gam3eya", "other"] as const;
 
@@ -24,12 +23,9 @@ export default function NewIncomePage() {
   const tC = useTranslations("common");
   const router = useRouter();
   const { invalidateIncomes } = useFinanceInvalidation();
-  const { year, month } = useTodayYearMonth();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(
-    () => toLocalYmd(new Date(year, month - 1, 15))
-  );
+  const [date, setDate] = useState(() => defaultFormDateYmd());
   const [incomeType, setIncomeType] = useState<string>("other");
 
   const m = useMutation({

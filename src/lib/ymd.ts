@@ -9,3 +9,8 @@ export function toLocalYmd(d: Date): string {
   const day = d.getDate();
   return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
+
+/** Default for `<input type="date">` on new forms: local calendar *today* (not a fixed day-of-month). */
+export function defaultFormDateYmd() {
+  return toLocalYmd(new Date());
+}
