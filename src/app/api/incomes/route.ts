@@ -1,0 +1,69 @@
+import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/mongodb";
+import { Income } from "@/lib/models";
+import { isDateInMonth } from "@/lib/monthly";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const year = searchParams.get("year");
+    const month = searchParams.get("month");
+    await connectDB();
+    const raw = await Income.find().sort({ date: -1 }).lean();
+    const list = raw
+      .map((d) => ({
+        _id: String(d._id),
+        title: d.title,
+        amount: d.amount,
+        date: d.date,
+        incomeType: d.incomeType,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+      }))
+      .filter((d) => {
+        if (year == null || month == null) return true;
+        const y = Number(year);
+        const m = Number(month);
+        return isDateInMonth(new Date(d.date), y, m);
+      });
+    return NextResponse.json({ data: list });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { title, amount, date, incomeType } = body;
+    if (!title || amount == null || !date) {
+      return NextResponse.json(
+        { error: "title, amount, and date are required" },
+        { status: 400 }
+      );
+    }
+    await connectDB();
+    const doc = await Income.create({
+      title: String(title),
+      amount: Number(amount),
+      date: new Date(date),
+      incomeType: incomeType || "other",
+    });
+    return NextResponse.json(
+      { data: { ...doc.toObject(), _id: String(doc._id) } },
+      { status: 201 }
+    );
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
+  }
+}
