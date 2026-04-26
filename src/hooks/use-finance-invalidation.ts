@@ -12,6 +12,10 @@ export function useFinanceInvalidation() {
 
   return useMemo(
     () => ({
+      /** Refresh dashboard alerts (income/expense/project APIs may create rows). */
+      invalidateNotifications: () => {
+        void qc.invalidateQueries({ queryKey: ["notifications"] });
+      },
       invalidateReport: () => {
         void qc.invalidateQueries({ queryKey: ["report", year, month] });
       },
@@ -23,6 +27,7 @@ export function useFinanceInvalidation() {
           void qc.invalidateQueries({ queryKey: ["incomes", year, month] });
         }
         void qc.invalidateQueries({ queryKey: ["report", year, month] });
+        void qc.invalidateQueries({ queryKey: ["notifications"] });
       },
       /**
        * @param options.includeAllList — also refresh the unscoped expenses list (templates, etc.).
@@ -33,12 +38,14 @@ export function useFinanceInvalidation() {
           void qc.invalidateQueries({ queryKey: ["expenses", "all"] });
         }
         void qc.invalidateQueries({ queryKey: ["report", year, month] });
+        void qc.invalidateQueries({ queryKey: ["notifications"] });
       },
       invalidateProjects: () => {
         void qc.invalidateQueries({ queryKey: ["projects", year, month] });
         void qc.invalidateQueries({ queryKey: ["projects", "all"] });
         void qc.invalidateQueries({ queryKey: ["projects", "all-for-spend"] });
         void qc.invalidateQueries({ queryKey: ["report", year, month] });
+        void qc.invalidateQueries({ queryKey: ["notifications"] });
       },
     }),
     [qc, year, month]

@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import {
   Moon,
   Sun,
-  MoreHorizontal,
+  PanelLeft,
+  PanelRight,
   LayoutGrid,
   Banknote,
   Receipt,
@@ -16,7 +17,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useTheme } from "next-themes";
-import { useState, memo, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -26,16 +27,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useMonth } from "@/context/month-context";
-import { MonthSwitcher } from "@/components/shared/month-switcher";
-import { MonthCompact } from "@/components/layout/month-compact";
 import { DesktopMonthBar } from "@/components/layout/desktop-month-bar";
-import { formatMoney } from "@/lib/format";
-import { useQuery } from "@tanstack/react-query";
-import { jsonFetch } from "@/lib/fetcher";
-import type { MonthlyReportDto } from "@/types/report";
+import { useMonthNetBalanceDisplay } from "@/hooks/use-month-net-balance";
 import { MobileBottomChrome } from "@/components/layout/mobile-bottom-chrome";
-import { Separator } from "@/components/ui/separator";
 import { LanguageSwitcher } from "@/components/locale/LanguageSwitcher";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
@@ -48,19 +42,6 @@ const sideLinks = [
   { href: "/report", k: "report" as const, Icon: FileBarChart2 },
   { href: "/settings", k: "settings" as const, Icon: Settings },
 ] as const;
-
-function useSummaryChip() {
-  const { year, month } = useMonth();
-  const { data } = useQuery({
-    queryKey: ["report", year, month],
-    queryFn: () =>
-      jsonFetch<{ data: MonthlyReportDto }>(
-        `/api/reports/monthly?year=${year}&month=${month}`,
-      ),
-  });
-  const net = data?.data.summary.netBalance;
-  return net != null ? formatMoney(net) : "…";
-}
 
 function NavList({
   onNavigate,
@@ -108,29 +89,6 @@ function NavList({
   );
 }
 
-const ThemeButton = memo(function ThemeButton({
-  className,
-  label,
-}: {
-  className?: string;
-  label: string;
-}) {
-  const { setTheme, resolvedTheme } = useTheme();
-  return (
-    <Button
-      type="button"
-      size="icon"
-      variant="ghost"
-      className={cn("size-11 shrink-0 touch-manipulation sm:size-9", className)}
-      aria-label={label}
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-    >
-      <Sun className="size-5 dark:hidden" />
-      <Moon className="size-5 hidden dark:inline" />
-    </Button>
-  );
-});
-
 function SidebarTheme({ themeLabel }: { themeLabel: string }) {
   const { setTheme, resolvedTheme } = useTheme();
   return (
@@ -149,7 +107,7 @@ function SidebarTheme({ themeLabel }: { themeLabel: string }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const chip = useSummaryChip();
+  const chip = useMonthNetBalanceDisplay();
   const pathname = usePathname();
   const tLayout = useTranslations("layout");
   const shortBottomChrome =
@@ -224,67 +182,73 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col md:min-h-0 md:overflow-hidden">
         <header className="sticky top-0 z-30 w-full min-w-0 shrink-0 border-b border-border/80 bg-background/90 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden">
-          <div className="mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-1 px-2 sm:px-3">
-            <div className="min-w-0 flex-1">
-              <MonthCompact />
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <LanguageSwitcher className="h-9 px-2" />
-              <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetTrigger
-                  className={cn(
-                    buttonVariants({ size: "icon", variant: "outline" }),
-                    "size-11 touch-manipulation",
-                  )}
-                  aria-label={tLayout("openMenu")}
-                  aria-haspopup="dialog"
-                >
-                  <MoreHorizontal className="size-5" />
-                </SheetTrigger>
-                <SheetContent
-                  side={sheetSide}
-                  className="flex w-[min(100vw,20rem)] flex-col"
-                >
-                  <SheetHeader>
-                    <SheetTitle>{tLayout("monthOverview")}</SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 pb-6">
-                    <div className="px-0.5">
-                      <LanguageSwitcher className="w-full justify-center" />
-                    </div>
-                    <MonthSwitcher />
-                    <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-muted/60 to-transparent p-4 ring-1 ring-inset ring-border/40">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {tLayout("netThisMonth")}
-                      </p>
-                      <p className="mt-0.5 font-mono text-xl font-semibold tabular-nums">
-                        {chip}
-                      </p>
-                    </div>
-                    <Separator />
-                    <p className="text-xs text-muted-foreground">
-                      {tLayout("jumpTo")}
-                    </p>
-                    <NavList onNavigate={() => setSheetOpen(false)} />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 w-full justify-center gap-2"
-                      onClick={() => {
-                        setSheetOpen(false);
-                        void signOut({
-                          callbackUrl: isRtl ? "/ar/login" : "/login",
-                        });
-                      }}
-                    >
-                      <LogOut className="size-4" />
-                      {tComm("signOut")}
-                    </Button>
+          <div className="mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-2 px-2 sm:px-3">
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+              <SheetTrigger
+                className={cn(
+                  buttonVariants({ size: "icon", variant: "outline" }),
+                  "size-11 shrink-0 touch-manipulation rounded-xl border-border/80",
+                )}
+                aria-label={tLayout("openMenu")}
+                aria-haspopup="dialog"
+                aria-expanded={sheetOpen}
+              >
+                {isRtl ? (
+                  <PanelLeft className="size-5" aria-hidden />
+                ) : (
+                  <PanelRight className="size-5" aria-hidden />
+                )}
+              </SheetTrigger>
+              <SheetContent
+                side={sheetSide}
+                className="flex w-[min(100vw,20rem)] flex-col"
+              >
+                <SheetHeader>
+                  <SheetTitle>{tLayout("sideMenu")}</SheetTitle>
+                </SheetHeader>
+                <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 pb-6">
+                  <div className="px-0.5">
+                    <LanguageSwitcher className="w-full justify-center" />
                   </div>
-                </SheetContent>
-              </Sheet>
-              <ThemeButton label={tLayout("toggleTheme")} />
+                  <SidebarTheme themeLabel={tComm("theme")} />
+                  <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-muted/50 to-transparent p-3 ring-1 ring-inset ring-border/40">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {tLayout("netThisMonth")}
+                    </p>
+                    <p className="mt-0.5 font-mono text-lg font-semibold tabular-nums">
+                      {chip}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {tLayout("jumpTo")}
+                  </p>
+                  <NavList onNavigate={() => setSheetOpen(false)} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full justify-center gap-2"
+                    onClick={() => {
+                      setSheetOpen(false);
+                      void signOut({
+                        callbackUrl: isRtl ? "/ar/login" : "/login",
+                      });
+                    }}
+                  >
+                    <LogOut className="size-4" />
+                    {tComm("signOut")}
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="min-w-0 flex-1 text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                {tLayout("appName")}
+              </p>
+              <p className="truncate text-sm font-bold leading-tight text-foreground">
+                {tLayout("personal")}
+              </p>
             </div>
+            <div className="w-11 shrink-0" aria-hidden />
           </div>
         </header>
 

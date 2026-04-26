@@ -23,7 +23,7 @@ export async function GET() {
         netDecreaseEmail: true,
         inactivityNudgeEmail: true,
         activityNotificationsEnabled: true,
-        lowBalanceThreshold: null as number | null,
+        lowBalanceThreshold: null,
       },
     });
   }

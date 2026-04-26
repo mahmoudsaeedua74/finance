@@ -22,6 +22,8 @@ type Pref = {
   noLoginReminderEmail: boolean;
   netDecreaseEmail: boolean;
   inactivityNudgeEmail: boolean;
+  activityNotificationsEnabled: boolean;
+  lowBalanceThreshold: number | null;
 };
 
 export default function SettingsPage() {
@@ -76,6 +78,38 @@ export default function SettingsPage() {
         description={t("description")}
         icon={<Settings className="size-5" />}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("inAppSection")}</CardTitle>
+          <CardDescription>{t("inAppSectionDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {boolRow("activityNotificationsEnabled", t("activityNotif"), t("activityNotifDesc"))}
+          <div className="grid gap-2 sm:max-w-xs">
+            <Label htmlFor="low-net">{t("lowNet")}</Label>
+            <p className="text-xs text-muted-foreground">{t("lowNetDesc")}</p>
+            <Input
+              id="low-net"
+              type="number"
+              min={0}
+              step="0.01"
+              className="h-11"
+              placeholder={t("lowNetPh")}
+              value={form.lowBalanceThreshold ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setForm((f) => {
+                  if (!f) return f;
+                  if (v === "") return { ...f, lowBalanceThreshold: null };
+                  const n = parseFloat(v);
+                  return { ...f, lowBalanceThreshold: Number.isFinite(n) && n > 0 ? n : null };
+                });
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

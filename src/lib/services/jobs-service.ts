@@ -10,6 +10,7 @@ import {
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
 import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { notifyOnce } from "@/lib/services/notification-service";
+import { maybeNotifyLowNetBalance } from "@/lib/services/activity-notifications";
 import { materializeRecurringIncomes } from "@/lib/services/recurring-income-service";
 import { renderDigestEmail } from "@/lib/email/templates/digest";
 import { renderMirrorNotificationEmail } from "@/lib/email/templates/mirror-notification";
@@ -266,6 +267,8 @@ export async function runDailyJobs() {
         }
       }
     }
+
+    await maybeNotifyLowNetBalance(uid);
   }
   return { ok: true };
 }

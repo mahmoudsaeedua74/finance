@@ -1,22 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { MonthCompact } from "@/components/layout/month-compact";
+import { MonthPageFilter } from "@/components/layout/month-page-filter";
 import { cn } from "@/lib/utils";
 
-/** Month navigation in the main column on md+; mobile uses the header MonthCompact. */
+/** Month, net, and quick jump on every dashboard page (replaces the old mobile header strip). */
 export function DesktopMonthBar({ className }: { className?: string }) {
-  const t = useTranslations("layout");
   return (
-    <div
-      className={cn(
-        "mb-5 hidden w-full min-w-0 border-b border-border/50 pb-4 md:block",
-        className
-      )}
-      role="region"
-      aria-label={t("monthOverview")}
-    >
-      <MonthCompact className="max-w-md justify-start" />
+    <div className={cn("mb-4 w-full min-w-0 sm:mb-5", className)}>
+      <MonthPageFilter />
     </div>
   );
 }
