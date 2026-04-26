@@ -38,7 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { LanguageSwitcher } from "@/components/locale/LanguageSwitcher";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
-console.log("hello");
+
 const sideLinks = [
   { href: "/", k: "dashboard" as const, Icon: LayoutGrid },
   { href: "/income", k: "income" as const, Icon: Banknote },
@@ -162,12 +162,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     : "max-md:pb-[calc(10.5rem+env(safe-area-inset-bottom,0px))]";
 
   return (
-    <div className="app-root min-w-0 flex min-h-dvh flex-col md:flex-row">
+    <div
+      className={cn(
+        "app-root flex min-w-0 min-h-dvh flex-col overflow-x-hidden",
+        "md:min-h-0 md:h-svh md:overflow-hidden md:flex-row"
+      )}
+    >
       <aside
-        className="hidden w-[15.5rem] min-w-0 flex-col border-e border-border/80 bg-gradient-to-b from-card via-card to-muted/20 shadow-[inset_-1px_0_0_0_rgba(0,0,0,0.03)] dark:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.04)] md:flex"
+        className={cn(
+          "hidden w-[15.5rem] min-w-0 shrink-0 flex-col border-e border-border/80",
+          "bg-gradient-to-b from-card via-card to-muted/20",
+          "shadow-[inset_-1px_0_0_0_rgba(0,0,0,0.03)] dark:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.04)]",
+          "md:flex md:h-svh md:min-h-0"
+        )}
         aria-label={tLayout("appSidebar")}
       >
-        <div className="p-4 pb-3">
+        <div className="shrink-0 p-4 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary ring-1 ring-border/60">
               <Wallet className="size-5" />
@@ -182,13 +192,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 pb-3">
           <div className="px-1">
             <LanguageSwitcher className="w-full justify-center" />
           </div>
           <NavList className="px-0.5" />
         </div>
-        <div className="mt-auto space-y-2 border-t border-border/80 bg-muted/20 p-3">
+        <div className="shrink-0 space-y-2 border-t border-border/80 bg-muted/20 p-3">
           <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
             {tLayout("netThisMonth")}
           </p>
@@ -210,8 +220,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 w-full min-w-0 border-b border-border/80 bg-background/90 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:min-h-0 md:overflow-hidden">
+        <header className="sticky top-0 z-30 w-full min-w-0 shrink-0 border-b border-border/80 bg-background/90 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden">
           <div className="mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-1 px-2 sm:px-3">
             <div className="min-w-0 flex-1">
               <MonthCompact />
@@ -278,8 +288,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main
           className={cn(
-            "app-main w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-7",
-            "touch-pan-y",
+            "app-main w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 md:min-h-0 md:flex-1 md:overflow-y-auto md:px-6 md:py-7",
+            "touch-pan-y overscroll-y-contain",
             mainBottomPad,
           )}
         >
