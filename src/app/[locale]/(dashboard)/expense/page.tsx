@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
+import { labelExpenseCategory, resolveExpenseCategoryForSave } from "@/lib/expense-categories";
 
 type Row = {
   _id: string;
@@ -94,7 +96,7 @@ function EditForm({
           body: JSON.stringify({
             title,
             amount: parseFloat(amount),
-            category: cat,
+            category: resolveExpenseCategoryForSave(cat),
             validFrom: new Date(vf).toISOString(),
             validTo: vt ? new Date(vt).toISOString() : null,
             recurring: true,
@@ -108,7 +110,7 @@ function EditForm({
         body: JSON.stringify({
           title,
           amount: parseFloat(amount),
-          category: cat,
+          category: resolveExpenseCategoryForSave(cat),
           date: new Date(date).toISOString(),
           kind: row.rowKind === "variable" ? "variable" : "fixed",
         }),
@@ -142,8 +144,13 @@ function EditForm({
             />
           </div>
           <div>
-            <Label>{tC("category")}</Label>
-            <Input value={cat} onChange={(e) => setCat(e.target.value)} />
+            <Label htmlFor="edit-cat-rec">{tC("category")}</Label>
+            <ExpenseCategoryField
+              id="edit-cat-rec"
+              value={cat}
+              onCategoryChange={setCat}
+              className="h-11 w-full"
+            />
           </div>
           <div>
             <Label>{t("table.from")}</Label>
@@ -170,8 +177,13 @@ function EditForm({
             />
           </div>
           <div>
-            <Label>{tC("category")}</Label>
-            <Input value={cat} onChange={(e) => setCat(e.target.value)} />
+            <Label htmlFor="edit-cat">{tC("category")}</Label>
+            <ExpenseCategoryField
+              id="edit-cat"
+              value={cat}
+              onCategoryChange={setCat}
+              className="h-11 w-full"
+            />
           </div>
           <div>
             <Label>{tC("date")}</Label>
@@ -194,6 +206,7 @@ function EditForm({
 export default function ExpenseListPage() {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
+  const tCat = useTranslations("expense.categories");
   const locale = useLocale();
   const { year, month } = useMonth();
   const qc = useQueryClient();
@@ -280,7 +293,9 @@ export default function ExpenseListPage() {
                         <TableCell>
                           <KindBadge r={r} />
                         </TableCell>
-                        <TableCell className="text-sm">{r.category}</TableCell>
+                        <TableCell className="text-sm">
+                          {labelExpenseCategory(r.category, tCat)}
+                        </TableCell>
                         <TableCell className="tabular-nums text-end">
                           {formatMoney(r.amount)}
                         </TableCell>
@@ -341,7 +356,9 @@ export default function ExpenseListPage() {
                     return (
                       <TableRow key={tr._id}>
                         <TableCell className="font-medium">{tr.title}</TableCell>
-                        <TableCell>{tr.category}</TableCell>
+                        <TableCell>
+                        {labelExpenseCategory(tr.category, tCat)}
+                      </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {tr.validFrom
                             ? formatDateLong(new Date(tr.validFrom), locale)

@@ -12,6 +12,8 @@ import { jsonFetch } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { useMonth } from "@/context/month-context";
 import { cn } from "@/lib/utils";
+import { resolveExpenseCategoryForSave } from "@/lib/expense-categories";
+import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { Receipt, CalendarClock, Repeat } from "lucide-react";
 
 const field = "h-11 w-full min-w-0";
@@ -55,7 +57,7 @@ export default function NewExpensePage() {
         body: JSON.stringify({
           title: varTitle,
           amount: parseFloat(varAmount),
-          category: varCat,
+          category: resolveExpenseCategoryForSave(varCat),
           kind: "variable",
           date: new Date(varDate).toISOString(),
         }),
@@ -76,7 +78,7 @@ export default function NewExpensePage() {
         body: JSON.stringify({
           title: fixTitle,
           amount: parseFloat(fixAmount),
-          category: fixCat,
+          category: resolveExpenseCategoryForSave(fixCat),
           kind: "fixed",
           date: new Date(fixDate).toISOString(),
         }),
@@ -98,7 +100,7 @@ export default function NewExpensePage() {
         body: JSON.stringify({
           title: recTitle,
           amount: parseFloat(recAmount),
-          category: recCat,
+          category: resolveExpenseCategoryForSave(recCat),
           isTemplate: true,
           recurring: true,
           validFrom: new Date(recFrom).toISOString(),
@@ -142,6 +144,9 @@ export default function NewExpensePage() {
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
             {t("typeCardD")}
           </p>
+          <p className="mt-2 border-t border-border/50 pt-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            {t("categoryHint")}
+          </p>
         </div>
 
         <Tabs defaultValue="variable" className="w-full">
@@ -176,17 +181,19 @@ export default function NewExpensePage() {
 
           <div className="p-4 sm:p-5 sm:pt-4">
             <TabsContent value="variable" className="mt-0">
+              <p className="mb-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                {t("varDayIntro")}
+              </p>
               <div className={formGrid}>
-                <FieldCol className="sm:col-span-2">
-                  <Label htmlFor="v-title" className={label}>
-                    {tC("title")}
+                <FieldCol>
+                  <Label htmlFor="v-cat" className={label}>
+                    {tC("category")}
                   </Label>
-                  <Input
-                    id="v-title"
+                  <ExpenseCategoryField
+                    id="v-cat"
+                    value={varCat}
+                    onCategoryChange={setVarCat}
                     className={field}
-                    value={varTitle}
-                    onChange={(e) => setVarTitle(e.target.value)}
-                    placeholder={t("phVarT")}
                   />
                 </FieldCol>
                 <FieldCol>
@@ -202,16 +209,20 @@ export default function NewExpensePage() {
                     onChange={(e) => setVarAmount(e.target.value)}
                   />
                 </FieldCol>
-                <FieldCol>
-                  <Label htmlFor="v-cat" className={label}>
-                    {tC("category")}
+                <FieldCol className="sm:col-span-2">
+                  <Label htmlFor="v-title" className={label}>
+                    {t("varReason")}
                   </Label>
+                  <p className="text-[0.7rem] leading-snug text-muted-foreground sm:text-xs">
+                    {t("varReasonHelp")}
+                  </p>
                   <Input
-                    id="v-cat"
-                    className={field}
-                    value={varCat}
-                    onChange={(e) => setVarCat(e.target.value)}
-                    placeholder={t("phVarC")}
+                    id="v-title"
+                    className={cn(field, "mt-1.5")}
+                    value={varTitle}
+                    onChange={(e) => setVarTitle(e.target.value)}
+                    placeholder={t("varReasonPh")}
+                    autoComplete="off"
                   />
                 </FieldCol>
                 <FieldCol className="sm:col-span-2">
@@ -270,11 +281,11 @@ export default function NewExpensePage() {
                   <Label htmlFor="f-cat" className={label}>
                     {tC("category")}
                   </Label>
-                  <Input
+                  <ExpenseCategoryField
                     id="f-cat"
-                    className={field}
                     value={fixCat}
-                    onChange={(e) => setFixCat(e.target.value)}
+                    onCategoryChange={setFixCat}
+                    className={field}
                   />
                 </FieldCol>
                 <FieldCol className="sm:col-span-2">
@@ -336,12 +347,11 @@ export default function NewExpensePage() {
                   <Label htmlFor="r-cat" className={label}>
                     {tC("category")}
                   </Label>
-                  <Input
+                  <ExpenseCategoryField
                     id="r-cat"
-                    className={field}
                     value={recCat}
-                    onChange={(e) => setRecCat(e.target.value)}
-                    placeholder={t("phRecC")}
+                    onCategoryChange={setRecCat}
+                    className={field}
                   />
                 </FieldCol>
                 <FieldCol>

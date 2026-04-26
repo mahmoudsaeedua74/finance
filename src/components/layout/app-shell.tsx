@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useMonth } from "@/context/month-context";
 import { MonthSwitcher } from "@/components/shared/month-switcher";
 import { MonthCompact } from "@/components/layout/month-compact";
+import { DesktopMonthBar } from "@/components/layout/desktop-month-bar";
 import { formatMoney } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { jsonFetch } from "@/lib/fetcher";
@@ -162,7 +163,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="px-1">
             <LanguageSwitcher className="w-full justify-center" />
           </div>
-          <MonthSwitcher className="px-1" />
           <NavList className="px-0.5" />
         </div>
         <div className="mt-auto space-y-2 border-t border-border/80 bg-muted/20 p-3">
@@ -236,6 +236,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         >
           <div className="mx-auto w-full min-w-0 max-w-6xl">
+            <DesktopMonthBar />
             <motion.div
               className="min-w-0"
               initial={false}

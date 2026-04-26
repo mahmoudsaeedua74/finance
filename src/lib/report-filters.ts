@@ -1,36 +1,26 @@
 import type { MonthlyReportDto } from "@/types/report";
+import {
+  EXPENSE_CATEGORY_PRESETS,
+  isPresetExpenseCategory,
+} from "./expense-categories";
 
 export type ReportFilterState = {
   expenseCategory: string;
   projectId: string;
   search: string;
-  quickSavingsOnly: boolean;
 };
 
-const SAVINGS_MARKERS = [
-  "saving",
-  "savings",
-  "circle",
-  "الجمعية",
-  "الجمعيه",
-  "جمعية",
-  "جمعيه",
-  "gam3eya",
-  "gam3a",
-  "gama3a",
-  "gama3ia",
-];
-
-/** Savings circle / gam3eya / common spellings (EN + AR). */
-export function matchesSavingsCircle(category: string, title: string) {
-  const blob = `${category} ${title}`;
-  return SAVINGS_MARKERS.some(
-    (m) =>
-      m.length > 1 &&
-      (blob.toLowerCase().includes(m.toLowerCase()) ||
-        category.includes(m) ||
-        title.includes(m))
-  );
+/** All preset slugs, then any extra category strings that appear this month (legacy / custom). */
+export function getReportCategorySelectOptions(
+  monthUniqueCategories: string[]
+): string[] {
+  const fromMonth = new Set(monthUniqueCategories);
+  const extra = [...fromMonth]
+    .filter((c) => !isPresetExpenseCategory(c))
+    .sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+  return [...EXPENSE_CATEGORY_PRESETS, ...extra];
 }
 
 function matchesSearch(q: string, ...parts: string[]) {
@@ -50,24 +40,18 @@ export function applyReportFilters(
   let proj = [...r.projectLineItems];
   let exp = [...r.expenseLineItems];
 
-  if (f.quickSavingsOnly) {
-    exp = exp.filter((e) => matchesSavingsCircle(e.category, e.title));
+  if (f.projectId && f.projectId !== "all") {
     inc = [];
-    proj = [];
-  } else {
-    if (f.projectId && f.projectId !== "all") {
-      inc = [];
-      proj = proj.filter((p) => p._id === f.projectId);
-    }
-    if (f.expenseCategory && f.expenseCategory !== "all") {
-      exp = exp.filter((e) => e.category === f.expenseCategory);
-    }
-    if (f.search.trim()) {
-      const q = f.search;
-      inc = inc.filter((i) => matchesSearch(q, i.title, i.incomeType));
-      proj = proj.filter((p) => matchesSearch(q, p.name));
-      exp = exp.filter((e) => matchesSearch(q, e.title, e.category, e.source));
-    }
+    proj = proj.filter((p) => p._id === f.projectId);
+  }
+  if (f.expenseCategory && f.expenseCategory !== "all") {
+    exp = exp.filter((e) => e.category === f.expenseCategory);
+  }
+  if (f.search.trim()) {
+    const q = f.search;
+    inc = inc.filter((i) => matchesSearch(q, i.title, i.incomeType));
+    proj = proj.filter((p) => matchesSearch(q, p.name));
+    exp = exp.filter((e) => matchesSearch(q, e.title, e.category, e.source));
   }
 
   const totalIncomeFromIncomes = inc.reduce((s, i) => s + i.amount, 0);
@@ -131,6 +115,5 @@ export function getDefaultReportFilters(): ReportFilterState {
     expenseCategory: "all",
     projectId: "all",
     search: "",
-    quickSavingsOnly: false,
   };
 }

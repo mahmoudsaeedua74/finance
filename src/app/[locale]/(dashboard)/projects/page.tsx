@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMonth } from "@/context/month-context";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { exportProjectListExcel } from "@/lib/export-excel";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, ArrowUpDown, Search } from "lucide-react";
+import { FileSpreadsheet, ArrowUpDown, Search, Plus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -27,6 +27,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 
@@ -125,9 +126,17 @@ export default function ProjectsPage() {
     new Date(year, month - 1, 12).toISOString().slice(0, 10)
   );
   const [edit, setEdit] = useState<Row | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [q, setQ] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name" | "amount">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const openAddDialog = useCallback(() => {
+    setName("");
+    setAmount("");
+    setDate(new Date(year, month - 1, 12).toISOString().slice(0, 10));
+    setAddOpen(true);
+  }, [year, month]);
 
   const m = useMutation({
     mutationFn: () =>
@@ -143,6 +152,7 @@ export default function ProjectsPage() {
       toast.success(t("saveOk"));
       setName("");
       setAmount("");
+      setAddOpen(false);
       qc.invalidateQueries({ queryKey: ["projects", year, month] });
       qc.invalidateQueries({ queryKey: ["projects", "all"] });
       qc.invalidateQueries({ queryKey: ["report", year, month] });
@@ -219,26 +229,29 @@ export default function ProjectsPage() {
 
       {error && <p className="text-destructive text-sm">{(error as Error).message}</p>}
 
-      <div className="grid min-[480px]:grid-cols-2 min-[800px]:grid-cols-4 min-[800px]:gap-3 gap-3">
-        <div className="min-[800px]:col-span-2">
-          <Label className="sr-only">{tC("search")}</Label>
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
+        <div className="space-y-1.5 sm:col-span-2 lg:col-span-5">
+          <Label className="text-xs text-foreground/80" htmlFor="projects-search">
+            {tC("search")}
+          </Label>
           <div className="relative">
-            <Search className="text-muted-foreground absolute start-2.5 top-1/2 size-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2" />
             <Input
-              className="min-h-11 ps-9"
+              id="projects-search"
+              className="h-11 ps-9"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={t("phSearch")}
             />
           </div>
         </div>
-        <div>
-          <Label className="text-xs">{t("sortBy")}</Label>
+        <div className="space-y-1.5 lg:col-span-3">
+          <Label className="text-xs text-foreground/80">{t("sortBy")}</Label>
           <Select
             value={sortBy}
             onValueChange={(v) => v && setSortBy(v as "date" | "name" | "amount")}
           >
-            <SelectTrigger className="min-h-11 w-full data-[size=default]:h-11">
+            <SelectTrigger className="h-11 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -248,36 +261,48 @@ export default function ProjectsPage() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">{t("order")}</Label>
+        <div className="space-y-1.5 lg:col-span-2">
+          <Label className="text-xs text-foreground/80">{t("order")}</Label>
           <Button
             type="button"
             variant="outline"
-            className="min-h-11 w-full justify-between"
+            className="h-11 w-full justify-between"
             onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
           >
             {sortDir === "asc" ? t("asc") : t("desc")}
-            <ArrowUpDown className="size-4" />
+            <ArrowUpDown className="size-4 shrink-0" />
           </Button>
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-12 touch-manipulation"
-          onClick={() => {
-            exportProjectListExcel(
-              allView,
-              `projects-export-${year}-${String(month).padStart(2, "0")}.xlsx`
-            );
-            toast.success(t("excelOk"));
-          }}
-        >
-          <FileSpreadsheet className="me-2 size-4" />
-          {t("excel")}
-        </Button>
+        <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
+          <Label className="text-xs text-transparent select-none" aria-hidden>
+            .
+          </Label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            <Button
+              type="button"
+              className="h-11 min-w-0 flex-1"
+              onClick={openAddDialog}
+            >
+              <Plus className="me-2 size-4 shrink-0" />
+              {t("addButton")}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-11 min-w-0 flex-1 sm:max-w-[12rem] lg:max-w-none"
+              onClick={() => {
+                exportProjectListExcel(
+                  allView,
+                  `projects-export-${year}-${String(month).padStart(2, "0")}.xlsx`
+                );
+                toast.success(t("excelOk"));
+              }}
+            >
+              <FileSpreadsheet className="me-2 size-4 shrink-0" />
+              {t("excel")}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {byName.length > 0 && (
@@ -297,35 +322,6 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("add")}</CardTitle>
-          <CardDescription>{t("addDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="max-w-md space-y-3">
-          <div className="space-y-1">
-            <Label>{t("projName")}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label>{tC("amount")}</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>{tC("date")}</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <Button type="button" onClick={() => m.mutate()} disabled={!name || !amount}>
-            {tC("save")}
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -431,6 +427,62 @@ export default function ProjectsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={addOpen}
+        onOpenChange={(o) => {
+          setAddOpen(o);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("add")}</DialogTitle>
+            <DialogDescription>{t("addDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="add-proj-name">{t("projName")}</Label>
+              <Input
+                id="add-proj-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-proj-amt">{tC("amount")}</Label>
+              <Input
+                id="add-proj-amt"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-proj-date">{tC("date")}</Label>
+              <Input
+                id="add-proj-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+                {tC("close")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => m.mutate()}
+                disabled={!name.trim() || !amount}
+              >
+                {tC("save")}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!edit} onOpenChange={() => setEdit(null)}>
         <DialogContent>
