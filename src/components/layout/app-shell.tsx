@@ -17,7 +17,13 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { useTheme } from "next-themes";
 import { useState, memo, type ReactNode } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useMonth } from "@/context/month-context";
 import { MonthSwitcher } from "@/components/shared/month-switcher";
@@ -32,7 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { LanguageSwitcher } from "@/components/locale/LanguageSwitcher";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
-
+console.log("hello");
 const sideLinks = [
   { href: "/", k: "dashboard" as const, Icon: LayoutGrid },
   { href: "/income", k: "income" as const, Icon: Banknote },
@@ -47,19 +53,28 @@ function useSummaryChip() {
     queryKey: ["report", year, month],
     queryFn: () =>
       jsonFetch<{ data: MonthlyReportDto }>(
-        `/api/reports/monthly?year=${year}&month=${month}`
+        `/api/reports/monthly?year=${year}&month=${month}`,
       ),
   });
   const net = data?.data.summary.netBalance;
   return net != null ? formatMoney(net) : "…";
 }
 
-function NavList({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
+function NavList({
+  onNavigate,
+  className,
+}: {
+  onNavigate?: () => void;
+  className?: string;
+}) {
   const path = usePathname();
   const t = useTranslations("nav");
   const tLayout = useTranslations("layout");
   return (
-    <nav className={cn("flex flex-col gap-0.5", className)} aria-label={tLayout("screenNav")}>
+    <nav
+      className={cn("flex flex-col gap-0.5", className)}
+      aria-label={tLayout("screenNav")}
+    >
       {sideLinks.map((l) => {
         const active =
           l.href === "/"
@@ -74,11 +89,14 @@ function NavList({ onNavigate, className }: { onNavigate?: () => void; className
               "min-h-11 touch-manipulation flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium leading-snug transition-all duration-200",
               active
                 ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-foreground/10"
-                : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
             )}
           >
             <l.Icon
-              className={cn("size-4 shrink-0 opacity-80", active && "opacity-100")}
+              className={cn(
+                "size-4 shrink-0 opacity-80",
+                active && "opacity-100",
+              )}
             />
             {t(l.k)}
           </Link>
@@ -132,7 +150,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const chip = useSummaryChip();
   const pathname = usePathname();
   const tLayout = useTranslations("layout");
-  const shortBottomChrome = pathname === "/income/new" || pathname === "/expense/new";
+  const shortBottomChrome =
+    pathname === "/income/new" || pathname === "/expense/new";
   const locale = useLocale();
   const isRtl = locale === "ar";
   const sheetSide = isRtl ? "left" : "right";
@@ -157,7 +176,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">
                 {tLayout("appName")}
               </p>
-              <p className="text-sm font-bold leading-tight">{tLayout("personal")}</p>
+              <p className="text-sm font-bold leading-tight">
+                {tLayout("personal")}
+              </p>
             </div>
           </div>
         </div>
@@ -190,9 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header
-          className="sticky top-0 z-30 w-full min-w-0 border-b border-border/80 bg-background/90 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden"
-        >
+        <header className="sticky top-0 z-30 w-full min-w-0 border-b border-border/80 bg-background/90 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden">
           <div className="mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-1 px-2 sm:px-3">
             <div className="min-w-0 flex-1">
               <MonthCompact />
@@ -203,7 +222,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <SheetTrigger
                   className={cn(
                     buttonVariants({ size: "icon", variant: "outline" }),
-                    "size-11 touch-manipulation"
+                    "size-11 touch-manipulation",
                   )}
                   aria-label={tLayout("openMenu")}
                   aria-haspopup="dialog"
@@ -231,7 +250,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                       </p>
                     </div>
                     <Separator />
-                    <p className="text-xs text-muted-foreground">{tLayout("jumpTo")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {tLayout("jumpTo")}
+                    </p>
                     <NavList onNavigate={() => setSheetOpen(false)} />
                     <Button
                       type="button"
@@ -239,7 +260,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className="h-11 w-full justify-center gap-2"
                       onClick={() => {
                         setSheetOpen(false);
-                        void signOut({ callbackUrl: isRtl ? "/ar/login" : "/login" });
+                        void signOut({
+                          callbackUrl: isRtl ? "/ar/login" : "/login",
+                        });
                       }}
                     >
                       <LogOut className="size-4" />
@@ -257,7 +280,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={cn(
             "app-main w-full min-w-0 max-w-full flex-1 overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-7",
             "touch-pan-y",
-            mainBottomPad
+            mainBottomPad,
           )}
         >
           <div className="mx-auto w-full min-w-0 max-w-6xl">
