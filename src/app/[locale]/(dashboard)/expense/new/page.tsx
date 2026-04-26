@@ -3,15 +3,12 @@
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { useMutation } from "@tanstack/react-query";
-import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { useCreateExpenseFormMutations } from "@/features/expenses/hooks";
 import { PageHeader } from "@/components/ui/page-header";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { jsonFetch } from "@/lib/fetcher";
-import { toast } from "sonner";
 import { useMonth } from "@/context/month-context";
 import { cn } from "@/lib/utils";
 import { resolveExpenseCategoryForSave } from "@/lib/expense-categories";
@@ -64,8 +61,11 @@ export default function NewExpensePage() {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
   const router = useRouter();
-  const { invalidateExpenses } = useFinanceInvalidation();
   const { year, month } = useMonth();
+  const { mVar, mFix, mRec } = useCreateExpenseFormMutations({
+    onDone: () => router.push("/expense"),
+    tSaved: { v: t("savedV"), f: t("savedF"), r: t("savedR") },
+  });
   const defDate = new Date(year, month - 1, 10).toISOString().slice(0, 10);
 
   const [varTitle, setVarTitle] = useState("");
@@ -89,71 +89,6 @@ export default function NewExpensePage() {
     new Date(year, month, 1).toISOString().slice(0, 10),
   );
   const [recTo, setRecTo] = useState("");
-
-  const mVar = useMutation({
-    mutationFn: () =>
-      jsonFetch("/api/expenses", {
-        method: "POST",
-        body: JSON.stringify({
-          title: varTitle,
-          amount: parseFloat(varAmount),
-          category: resolveExpenseCategoryForSave(varCat),
-          kind: "variable",
-          date: new Date(varDate).toISOString(),
-          ...(varProjectName.trim() ? { projectName: varProjectName } : {}),
-        }),
-      }),
-    onSuccess: () => {
-      toast.success(t("savedV"));
-      invalidateExpenses();
-      router.push("/expense");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const mFix = useMutation({
-    mutationFn: () =>
-      jsonFetch("/api/expenses", {
-        method: "POST",
-        body: JSON.stringify({
-          title: fixTitle,
-          amount: parseFloat(fixAmount),
-          category: resolveExpenseCategoryForSave(fixCat),
-          kind: "fixed",
-          date: new Date(fixDate).toISOString(),
-          ...(fixProjectName.trim() ? { projectName: fixProjectName } : {}),
-        }),
-      }),
-    onSuccess: () => {
-      toast.success(t("savedF"));
-      invalidateExpenses({ includeAllList: true });
-      router.push("/expense");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const mRec = useMutation({
-    mutationFn: () =>
-      jsonFetch("/api/expenses", {
-        method: "POST",
-        body: JSON.stringify({
-          title: recTitle,
-          amount: parseFloat(recAmount),
-          category: resolveExpenseCategoryForSave(recCat),
-          isTemplate: true,
-          recurring: true,
-          validFrom: new Date(recFrom).toISOString(),
-          validTo: recTo ? new Date(recTo).toISOString() : null,
-          ...(recProjectName.trim() ? { projectName: recProjectName } : {}),
-        }),
-      }),
-    onSuccess: () => {
-      toast.success(t("savedR"));
-      invalidateExpenses({ includeAllList: true });
-      router.push("/expense");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -284,7 +219,15 @@ export default function NewExpensePage() {
                   <Button
                     type="button"
                     className="h-11 w-full touch-manipulation min-[420px]:w-auto"
-                    onClick={() => mVar.mutate()}
+                    onClick={() =>
+                      mVar.mutate({
+                        title: varTitle,
+                        amount: parseFloat(varAmount),
+                        category: resolveExpenseCategoryForSave(varCat),
+                        date: new Date(varDate).toISOString(),
+                        ...(varProjectName.trim() ? { projectName: varProjectName } : {}),
+                      })
+                    }
                     disabled={!varTitle || !varAmount}
                   >
                     {t("saveVar")}
@@ -353,7 +296,15 @@ export default function NewExpensePage() {
                   <Button
                     type="button"
                     className="h-11 w-full touch-manipulation min-[420px]:w-auto"
-                    onClick={() => mFix.mutate()}
+                    onClick={() =>
+                      mFix.mutate({
+                        title: fixTitle,
+                        amount: parseFloat(fixAmount),
+                        category: resolveExpenseCategoryForSave(fixCat),
+                        date: new Date(fixDate).toISOString(),
+                        ...(fixProjectName.trim() ? { projectName: fixProjectName } : {}),
+                      })
+                    }
                     disabled={!fixTitle || !fixAmount}
                   >
                     {t("saveFix")}
@@ -439,7 +390,18 @@ export default function NewExpensePage() {
                   <Button
                     type="button"
                     className="h-11 w-full touch-manipulation min-[420px]:w-auto"
-                    onClick={() => mRec.mutate()}
+                    onClick={() =>
+                      mRec.mutate({
+                        title: recTitle,
+                        amount: parseFloat(recAmount),
+                        category: resolveExpenseCategoryForSave(recCat),
+                        isTemplate: true,
+                        recurring: true,
+                        validFrom: new Date(recFrom).toISOString(),
+                        validTo: recTo ? new Date(recTo).toISOString() : null,
+                        ...(recProjectName.trim() ? { projectName: recProjectName } : {}),
+                      })
+                    }
                     disabled={!recTitle || !recAmount}
                   >
                     {t("saveRec")}

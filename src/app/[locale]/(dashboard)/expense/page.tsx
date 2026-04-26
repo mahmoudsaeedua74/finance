@@ -1,10 +1,8 @@
 "use client";
 
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
-import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, formatDateMedium, monthLabel, formatMoney } from "@/lib/format";
 import {
   Table,
@@ -17,7 +15,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
@@ -32,30 +29,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { ProjectSpendField } from "@/components/expense/project-spend-field";
-import { labelExpenseCategory, resolveExpenseCategoryForSave } from "@/lib/expense-categories";
-import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { labelExpenseCategory } from "@/lib/expense-categories";
+import {
+  useDeleteExpense,
+  useExpensesForMonth,
+  useExpenseTemplatesList,
+  useUpdateExpense,
+  type ExpenseRow,
+} from "@/features/expenses/hooks";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
 import { Loader2 } from "lucide-react";
 
-type Row = {
-  _id: string;
-  title: string;
-  amount: number;
-  date: string;
-  category: string;
-  kind: string;
-  recurring: boolean;
-  isTemplate: boolean;
-  validFrom?: string;
-  validTo?: string | null;
-  rowKind: "variable" | "fixed_once" | "recurring";
-  displayDate?: string;
-  projectName?: string;
-};
-
-function KindBadge({ r }: { r: Row }) {
+function KindBadge({ r }: { r: ExpenseRow }) {
   const t = useTranslations("expense");
   if (r.rowKind === "recurring")
     return <Badge variant="outline">{t("kinds.recurring")}</Badge>;
@@ -68,12 +55,12 @@ function EditForm({
   row,
   onDone,
 }: {
-  row: Row;
+  row: ExpenseRow;
   onDone: () => void;
 }) {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
-  const { invalidateExpenses } = useFinanceInvalidation();
+  const save = useUpdateExpense(onDone);
   const [title, setTitle] = useState(row.title);
   const [amount, setAmount] = useState(String(row.amount));
   const [cat, setCat] = useState(row.category);
@@ -94,58 +81,6 @@ function EditForm({
     row.validTo ? new Date(row.validTo).toISOString().slice(0, 10) : ""
   );
   const [projectName, setProjectName] = useState(row.projectName?.trim() ?? "");
-
-  const save = useMutation({
-    mutationFn: () => {
-      if (row.isTemplate) {
-        return jsonFetch(`/api/expenses/${row._id}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            title,
-            amount: parseFloat(amount),
-            category: resolveExpenseCategoryForSave(cat),
-            validFrom: new Date(vf).toISOString(),
-            validTo: vt ? new Date(vt).toISOString() : null,
-            recurring: true,
-            isTemplate: true,
-            kind: "fixed",
-            projectName,
-          }),
-        });
-      }
-      return jsonFetch(`/api/expenses/${row._id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          title,
-          amount: parseFloat(amount),
-          category: resolveExpenseCategoryForSave(cat),
-          date: new Date(date).toISOString(),
-          kind: row.rowKind === "variable" ? "variable" : "fixed",
-          projectName,
-        }),
-      });
-    },
-    onMutate: () => {
-      const toastId = toast.loading(tC("savingChanges"));
-      return { toastId };
-    },
-    onSuccess: (_d, _v, ctx) => {
-      if (ctx?.toastId) {
-        toast.success(tC("updated"), { id: ctx.toastId });
-      } else {
-        toast.success(tC("updated"));
-      }
-      invalidateExpenses({ includeAllList: true });
-      onDone();
-    },
-    onError: (e: Error, _v, ctx) => {
-      if (ctx?.toastId) {
-        toast.error(e.message, { id: ctx.toastId });
-      } else {
-        toast.error(e.message);
-      }
-    },
-  });
 
   return (
     <>
@@ -226,7 +161,24 @@ function EditForm({
         <Button type="button" onClick={onDone} variant="outline" disabled={save.isPending}>
           {tC("close")}
         </Button>
-        <Button type="button" onClick={() => save.mutate()} disabled={save.isPending}>
+        <Button
+          type="button"
+          onClick={() =>
+            save.mutate({
+              row,
+              values: {
+                title,
+                amount: parseFloat(amount),
+                category: cat,
+                date,
+                validFrom: vf,
+                validTo: vt,
+                projectName,
+              },
+            })
+          }
+          disabled={save.isPending}
+        >
           {save.isPending ? (
             <>
               <Loader2 className="me-2 size-4 animate-spin" />
@@ -248,30 +200,15 @@ export default function ExpenseListPage() {
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
   const { year, month } = useMonth();
-  const { invalidateExpenses } = useFinanceInvalidation();
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["expenses", year, month],
-    queryFn: () =>
-      jsonFetch<{ data: Row[] }>(`/api/expenses?year=${year}&month=${month}`),
-  });
-  const { data: allData } = useQuery({
-    queryKey: ["expenses", "all"],
-    queryFn: () => jsonFetch<{ data: Row[] }>("/api/expenses"),
-  });
+  const { data, isLoading, error } = useExpensesForMonth();
+  const { data: allData } = useExpenseTemplatesList();
 
   const rows = data?.data ?? [];
-  const templates = (allData?.data ?? []).filter((r) => r.isTemplate) as Row[];
+  const templates = (allData?.data ?? []).filter((r) => r.isTemplate) as ExpenseRow[];
 
-  const [edit, setEdit] = useState<Row | null>(null);
+  const [edit, setEdit] = useState<ExpenseRow | null>(null);
 
-  const del = useMutation({
-    mutationFn: (id: string) => jsonFetch(`/api/expenses/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      toast.success(tC("deleted"));
-      invalidateExpenses({ includeAllList: true });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const del = useDeleteExpense();
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -395,7 +332,7 @@ export default function ExpenseListPage() {
                 </TableHeader>
                 <TableBody>
                   {templates.map((tm) => {
-                    const tr = tm as Row;
+                    const tr = tm;
                     return (
                       <TableRow key={tr._id}>
                         <TableCell className="font-medium">{tr.title}</TableCell>
