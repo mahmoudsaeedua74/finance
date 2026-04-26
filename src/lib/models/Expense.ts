@@ -47,6 +47,8 @@ ExpenseSchema.index({ userId: 1, projectName: 1 });
 
 ExpenseSchema.index({ userId: 1, date: -1 });
 ExpenseSchema.index({ userId: 1, isTemplate: 1, validFrom: 1 });
+/** Template list: `find({ userId, isTemplate: true }).sort({ date: -1 })` */
+ExpenseSchema.index({ userId: 1, isTemplate: 1, date: -1 });
 
 export const Expense: Model<IExpense> =
   mongoose.models.Expense ||

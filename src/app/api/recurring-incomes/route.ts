@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { RecurringIncomeTemplate } from "@/lib/models";
+import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 
 const createSchema = z.object({
   title: z.string().min(1),
@@ -14,12 +15,20 @@ const createSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
+  const { searchParams } = new URL(req.url);
+  const { limit, offset } = parseListPagination(searchParams);
   await connectDB();
-  const rows = await RecurringIncomeTemplate.find({ userId: user.id }).sort({ createdAt: -1 }).lean();
-  return NextResponse.json({ data: rows.map((r) => ({ ...r, _id: String(r._id) })) });
+  const take = limit + 1;
+  const raw = await RecurringIncomeTemplate.find({ userId: user.id })
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(offset)
+    .limit(take)
+    .lean();
+  const rows = raw.map((r) => ({ ...r, _id: String(r._id) }));
+  return NextResponse.json({ ...toPaginatedBody(rows, offset, limit) });
 }
 
 export async function POST(req: Request) {

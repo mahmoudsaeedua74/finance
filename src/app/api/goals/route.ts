@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Goal } from "@/lib/models";
-import { getGoalProgress } from "@/lib/services/goal-service";
+import { getGoalProgressPage } from "@/lib/services/goal-service";
+import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 
 const createGoalSchema = z.object({
   name: z.string().min(1),
@@ -13,12 +14,15 @@ const createGoalSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
+  const { searchParams } = new URL(req.url);
+  const { limit, offset } = parseListPagination(searchParams);
   await connectDB();
-  const data = await getGoalProgress(user.id);
-  return NextResponse.json({ data });
+  const take = limit + 1;
+  const rows = await getGoalProgressPage(user.id, offset, take);
+  return NextResponse.json({ ...toPaginatedBody(rows, offset, limit) });
 }
 
 export async function POST(req: Request) {

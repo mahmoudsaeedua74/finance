@@ -2,127 +2,67 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
+import { expenseNonTemplateInMonth, expenseTemplatesApplyingInMonth, monthDateBoundsUTC } from "@/lib/db-month-filters";
+import { parseExpensePostBody } from "@/lib/api/expense-post-body";
 import {
-  expenseNonTemplateInMonth,
-  expenseTemplatesApplyingInMonth,
-  monthDateBoundsUTC,
-} from "@/lib/db-month-filters";
+  buildMonthViewExpenseRows,
+  buildTemplatesListRows,
+  expenseCreatedJson,
+  EXPENSE_API_LIST_PROJECTION,
+} from "@/lib/api/expense-list-response";
 import { queueAfterExpense } from "@/lib/services/activity-notifications";
-import { startOfMonth } from "date-fns";
+import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 
 export const dynamic = "force-dynamic";
 
-function serialize(d: {
-  _id: unknown;
-  title: string;
-  amount: number;
-  date: Date;
-  category: string;
-  kind: string;
-  recurring: boolean;
-  isTemplate: boolean;
-  validFrom: Date;
-  validTo: Date | null;
-  projectName?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}) {
-  return {
-    _id: String(d._id),
-    title: d.title,
-    amount: d.amount,
-    date: d.date,
-    category: d.category,
-    kind: d.kind,
-    recurring: d.recurring,
-    isTemplate: d.isTemplate,
-    validFrom: d.validFrom,
-    validTo: d.validTo,
-    projectName: d.projectName?.trim() || "",
-    createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
-  };
-}
-
-export type ExpenseRow = ReturnType<typeof serialize> & {
-  rowKind: "variable" | "fixed_once" | "recurring";
-  /** for recurring, virtual date in the viewed month (first of month) */
-  displayDate?: string;
-};
+export type { ExpenseListRow as ExpenseRow } from "@/lib/api/expense-list-response";
 
 export async function GET(req: Request) {
   const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
+    const { limit, offset } = parseListPagination(searchParams);
     const yearQ = searchParams.get("year");
     const monthQ = searchParams.get("month");
     await connectDB();
+    const listSel = String(EXPENSE_API_LIST_PROJECTION);
+    const take = limit + 1;
     if (yearQ == null || monthQ == null) {
-      /** Unscoped: only recurring templates (UI filters to this; avoids full-table scans). */
       const templates = await Expense.find({ userId: user.id, isTemplate: true })
+        .select(listSel)
         .sort({ date: -1 })
+        .skip(offset)
+        .limit(take)
         .lean();
-      return NextResponse.json({
-        data: templates.map((d) => ({
-          ...serialize(d as never),
-          rowKind: d.isTemplate
-            ? "recurring"
-            : d.kind === "fixed"
-              ? "fixed_once"
-              : "variable",
-        })),
-      });
+      const rows = buildTemplatesListRows(templates as never[]);
+      return NextResponse.json({ ...toPaginatedBody(rows, offset, limit) });
     }
     const year = Number(yearQ);
     const month = Number(monthQ);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return NextResponse.json(
+        { error: "Query params year and month (1-12) are required" },
+        { status: 400 }
+      );
+    }
     const { mStart, mEnd } = monthDateBoundsUTC(year, month);
     const [nonT, templateDocs] = await Promise.all([
-      Expense.find(
-        expenseNonTemplateInMonth(user.id, mStart, mEnd)
-      )
+      Expense.find(expenseNonTemplateInMonth(user.id, mStart, mEnd))
+        .select(listSel)
         .sort({ date: -1 })
         .lean(),
-      Expense.find(
-        expenseTemplatesApplyingInMonth(user.id, mStart, mEnd)
-      ).lean(),
+      Expense.find(expenseTemplatesApplyingInMonth(user.id, mStart, mEnd))
+        .select(listSel)
+        .lean(),
     ]);
-
-    type ERow = {
-      _id: unknown;
-      title: string;
-      amount: number;
-      date: Date;
-      category: string;
-      kind: "variable" | "fixed";
-      recurring: boolean;
-      isTemplate: boolean;
-      validFrom: Date;
-      validTo: Date | null;
-      createdAt?: Date;
-      updatedAt?: Date;
-    };
-    const combined: ERow[] = [...(nonT as ERow[]), ...(templateDocs as ERow[])].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    const allRows = buildMonthViewExpenseRows(
+      nonT as never[],
+      templateDocs as never[],
+      year,
+      month
     );
-    const entries: ExpenseRow[] = [];
-    for (const e of combined) {
-      if (e.isTemplate && e.recurring) {
-        const rowStart = startOfMonth(new Date(year, month - 1, 1));
-        entries.push({
-          ...serialize(e),
-          rowKind: "recurring",
-          displayDate: rowStart.toISOString(),
-        });
-      } else if (!e.isTemplate) {
-        entries.push({
-          ...serialize(e),
-          rowKind: e.kind === "fixed" ? "fixed_once" : "variable",
-        });
-      }
-    }
-
-    return NextResponse.json({ data: entries });
+    return NextResponse.json({ ...toPaginatedBody(allRows, offset, limit) });
   } catch (e) {
     console.error(e);
     return NextResponse.json(
@@ -137,89 +77,51 @@ export async function POST(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
-    const {
-      title,
-      amount,
-      category,
-      kind,
-      date,
-      recurring,
-      isTemplate,
-      validFrom,
-      validTo,
-      projectName: projectNameRaw,
-    } = body;
-    const projectName =
-      typeof projectNameRaw === "string" ? projectNameRaw.trim().slice(0, 200) : "";
-    if (!title || amount == null) {
-      return NextResponse.json(
-        { error: "title and amount are required" },
-        { status: 400 }
-      );
+    const parsed = parseExpensePostBody(body);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: parsed.status });
     }
-    const cat = (category as string) || "general";
-    const k = kind === "fixed" ? "fixed" : "variable";
-    const isTpl = Boolean(isTemplate) && Boolean(recurring);
-
-    if (isTpl) {
-      if (!validFrom) {
-        return NextResponse.json(
-          { error: "validFrom is required for recurring fixed expenses" },
-          { status: 400 }
-        );
-      }
-      const vf = new Date(validFrom);
-      const vt = validTo ? new Date(validTo) : null;
-      await connectDB();
+    await connectDB();
+    if (parsed.data.variant === "recurring") {
+      const p = parsed.data;
       const doc = await Expense.create({
         userId: user.id,
-        title: String(title),
-        amount: Number(amount),
-        date: vf,
-        category: cat,
+        title: p.title,
+        amount: p.amount,
+        date: p.validFrom,
+        category: p.category,
         kind: "fixed",
         recurring: true,
         isTemplate: true,
-        validFrom: vf,
-        validTo: vt,
-        projectName,
+        validFrom: p.validFrom,
+        validTo: p.validTo,
+        projectName: p.projectName,
       });
       const uid = String(user.id);
-      queueAfterExpense(uid, "created", {
-        title: String(title),
-        amount: Number(amount),
-      });
+      queueAfterExpense(uid, "created", { title: p.title, amount: p.amount });
       return NextResponse.json(
-        { data: { ...doc.toObject(), _id: String(doc._id) } },
+        { data: expenseCreatedJson(doc.toObject()) },
         { status: 201 }
       );
     }
-
-    if (!date) {
-      return NextResponse.json({ error: "date is required" }, { status: 400 });
-    }
-    const dt = new Date(date);
-    await connectDB();
+    const p = parsed.data;
     const doc = await Expense.create({
       userId: user.id,
-      title: String(title),
-      amount: Number(amount),
-      date: dt,
-      category: cat,
-      kind: k,
+      title: p.title,
+      amount: p.amount,
+      date: p.date,
+      category: p.category,
+      kind: p.kind,
       recurring: false,
       isTemplate: false,
-      validFrom: dt,
+      validFrom: p.date,
       validTo: null,
-      projectName,
+      projectName: p.projectName,
     });
     const uid = String(user.id);
-    queueAfterExpense(uid, "created", {
-      title: String(title),
-      amount: Number(amount),
-    });
+    queueAfterExpense(uid, "created", { title: p.title, amount: p.amount });
     return NextResponse.json(
-      { data: { ...doc.toObject(), _id: String(doc._id) } },
+      { data: expenseCreatedJson(doc.toObject()) },
       { status: 201 }
     );
   } catch (e) {

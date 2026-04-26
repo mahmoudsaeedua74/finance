@@ -19,18 +19,10 @@ type Props = {
 export function ProjectSpendField({ id, value, onChange, className, disabled }: Props) {
   const t = useTranslations("expense");
   const { data } = useQuery({
-    queryKey: ["projects", "all-for-spend"],
-    queryFn: () => jsonFetch<{ data: { name: string }[] }>("/api/projects"),
+    queryKey: ["projects", "distinct-names"],
+    queryFn: () => jsonFetch<{ data: { names: string[] } }>("/api/projects/distinct-names"),
   });
-  const names = useMemo(() => {
-    const rows = data?.data ?? [];
-    const u = new Set<string>();
-    for (const r of rows) {
-      const n = r.name?.trim();
-      if (n) u.add(n);
-    }
-    return Array.from(u).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-  }, [data?.data]);
+  const names = useMemo(() => data?.data?.names ?? [], [data?.data?.names]);
   const dlId = `${id}-suggestions`;
   return (
     <div className={cn("space-y-1.5", className)}>

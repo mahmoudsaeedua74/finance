@@ -90,6 +90,24 @@ export async function maybeNotifyLowNetBalance(userId: string) {
  * Run after DB write — do not await in API routes: `buildMonthlyReport` in low-balance check is too slow
  * to block the HTTP response (was causing multi-second “saving” for users).
  */
+function deferToNextEventLoop(): Promise<void> {
+  if (typeof setImmediate === "function") {
+    return new Promise((r) => setImmediate(r));
+  }
+  return new Promise((r) => setTimeout(r, 0));
+}
+
+function queueLowNetBalanceDeferred(userId: string) {
+  void (async () => {
+    try {
+      await deferToNextEventLoop();
+      await maybeNotifyLowNetBalance(userId);
+    } catch (e) {
+      console.error("queueLowNetBalance", e);
+    }
+  })();
+}
+
 export function queueAfterExpense(
   userId: string,
   action: "created" | "updated" | "deleted",
@@ -98,11 +116,11 @@ export function queueAfterExpense(
   void (async () => {
     try {
       await notifyExpenseActivity(userId, action, detail);
-      await maybeNotifyLowNetBalance(userId);
     } catch (e) {
       console.error("queueAfterExpense", e);
     }
   })();
+  queueLowNetBalanceDeferred(userId);
 }
 
 export function queueAfterIncome(
@@ -113,11 +131,11 @@ export function queueAfterIncome(
   void (async () => {
     try {
       await notifyIncomeActivity(userId, action, detail);
-      await maybeNotifyLowNetBalance(userId);
     } catch (e) {
       console.error("queueAfterIncome", e);
     }
   })();
+  queueLowNetBalanceDeferred(userId);
 }
 
 export function queueAfterProject(
@@ -128,9 +146,9 @@ export function queueAfterProject(
   void (async () => {
     try {
       await notifyProjectActivity(userId, action, detail);
-      await maybeNotifyLowNetBalance(userId);
     } catch (e) {
       console.error("queueAfterProject", e);
     }
   })();
+  queueLowNetBalanceDeferred(userId);
 }

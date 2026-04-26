@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Project } from "@/lib/models";
-import { isDateInMonth } from "@/lib/monthly";
+import { monthDateBoundsUTC, projectPayoutInMonth } from "@/lib/db-month-filters";
+import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 import { queueAfterProject } from "@/lib/services/activity-notifications";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +13,28 @@ export async function GET(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
+    const { limit, offset } = parseListPagination(searchParams);
     const year = searchParams.get("year");
     const month = searchParams.get("month");
     await connectDB();
-    const raw = await Project.find({ userId: user.id }).sort({ date: -1 }).lean();
-    const list = raw
-      .map((d) => ({
+    const take = limit + 1;
+    if (year != null && month != null) {
+      const y = Number(year);
+      const m = Number(month);
+      if (!y || m < 1 || m > 12) {
+        return NextResponse.json(
+          { error: "Query params year and month (1-12) are required" },
+          { status: 400 }
+        );
+      }
+      const { mStart, mEnd } = monthDateBoundsUTC(y, m);
+      const q = projectPayoutInMonth(user.id, mStart, mEnd);
+      const raw = await Project.find(q)
+        .sort({ date: -1, _id: -1 })
+        .skip(offset)
+        .limit(take)
+        .lean();
+      const list = raw.map((d) => ({
         _id: String(d._id),
         name: d.name,
         amount: d.amount,
@@ -25,12 +42,24 @@ export async function GET(req: Request) {
         note: d.note?.trim() || "",
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
-      }))
-      .filter((d) => {
-        if (year == null || month == null) return true;
-        return isDateInMonth(new Date(d.date), Number(year), Number(month));
-      });
-    return NextResponse.json({ data: list });
+      }));
+      return NextResponse.json({ ...toPaginatedBody(list, offset, limit) });
+    }
+    const raw = await Project.find({ userId: user.id })
+      .sort({ date: -1, _id: -1 })
+      .skip(offset)
+      .limit(take)
+      .lean();
+    const list = raw.map((d) => ({
+      _id: String(d._id),
+      name: d.name,
+      amount: d.amount,
+      date: d.date,
+      note: d.note?.trim() || "",
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+    }));
+    return NextResponse.json({ ...toPaginatedBody(list, offset, limit) });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

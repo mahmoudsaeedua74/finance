@@ -3,7 +3,8 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
 import { normalizeIncomeType } from "@/lib/income-types";
-import { isDateInMonth } from "@/lib/monthly";
+import { monthDateBoundsUTC, incomeInMonth } from "@/lib/db-month-filters";
+import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 import { queueAfterIncome } from "@/lib/services/activity-notifications";
 
 export const dynamic = "force-dynamic";
@@ -13,12 +14,28 @@ export async function GET(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
-    const year = searchParams.get("year");
-    const month = searchParams.get("month");
+    const { limit, offset } = parseListPagination(searchParams);
+    const yearQ = searchParams.get("year");
+    const monthQ = searchParams.get("month");
     await connectDB();
-    const raw = await Income.find({ userId: user.id }).sort({ date: -1 }).lean();
-    const list = raw
-      .map((d) => ({
+    const take = limit + 1;
+    if (yearQ != null && monthQ != null) {
+      const y = Number(yearQ);
+      const m = Number(monthQ);
+      if (!y || m < 1 || m > 12) {
+        return NextResponse.json(
+          { error: "Query params year and month (1-12) are required" },
+          { status: 400 }
+        );
+      }
+      const { mStart, mEnd } = monthDateBoundsUTC(y, m);
+      const q = incomeInMonth(user.id, mStart, mEnd);
+      const raw = await Income.find(q)
+        .sort({ date: -1, _id: -1 })
+        .skip(offset)
+        .limit(take)
+        .lean();
+      const list = raw.map((d) => ({
         _id: String(d._id),
         title: d.title,
         amount: d.amount,
@@ -26,14 +43,24 @@ export async function GET(req: Request) {
         incomeType: d.incomeType,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
-      }))
-      .filter((d) => {
-        if (year == null || month == null) return true;
-        const y = Number(year);
-        const m = Number(month);
-        return isDateInMonth(new Date(d.date), y, m);
-      });
-    return NextResponse.json({ data: list });
+      }));
+      return NextResponse.json({ ...toPaginatedBody(list, offset, limit) });
+    }
+    const raw = await Income.find({ userId: user.id })
+      .sort({ date: -1, _id: -1 })
+      .skip(offset)
+      .limit(take)
+      .lean();
+    const list = raw.map((d) => ({
+      _id: String(d._id),
+      title: d.title,
+      amount: d.amount,
+      date: d.date,
+      incomeType: d.incomeType,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+    }));
+    return NextResponse.json({ ...toPaginatedBody(list, offset, limit) });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

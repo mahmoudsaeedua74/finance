@@ -19,6 +19,7 @@ export const queryKeys = {
     month: (year: number, month: number) => ["projects", year, month] as const,
     all: () => ["projects", "all"] as const,
     allForSpend: () => ["projects", "all-for-spend"] as const,
+    distinctNames: () => ["projects", "distinct-names"] as const,
   },
 
   notificationPreferences: () => ["notification-preferences"] as const,
