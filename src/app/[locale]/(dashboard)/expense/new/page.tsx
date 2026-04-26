@@ -21,11 +21,23 @@ import { Receipt, CalendarClock, Repeat } from "lucide-react";
 const field = "h-11 w-full min-w-0";
 const label = "text-xs font-medium text-muted-foreground leading-none";
 const formGrid = "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4";
-const helperClass = "min-h-4 text-[0.7rem] leading-snug text-muted-foreground sm:text-xs";
-const actionRowClass = "sm:col-span-2 flex flex-col-reverse gap-2 pt-1 min-[420px]:flex-row";
+const helperClass =
+  "min-h-4 text-[0.7rem] leading-snug text-muted-foreground sm:text-xs";
+const actionRowClass =
+  "sm:col-span-2 flex flex-col-reverse gap-2 pt-1 min-[420px]:flex-row";
 
-function FieldCol({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex min-w-0 flex-col gap-2", className)}>{children}</div>;
+function FieldCol({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-2", className)}>
+      {children}
+    </div>
+  );
 }
 
 function FieldLabel({
@@ -69,7 +81,7 @@ export default function NewExpensePage() {
   const [recAmount, setRecAmount] = useState("");
   const [recCat, setRecCat] = useState("employee");
   const [recFrom, setRecFrom] = useState(
-    new Date(year, month - 1, 1).toISOString().slice(0, 10)
+    new Date(year, month - 1, 1).toISOString().slice(0, 10),
   );
   const [recTo, setRecTo] = useState("");
 
@@ -143,9 +155,7 @@ export default function NewExpensePage() {
         className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md"
         aria-labelledby="expense-type-heading"
       >
-        <div
-          className="border-b border-border/60 bg-gradient-to-b from-muted/30 to-transparent px-4 py-4 sm:px-5"
-        >
+        <div className="border-b border-border/60 bg-gradient-to-b from-muted/30 to-transparent px-4 py-4 sm:px-5">
           <h2
             id="expense-type-heading"
             className="text-sm font-semibold sm:text-base"
@@ -163,29 +173,38 @@ export default function NewExpensePage() {
         <Tabs defaultValue="variable" className="w-full">
           <div className="p-4 sm:p-5 sm:pt-4">
             <TabsList
-              className="!h-auto !w-full min-w-0 grid grid-cols-3 gap-1 rounded-xl border border-border/50 bg-muted/50 p-1.5"
+              className="!h-auto !w-full min-w-0  flex flex-col gap-3 rounded-xl border border-border/50 bg-muted/50 p-1.5"
               aria-label={t("typeCardT")}
             >
               <TabsTrigger
                 value="variable"
                 className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
               >
-                <Receipt className="size-3.5 shrink-0 sm:size-3.5" aria-hidden />
-                <span className="line-clamp-2 sm:line-clamp-1">{t("tabVar")}</span>
+                <Receipt
+                  className="size-3.5 shrink-0 sm:size-3.5"
+                  aria-hidden
+                />
+                <span className="line-clamp-2 sm:line-clamp-1">
+                  {t("tabVar")}
+                </span>
               </TabsTrigger>
               <TabsTrigger
                 value="onetime"
                 className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
               >
                 <CalendarClock className="size-3.5 shrink-0" aria-hidden />
-                <span className="line-clamp-2 sm:line-clamp-1">{t("tabFix")}</span>
+                <span className="line-clamp-2 sm:line-clamp-1">
+                  {t("tabFix")}
+                </span>
               </TabsTrigger>
               <TabsTrigger
                 value="recurring"
                 className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
               >
                 <Repeat className="size-3.5 shrink-0" aria-hidden />
-                <span className="line-clamp-2 sm:line-clamp-1">{t("tabRec")}</span>
+                <span className="line-clamp-2 sm:line-clamp-1">
+                  {t("tabRec")}
+                </span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -339,7 +358,9 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <FieldLabel htmlFor="r-amt">{t("formAmountPerMonth")}</FieldLabel>
+                  <FieldLabel htmlFor="r-amt">
+                    {t("formAmountPerMonth")}
+                  </FieldLabel>
                   <Input
                     id="r-amt"
                     className={field}
