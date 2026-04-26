@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { checkDbOnClient } from "@/lib/client-db-health";
+import { toastNextAuthLoginFailure } from "@/lib/auth-failure-toast";
 
 function LoginForm() {
   const t = useTranslations("auth");
@@ -20,13 +21,26 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const didWelcome = useRef(false);
+  const didHandleUrlQuery = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get("registered") !== "1" || didWelcome.current) return;
-    didWelcome.current = true;
-    toast.success(t("accountCreatedSignIn"));
-    router.replace(pathname);
+    if (didHandleUrlQuery.current) return;
+    const err = searchParams.get("error");
+    if (err) {
+      didHandleUrlQuery.current = true;
+      toastNextAuthLoginFailure(
+        t,
+        { error: err, ok: false },
+        null
+      );
+      router.replace(pathname);
+      return;
+    }
+    if (searchParams.get("registered") === "1") {
+      didHandleUrlQuery.current = true;
+      toast.success(t("accountCreatedSignIn"));
+      router.replace(pathname);
+    }
   }, [searchParams, pathname, router, t]);
 
   const callback = searchParams.get("callbackUrl") || "/";
@@ -57,13 +71,13 @@ function LoginForm() {
               redirect: false,
             });
             setLoading(false);
-            if (res?.error) {
-              toast.error(t("badCreds"));
+            if (res?.ok) {
+              router.push(callback);
+              router.refresh();
+              toast.success(t("signedIn"));
               return;
             }
-            router.push(callback);
-            router.refresh();
-            toast.success(t("signedIn"));
+            toastNextAuthLoginFailure(t, res, null);
           }}
         >
           <div className="space-y-2">

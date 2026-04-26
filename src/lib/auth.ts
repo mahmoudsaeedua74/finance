@@ -9,7 +9,11 @@ const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 export const authOptions: NextAuthOptions = {
   secret: secret || "dev-only-change-in-production",
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
-  pages: { signIn: "/login" },
+  pages: {
+    signIn: "/login",
+    /* Avoid bare /api/auth/error; send users to login with ?error=… so the UI can toast */
+    error: "/login",
+  },
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -21,16 +25,21 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;
         if (!email || !password) return null;
-        await connectDB();
-        const user = await User.findOne({ email }).lean();
-        if (!user?.passwordHash) return null;
-        const ok = await bcrypt.compare(password, user.passwordHash);
-        if (!ok) return null;
-        return {
-          id: String(user._id),
-          email: user.email,
-          name: user.name || "",
-        };
+        try {
+          await connectDB();
+          const user = await User.findOne({ email }).lean();
+          if (!user?.passwordHash) return null;
+          const ok = await bcrypt.compare(password, user.passwordHash);
+          if (!ok) return null;
+          return {
+            id: String(user._id),
+            email: user.email,
+            name: user.name || "",
+          };
+        } catch (e) {
+          console.error("[next-auth] authorize database error", e);
+          throw new Error("AUTH_DB_UNAVAILABLE");
+        }
       },
     }),
   ],
