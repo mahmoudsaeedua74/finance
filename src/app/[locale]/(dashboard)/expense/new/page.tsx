@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ export default function NewExpensePage() {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
   const router = useRouter();
-  const qc = useQueryClient();
+  const { invalidateExpenses } = useFinanceInvalidation();
   const { year, month } = useMonth();
   const defDate = new Date(year, month - 1, 10).toISOString().slice(0, 10);
 
@@ -64,8 +65,7 @@ export default function NewExpensePage() {
       }),
     onSuccess: () => {
       toast.success(t("savedV"));
-      qc.invalidateQueries({ queryKey: ["expenses", year, month] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateExpenses();
       router.push("/expense");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -85,9 +85,7 @@ export default function NewExpensePage() {
       }),
     onSuccess: () => {
       toast.success(t("savedF"));
-      qc.invalidateQueries({ queryKey: ["expenses", year, month] });
-      qc.invalidateQueries({ queryKey: ["expenses", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateExpenses({ includeAllList: true });
       router.push("/expense");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -109,9 +107,7 @@ export default function NewExpensePage() {
       }),
     onSuccess: () => {
       toast.success(t("savedR"));
-      qc.invalidateQueries({ queryKey: ["expenses", year, month] });
-      qc.invalidateQueries({ queryKey: ["expenses", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateExpenses({ includeAllList: true });
       router.push("/expense");
     },
     onError: (e: Error) => toast.error(e.message),

@@ -11,6 +11,7 @@ import { monthLabel } from "@/lib/format";
 import type { MonthlyReportDto } from "@/types/report";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { BarChart3 } from "lucide-react";
@@ -62,15 +63,12 @@ export default function DashboardPage() {
       />
 
       {error && (
-        <div
-          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-          role="alert"
-        >
-          <p className="font-medium">{t("loadErrorTitle")}</p>
-          <p className="mt-0.5 text-destructive/90">
-            {(error as Error).message} {t("loadErrorBody")}
-          </p>
-        </div>
+        <QueryErrorAlert
+          error={error}
+          variant="callout"
+          title={t("loadErrorTitle")}
+          trailing={t("loadErrorBody")}
+        />
       )}
 
       <SummaryCards report={!isLoading ? report : undefined} />

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
 import { isDateInMonth, templateAppliesInMonth } from "@/lib/monthly";
@@ -43,6 +44,8 @@ export type ExpenseRow = ReturnType<typeof serialize> & {
 };
 
 export async function GET(req: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
     const yearQ = searchParams.get("year");
@@ -110,6 +113,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
     const {

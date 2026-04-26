@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
 import { jsonFetch } from "@/lib/fetcher";
@@ -21,6 +21,10 @@ import { Link } from "@/i18n/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
+import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +55,7 @@ export default function IncomeListPage() {
   const tC = useTranslations("common");
   const locale = useLocale();
   const { year, month } = useMonth();
-  const qc = useQueryClient();
+  const { invalidateIncomes } = useFinanceInvalidation();
   const { data, isLoading, error } = useQuery({
     queryKey: ["incomes", year, month],
     queryFn: () =>
@@ -69,8 +73,7 @@ export default function IncomeListPage() {
     mutationFn: (id: string) => jsonFetch(`/api/incomes/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success(tC("deleted"));
-      qc.invalidateQueries({ queryKey: ["incomes", year, month] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateIncomes();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -91,8 +94,7 @@ export default function IncomeListPage() {
     onSuccess: () => {
       toast.success(tC("updated"));
       setEdit(null);
-      qc.invalidateQueries({ queryKey: ["incomes", year, month] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateIncomes();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -102,19 +104,17 @@ export default function IncomeListPage() {
 
   return (
     <div className="max-w-4xl space-y-4">
-      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("pageTitle")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("pageDesc", { month: monthLabel(year, month, locale) })}
-          </p>
-        </div>
-        <Link className={cn(buttonVariants())} href="/income/new">
-          {t("add")}
-        </Link>
-      </div>
+      <PageHeader
+        title={t("pageTitle")}
+        description={t("pageDesc", { month: monthLabel(year, month, locale) })}
+        action={
+          <Link className={cn(buttonVariants())} href="/income/new">
+            {t("add")}
+          </Link>
+        }
+      />
 
-      {error && <p className="text-destructive text-sm">{(error as Error).message}</p>}
+      {error && <QueryErrorAlert error={error} />}
 
       <Card>
         <CardHeader>
@@ -123,7 +123,10 @@ export default function IncomeListPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">{tC("loading")}</p>
+            <DataTableSkeleton
+              columnShapes={["sm", "fill", "xs", "end", "end"]}
+              rows={6}
+            />
           ) : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noRows")}</p>
           ) : (

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -26,7 +28,7 @@ export default function NewIncomePage() {
   const t = useTranslations("income");
   const tC = useTranslations("common");
   const router = useRouter();
-  const qc = useQueryClient();
+  const { invalidateIncomes } = useFinanceInvalidation();
   const { year, month } = useMonth();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -48,8 +50,7 @@ export default function NewIncomePage() {
       }),
     onSuccess: () => {
       toast.success(t("saved"));
-      qc.invalidateQueries({ queryKey: ["incomes"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateIncomes({ allQueries: true });
       router.push("/income");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -57,16 +58,18 @@ export default function NewIncomePage() {
 
   return (
     <div className="max-w-lg space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("newTitle")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("newDesc1")}
-          <Link className="underline" href="/projects">
-            {t("newProjects")}
-          </Link>
-          {t("newDesc2")}
-        </p>
-      </div>
+      <PageHeader
+        title={t("newTitle")}
+        description={
+          <>
+            {t("newDesc1")}
+            <Link className="underline" href="/projects">
+              {t("newProjects")}
+            </Link>
+            {t("newDesc2")}
+          </>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>{t("newCardT")}</CardTitle>

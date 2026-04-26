@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
 import mongoose from "mongoose";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: { id: string } };
 
 export async function GET(_req: Request, { params }: Ctx) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
@@ -25,6 +28,8 @@ export async function GET(_req: Request, { params }: Ctx) {
 }
 
 export async function PUT(req: Request, { params }: Ctx) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
@@ -53,6 +58,8 @@ export async function PUT(req: Request, { params }: Ctx) {
 }
 
 export async function DELETE(_req: Request, { params }: Ctx) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });

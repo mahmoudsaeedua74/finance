@@ -2,7 +2,15 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
+import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
+import {
+  filterRowsByNameQuery,
+  sortRowsByNameAmountDate,
+} from "@/lib/sort-filter";
 import { useMonth } from "@/context/month-context";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, monthLabel, formatMoney } from "@/lib/format";
@@ -47,8 +55,7 @@ function EditP({
 }) {
   const t = useTranslations("projects");
   const tC = useTranslations("common");
-  const qc = useQueryClient();
-  const { year, month } = useMonth();
+  const { invalidateProjects } = useFinanceInvalidation();
   const [name, setName] = useState(row.name);
   const [amount, setAmount] = useState(String(row.amount));
   const [date, setDate] = useState(new Date(row.date).toISOString().slice(0, 10));
@@ -64,42 +71,57 @@ function EditP({
       }),
     onSuccess: () => {
       toast.success(t("done"));
-      qc.invalidateQueries({ queryKey: ["projects", year, month] });
-      qc.invalidateQueries({ queryKey: ["projects", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateProjects();
       onDone();
     },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
     <>
-      <div className="space-y-2">
-        <div>
-          <Label>{tC("name")}</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div>
-          <Label>{t("incomeAmt")}</Label>
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-proj-name-${row._id}`}>{tC("name")}</Label>
           <Input
+            id={`edit-proj-name-${row._id}`}
+            className="h-11"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-proj-amt-${row._id}`}>{t("incomeAmt")}</Label>
+          <Input
+            id={`edit-proj-amt-${row._id}`}
+            className="h-11"
             type="number"
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
         </div>
-        <div>
-          <Label>{tC("date")}</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-proj-date-${row._id}`}>{tC("date")}</Label>
+          <Input
+            id={`edit-proj-date-${row._id}`}
+            className="h-11"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
+        <DialogFooter className="gap-2 sm:gap-0 sm:pt-0">
+          <Button type="button" variant="outline" onClick={onDone}>
+            {tC("close")}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => save.mutate()}
+            disabled={!name.trim() || !amount}
+          >
+            {tC("save")}
+          </Button>
+        </DialogFooter>
       </div>
-      <DialogFooter className="mt-4">
-        <Button type="button" variant="outline" onClick={onDone}>
-          {tC("close")}
-        </Button>
-        <Button type="button" onClick={() => save.mutate()}>
-          {tC("save")}
-        </Button>
-      </DialogFooter>
     </>
   );
 }
@@ -109,7 +131,7 @@ export default function ProjectsPage() {
   const tC = useTranslations("common");
   const locale = useLocale();
   const { year, month } = useMonth();
-  const qc = useQueryClient();
+  const { invalidateProjects } = useFinanceInvalidation();
   const { data, isLoading, error } = useQuery({
     queryKey: ["projects", year, month],
     queryFn: () =>
@@ -153,9 +175,7 @@ export default function ProjectsPage() {
       setName("");
       setAmount("");
       setAddOpen(false);
-      qc.invalidateQueries({ queryKey: ["projects", year, month] });
-      qc.invalidateQueries({ queryKey: ["projects", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateProjects();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -164,9 +184,7 @@ export default function ProjectsPage() {
     mutationFn: (id: string) => jsonFetch(`/api/projects/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success(t("removed"));
-      qc.invalidateQueries({ queryKey: ["projects", year, month] });
-      qc.invalidateQueries({ queryKey: ["projects", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateProjects();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -174,39 +192,15 @@ export default function ProjectsPage() {
   const monthRows = useMemo(() => data?.data ?? [], [data?.data]);
   const allRows = useMemo(() => allQ?.data ?? [], [allQ?.data]);
 
-  const monthView = useMemo(() => {
-    const filter = q.trim().toLowerCase();
-    const filtered = filter
-      ? monthRows.filter((r) => r.name.toLowerCase().includes(filter))
-      : monthRows;
-    const mult = sortDir === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => {
-      if (sortBy === "name") {
-        return mult * a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      }
-      if (sortBy === "amount") {
-        return mult * (a.amount - b.amount);
-      }
-      return mult * (new Date(a.date).getTime() - new Date(b.date).getTime());
-    });
-  }, [monthRows, q, sortBy, sortDir]);
+  const monthView = useMemo(
+    () => sortRowsByNameAmountDate(filterRowsByNameQuery(monthRows, q), sortBy, sortDir),
+    [monthRows, q, sortBy, sortDir]
+  );
 
-  const allView = useMemo(() => {
-    const filter = q.trim().toLowerCase();
-    const filtered = filter
-      ? allRows.filter((r) => r.name.toLowerCase().includes(filter))
-      : allRows;
-    const mult = sortDir === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => {
-      if (sortBy === "name") {
-        return mult * a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      }
-      if (sortBy === "amount") {
-        return mult * (a.amount - b.amount);
-      }
-      return mult * (new Date(a.date).getTime() - new Date(b.date).getTime());
-    });
-  }, [allRows, q, sortBy, sortDir]);
+  const allView = useMemo(
+    () => sortRowsByNameAmountDate(filterRowsByNameQuery(allRows, q), sortBy, sortDir),
+    [allRows, q, sortBy, sortDir]
+  );
 
   const byName = useMemo(() => {
     const m2 = new Map<string, number>();
@@ -220,14 +214,12 @@ export default function ProjectsPage() {
 
   return (
     <div className="max-w-4xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("desc", { month: monthLabel(year, month, locale) })}
-        </p>
-      </div>
+      <PageHeader
+        title={t("title")}
+        description={t("desc", { month: monthLabel(year, month, locale) })}
+      />
 
-      {error && <p className="text-destructive text-sm">{(error as Error).message}</p>}
+      {error && <QueryErrorAlert error={error} />}
 
       <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
         <div className="space-y-1.5 sm:col-span-2 lg:col-span-5">
@@ -329,7 +321,7 @@ export default function ProjectsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">{tC("loading")}</p>
+            <DataTableSkeleton columnShapes={["sm", "fill", "end", "end"]} rows={5} />
           ) : monthView.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPayouts")}</p>
           ) : (
@@ -360,18 +352,20 @@ export default function ProjectsPage() {
                         {formatMoney(r.amount)}
                       </TableCell>
                       <TableCell className="text-end">
-                        <Button size="sm" variant="ghost" onClick={() => setEdit(r)}>
-                          {tC("edit")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            if (confirm(t("deleteQ"))) del.mutate(r._id);
-                          }}
-                        >
-                          {tC("delete")}
-                        </Button>
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => setEdit(r)}>
+                            {tC("edit")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm(t("deleteQ"))) del.mutate(r._id);
+                            }}
+                          >
+                            {tC("delete")}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -401,7 +395,7 @@ export default function ProjectsPage() {
                     <TableHead>{tC("date")}</TableHead>
                     <TableHead>{tC("project")}</TableHead>
                     <TableHead className="text-end">{tC("amount")}</TableHead>
-                    <TableHead className="w-20 text-end"> </TableHead>
+                    <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -415,9 +409,20 @@ export default function ProjectsPage() {
                         {formatMoney(r.amount)}
                       </TableCell>
                       <TableCell className="text-end">
-                        <Button size="sm" variant="ghost" onClick={() => setEdit(r)}>
-                          {tC("edit")}
-                        </Button>
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => setEdit(r)}>
+                            {tC("edit")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm(t("deleteQ"))) del.mutate(r._id);
+                            }}
+                          >
+                            {tC("delete")}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -484,10 +489,16 @@ export default function ProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!edit} onOpenChange={() => setEdit(null)}>
-        <DialogContent>
+      <Dialog
+        open={!!edit}
+        onOpenChange={(open) => {
+          if (!open) setEdit(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("dialogTitle")}</DialogTitle>
+            <DialogDescription>{t("addDesc")}</DialogDescription>
           </DialogHeader>
           {edit && <EditP key={edit._id} row={edit} onDone={() => setEdit(null)} />}
         </DialogContent>

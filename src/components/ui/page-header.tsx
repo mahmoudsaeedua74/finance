@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 type PageHeaderProps = {
   title: string;
-  description?: string;
+  description?: ReactNode;
   icon?: ReactNode;
   className?: string;
   action?: ReactNode;
@@ -39,10 +39,10 @@ export function PageHeader({
           <h1 className="text-xl font-semibold tracking-tight min-[400px]:text-2xl">
             {title}
           </h1>
-          {description && (
-            <p className="mt-0.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {description != null && (
+            <div className="mt-0.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {description}
-            </p>
+            </div>
           )}
         </div>
       </div>

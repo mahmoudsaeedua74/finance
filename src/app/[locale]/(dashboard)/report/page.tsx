@@ -10,51 +10,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MonthlyReportDto } from "@/types/report";
-import { FileDown, FileSpreadsheet, Filter, Mail, RotateCcw, Sparkles } from "lucide-react";
+import { FileDown, FileSpreadsheet, Mail, Sparkles } from "lucide-react";
 import { exportMonthlyReportPdf } from "@/lib/export-pdf";
 import { exportMonthlyReportExcel } from "@/lib/export-excel";
 import { toast } from "sonner";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { ReportChartsLazy } from "@/components/dashboard/report-charts-lazy";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import {
   applyReportFilters,
   getDefaultReportFilters,
-  getUniqueExpenseCategories,
+  isReportFilterDefault,
   type ReportFilterState,
 } from "@/lib/report-filters";
 import { Separator } from "@/components/ui/separator";
 import { labelExpenseCategory } from "@/lib/expense-categories";
-
-const filterLabelClass = "text-xs font-medium text-foreground/80";
-
-const reportSelectTriggerClass = cn(
-  "h-11 w-full min-w-0 justify-between gap-2 rounded-xl border border-border/80 bg-background px-3 text-left text-sm font-normal shadow-sm transition-[box-shadow,background-color,border-color] hover:border-border hover:bg-muted/40 data-[size=default]:h-11 data-placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
-);
-
-const reportSelectContentClass =
-  "max-h-64 rounded-xl border border-border/50 bg-popover p-1.5 text-popover-foreground shadow-lg";
-
-function isFilterDefault(f: ReportFilterState) {
-  return (
-    f.expenseCategory === "all" &&
-    f.projectId === "all" &&
-    !f.search.trim() &&
-    !f.quickSavingsOnly
-  );
-}
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
+import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
 
 export default function ReportPage() {
   const t = useTranslations("report");
@@ -75,22 +49,12 @@ export default function ReportPage() {
 
   const report = useMemo(() => {
     if (!raw) return undefined;
-    if (isFilterDefault(filter)) return raw;
+    if (isReportFilterDefault(filter)) return raw;
     return applyReportFilters(raw, filter);
   }, [raw, filter]);
 
-  const categoryOptions = useMemo(
-    () => (raw ? getUniqueExpenseCategories(raw) : []),
-    [raw]
-  );
-
-  const projectOptions = useMemo(() => {
-    if (!raw) return [];
-    return raw.projectLineItems;
-  }, [raw]);
-
   const filenameBase = `report-${year}-${String(month).padStart(2, "0")}`;
-  const suffix = isFilterDefault(filter) ? "" : "-filtered";
+  const suffix = isReportFilterDefault(filter) ? "" : "-filtered";
   const pdfName = `${filenameBase}${suffix}.pdf`;
   const xlsxName = `${filenameBase}${suffix}.xlsx`;
 
@@ -106,161 +70,14 @@ export default function ReportPage() {
 
   return (
     <div className=" space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold min-[400px]:text-2xl">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("subtitle", { month: monthLabel(year, month, locale) })}
-        </p>
-      </div>
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle", { month: monthLabel(year, month, locale) })}
+      />
 
-      {error && <p className="text-destructive text-sm">{(error as Error).message}</p>}
+      {error && <QueryErrorAlert error={error} />}
 
-      <section className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card to-muted/15 shadow-sm">
-        <div className="border-b border-border/60 bg-muted/25 px-4 py-3.5 sm:px-5 sm:py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Filter className="size-5" aria-hidden />
-              </div>
-              <div className="min-w-0 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base font-semibold tracking-tight sm:text-lg">
-                    {t("filters")}
-                  </h2>
-                  {!isFilterDefault(filter) && (
-                    <Badge variant="secondary" className="shrink-0 text-xs">
-                      {t("customView")}
-                    </Badge>
-                  )}
-                </div>
-                <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                  {t("filterDesc")}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 sm:p-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-12 lg:gap-x-4">
-            <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-5">
-              <Label htmlFor="rep-search" className={filterLabelClass}>
-                {tC("search")}
-              </Label>
-              <Input
-                id="rep-search"
-                value={filter.search}
-                onChange={(e) => setFilter((f) => ({ ...f, search: e.target.value }))}
-                placeholder={t("phSearch")}
-                className="h-11 w-full rounded-xl border-border/80 bg-background shadow-sm"
-              />
-            </div>
-            <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
-              <Label htmlFor="filter-expense-cat" className={filterLabelClass}>
-                {t("expCat")}
-              </Label>
-              <Select
-                value={filter.expenseCategory}
-                onValueChange={(v) => v && setFilter((f) => ({ ...f, expenseCategory: v }))}
-              >
-                <SelectTrigger className={reportSelectTriggerClass} id="filter-expense-cat">
-                  <SelectValue placeholder={t("allCats")} />
-                </SelectTrigger>
-                <SelectContent
-                  className={reportSelectContentClass}
-                  align="start"
-                  sideOffset={6}
-                >
-                  <SelectItem value="all" className="cursor-pointer rounded-lg py-2.5">
-                    {t("allCats")}
-                  </SelectItem>
-                  {categoryOptions.length > 0 && <SelectSeparator className="my-1" />}
-                  {categoryOptions.map((c) => (
-                    <SelectItem
-                      key={c}
-                      value={c}
-                      className="cursor-pointer rounded-lg py-2.5"
-                      title={labelExpenseCategory(c, tCat)}
-                    >
-                      <span className="line-clamp-2 w-full min-w-0 break-words text-start whitespace-normal">
-                        {labelExpenseCategory(c, tCat)}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
-              <Label htmlFor="filter-project" className={filterLabelClass}>
-                {t("projInc")}
-              </Label>
-              <Select
-                value={filter.projectId}
-                onValueChange={(v) => v && setFilter((f) => ({ ...f, projectId: v }))}
-              >
-                <SelectTrigger className={reportSelectTriggerClass} id="filter-project">
-                  <SelectValue placeholder={t("allProjs")} />
-                </SelectTrigger>
-                <SelectContent
-                  className={reportSelectContentClass}
-                  align="start"
-                  sideOffset={6}
-                >
-                  <SelectItem value="all" className="cursor-pointer rounded-lg py-2.5">
-                    {t("allProjs")}
-                  </SelectItem>
-                  {projectOptions.length > 0 && <SelectSeparator className="my-1" />}
-                  {projectOptions.map((p) => (
-                    <SelectItem
-                      key={p._id}
-                      value={p._id}
-                      className="cursor-pointer items-start gap-0 rounded-lg py-2.5"
-                    >
-                      <span className="flex w-full min-w-0 flex-col items-start gap-0.5 text-start">
-                        <span className="w-full line-clamp-2 font-medium leading-snug break-words whitespace-normal">
-                          {p.name}
-                        </span>
-                        <span className="text-xs tabular-nums text-muted-foreground">
-                          {formatMoney(p.amount)}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-              <Label className={cn(filterLabelClass, "leading-snug")}>
-                {t("savingsLabel")}
-              </Label>
-              <Button
-                type="button"
-                variant={filter.quickSavingsOnly ? "default" : "outline"}
-                className="h-11 w-full min-w-0 touch-manipulation rounded-xl px-2 text-sm leading-snug"
-                aria-pressed={filter.quickSavingsOnly}
-                onClick={() =>
-                  setFilter((f) => ({ ...f, quickSavingsOnly: !f.quickSavingsOnly }))
-                }
-              >
-                {t("savingsBtn")}
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border/50 pt-4 sm:mt-5 sm:pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9"
-              onClick={() => setFilter(getDefaultReportFilters())}
-            >
-              <RotateCcw className="me-1.5 size-3.5" />
-              {tC("reset")}
-            </Button>
-          </div>
-        </div>
-      </section>
+      <ReportFiltersPanel raw={raw} filter={filter} setFilter={setFilter} />
 
       <div className="flex flex-wrap gap-2">
         <Button

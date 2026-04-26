@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
@@ -32,6 +32,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { labelExpenseCategory, resolveExpenseCategoryForSave } from "@/lib/expense-categories";
+import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
+import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
 
 type Row = {
   _id: string;
@@ -66,8 +70,7 @@ function EditForm({
 }) {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
-  const { year, month } = useMonth();
-  const qc = useQueryClient();
+  const { invalidateExpenses } = useFinanceInvalidation();
   const [title, setTitle] = useState(row.title);
   const [amount, setAmount] = useState(String(row.amount));
   const [cat, setCat] = useState(row.category);
@@ -118,9 +121,7 @@ function EditForm({
     },
     onSuccess: () => {
       toast.success(tC("updated"));
-      qc.invalidateQueries({ queryKey: ["expenses", year, month] });
-      qc.invalidateQueries({ queryKey: ["expenses", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateExpenses({ includeAllList: true });
       onDone();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -209,7 +210,7 @@ export default function ExpenseListPage() {
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
   const { year, month } = useMonth();
-  const qc = useQueryClient();
+  const { invalidateExpenses } = useFinanceInvalidation();
   const { data, isLoading, error } = useQuery({
     queryKey: ["expenses", year, month],
     queryFn: () =>
@@ -229,28 +230,24 @@ export default function ExpenseListPage() {
     mutationFn: (id: string) => jsonFetch(`/api/expenses/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success(tC("deleted"));
-      qc.invalidateQueries({ queryKey: ["expenses", year, month] });
-      qc.invalidateQueries({ queryKey: ["expenses", "all"] });
-      qc.invalidateQueries({ queryKey: ["report", year, month] });
+      invalidateExpenses({ includeAllList: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
     <div className="max-w-5xl space-y-4">
-      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("pageTitle")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("pageSub", { month: monthLabel(year, month, locale) })}
-          </p>
-        </div>
-        <Link className={cn(buttonVariants())} href="/expense/new">
-          {t("add")}
-        </Link>
-      </div>
+      <PageHeader
+        title={t("pageTitle")}
+        description={t("pageSub", { month: monthLabel(year, month, locale) })}
+        action={
+          <Link className={cn(buttonVariants())} href="/expense/new">
+            {t("add")}
+          </Link>
+        }
+      />
 
-      {error && <p className="text-destructive text-sm">{(error as Error).message}</p>}
+      {error && <QueryErrorAlert error={error} />}
 
       <Card>
         <CardHeader>
@@ -261,7 +258,10 @@ export default function ExpenseListPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">{tC("loading")}</p>
+            <DataTableSkeleton
+              columnShapes={["sm", "fill", "xs", "md", "end", "end"]}
+              rows={6}
+            />
           ) : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noRows")}</p>
           ) : (

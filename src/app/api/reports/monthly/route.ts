@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
     const y = Number(searchParams.get("year"));

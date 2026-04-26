@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Project } from "@/lib/models";
 import { isDateInMonth } from "@/lib/monthly";
@@ -6,6 +7,8 @@ import { isDateInMonth } from "@/lib/monthly";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     const { searchParams } = new URL(req.url);
     const year = searchParams.get("year");
@@ -36,6 +39,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
     const { name, amount, date } = body;

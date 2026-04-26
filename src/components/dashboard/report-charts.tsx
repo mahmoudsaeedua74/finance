@@ -16,6 +16,7 @@ import {
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MonthlyReportDto } from "@/types/report";
+import { labelExpenseCategory } from "@/lib/expense-categories";
 import { useMemo, memo } from "react";
 
 // oklch CSS vars are not always valid in SVG; use a fixed palette in charts
@@ -24,13 +25,14 @@ const BAR = "#0ea5e9";
 
 function ReportChartsInner({ report }: { report: MonthlyReportDto | undefined }) {
   const t = useTranslations("chart");
+  const tCat = useTranslations("expense.categories");
   const expenseData = useMemo(() => {
     if (!report) return [];
-    return Object.entries(report.expenseByCategory).map(([name, value]) => ({
-      name,
+    return Object.entries(report.expenseByCategory).map(([key, value]) => ({
+      name: labelExpenseCategory(key, tCat),
       value,
     }));
-  }, [report]);
+  }, [report, tCat]);
 
   const incomeData = useMemo(() => {
     if (!report) return [];

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import nodemailer from "nodemailer";
 import { connectDB } from "@/lib/mongodb";
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
@@ -33,6 +34,8 @@ function formatReportTextShort(
 }
 
 export async function POST(req: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
   try {
     const body = await req.json().catch(() => ({}));
     const year = Number(body.year);

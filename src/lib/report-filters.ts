@@ -15,7 +15,7 @@ export function getReportCategorySelectOptions(
   monthUniqueCategories: string[]
 ): string[] {
   const fromMonth = new Set(monthUniqueCategories);
-  const extra = [...fromMonth]
+  const extra = Array.from(fromMonth)
     .filter((c) => !isPresetExpenseCategory(c))
     .sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: "base" })
@@ -116,4 +116,10 @@ export function getDefaultReportFilters(): ReportFilterState {
     projectId: "all",
     search: "",
   };
+}
+
+export function isReportFilterDefault(f: ReportFilterState): boolean {
+  return (
+    f.expenseCategory === "all" && f.projectId === "all" && !f.search.trim()
+  );
 }

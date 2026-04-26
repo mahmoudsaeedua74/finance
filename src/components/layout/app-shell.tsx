@@ -30,6 +30,8 @@ import type { MonthlyReportDto } from "@/types/report";
 import { MobileBottomChrome } from "@/components/layout/mobile-bottom-chrome";
 import { Separator } from "@/components/ui/separator";
 import { LanguageSwitcher } from "@/components/locale/LanguageSwitcher";
+import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
 
 const sideLinks = [
   { href: "/", k: "dashboard" as const, Icon: LayoutGrid },
@@ -173,6 +175,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             {chip}
           </p>
           <SidebarTheme themeLabel={tComm("theme")} />
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full touch-manipulation justify-center gap-2 text-sm font-medium"
+            onClick={() =>
+              signOut({ callbackUrl: isRtl ? "/ar/login" : "/login" })
+            }
+          >
+            <LogOut className="size-4" />
+            {tComm("signOut")}
+          </Button>
         </div>
       </aside>
 
@@ -220,6 +233,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <Separator />
                     <p className="text-xs text-muted-foreground">{tLayout("jumpTo")}</p>
                     <NavList onNavigate={() => setSheetOpen(false)} />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full justify-center gap-2"
+                      onClick={() => {
+                        setSheetOpen(false);
+                        void signOut({ callbackUrl: isRtl ? "/ar/login" : "/login" });
+                      }}
+                    >
+                      <LogOut className="size-4" />
+                      {tComm("signOut")}
+                    </Button>
                   </div>
                 </SheetContent>
               </Sheet>

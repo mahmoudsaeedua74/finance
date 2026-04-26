@@ -5,10 +5,12 @@ import { memo } from "react";
 import { AlertTriangle, Lightbulb, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
+import { labelExpenseCategory } from "@/lib/expense-categories";
 import type { MonthlyReportDto } from "@/types/report";
 
 function InsightsPanelInner({ report }: { report: MonthlyReportDto | undefined }) {
   const t = useTranslations("insight");
+  const tCat = useTranslations("expense.categories");
   if (!report) return null;
   const { insights } = report;
   return (
@@ -44,7 +46,7 @@ function InsightsPanelInner({ report }: { report: MonthlyReportDto | undefined }
           <p className="rounded-lg bg-muted/40 px-3 py-2 text-[0.9rem]">
             <span className="text-muted-foreground">{t("largest")} </span>
             <span className="font-semibold text-foreground">
-              {insights.biggestExpenseCategory.name}
+              {labelExpenseCategory(insights.biggestExpenseCategory.name, tCat)}
             </span>{" "}
             {t("largestAt", {
               amount: formatMoney(insights.biggestExpenseCategory.amount),
