@@ -1,15 +1,17 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MonthlyReportDto } from "@/types/report";
 
 export function SmartInsightsWidget({ report }: { report: MonthlyReportDto | undefined }) {
+  const t = useTranslations("insight");
   const rows = report?.smartInsights ?? [];
   if (!rows.length) return null;
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Smart insights</CardTitle>
+        <CardTitle className="text-base">{t("title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {rows.map((r) => (

@@ -73,7 +73,7 @@ function EditP({
         }),
       }),
     onMutate: () => {
-      const toastId = toast.loading("Saving changes...");
+      const toastId = toast.loading(tC("savingChanges"));
       return { toastId };
     },
     onSuccess: (_d, _v, ctx) => {
@@ -138,7 +138,7 @@ function EditP({
             {save.isPending ? (
               <>
                 <Loader2 className="me-2 size-4 animate-spin" />
-                Saving...
+                {tC("saving")}
               </>
             ) : (
               tC("save")

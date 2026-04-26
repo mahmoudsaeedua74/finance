@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
@@ -14,6 +15,7 @@ type GoalRow = {
 };
 
 export function GoalsWidget() {
+  const t = useTranslations("dashboard");
   const { data } = useQuery({
     queryKey: ["goals"],
     queryFn: () => jsonFetch<{ data: GoalRow[] }>("/api/goals"),
@@ -25,7 +27,7 @@ export function GoalsWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Goals</CardTitle>
+        <CardTitle className="text-base">{t("goalsTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {goals.slice(0, 4).map((g) => (

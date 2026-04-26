@@ -25,7 +25,7 @@ import {
   type ReportFilterState,
 } from "@/lib/report-filters";
 import { Separator } from "@/components/ui/separator";
-import { labelExpenseCategory } from "@/lib/expense-categories";
+import { isPresetExpenseCategory, labelExpenseCategory } from "@/lib/expense-categories";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
@@ -34,6 +34,7 @@ export default function ReportPage() {
   const t = useTranslations("report");
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
+  const tInc = useTranslations("income");
   const locale = useLocale();
   const { year, month } = useMonth();
   const [filter, setFilter] = useState<ReportFilterState>(getDefaultReportFilters);
@@ -57,6 +58,9 @@ export default function ReportPage() {
   const suffix = isReportFilterDefault(filter) ? "" : "-filtered";
   const pdfName = `${filenameBase}${suffix}.pdf`;
   const xlsxName = `${filenameBase}${suffix}.xlsx`;
+
+  const incomeTypeLabel = (v: string) =>
+    v === "salary" || v === "freelance" || v === "other" ? tInc(`types.${v}`) : v;
 
   const emailMut = useMutation({
     mutationFn: () =>
@@ -126,14 +130,16 @@ export default function ReportPage() {
       {report?.budgetUsage && report.budgetUsage.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Budget usage</CardTitle>
-            <CardDescription>Spent vs monthly category limits</CardDescription>
+            <CardTitle>{t("budgetUsageTitle")}</CardTitle>
+            <CardDescription>{t("budgetUsageDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {report.budgetUsage.map((b) => (
               <div key={b.category} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="capitalize">{b.category}</span>
+                  <span className="capitalize">
+                    {isPresetExpenseCategory(b.category) ? tCat(b.category) : b.category}
+                  </span>
                   <span className="text-muted-foreground">
                     {formatMoney(b.spent)} / {formatMoney(b.limit)}
                   </span>
@@ -201,7 +207,7 @@ export default function ReportPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm capitalize">
-                            {e.source.replace("_", " ")}
+                            {t(`lineSource.${e.source}`)}
                           </TableCell>
                           <TableCell className="text-end tabular-nums">
                             {formatMoney(e.amount)}
@@ -242,7 +248,9 @@ export default function ReportPage() {
                             {formatDateLong(new Date(r.date), locale)}
                           </TableCell>
                           <TableCell>{r.title}</TableCell>
-                          <TableCell className="text-sm">{r.incomeType}</TableCell>
+                          <TableCell className="text-sm">
+                            {incomeTypeLabel(r.incomeType)}
+                          </TableCell>
                           <TableCell className="text-end tabular-nums">
                             {formatMoney(r.amount)}
                           </TableCell>

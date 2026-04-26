@@ -34,7 +34,28 @@
     "addExpense": "إضافة مصروف",
     "theme": "المظهر",
     "month": "الشهر",
-    "noneInView": "لا شيء يطابق هذا العرض."
+    "noneInView": "لا شيء يطابق هذا العرض.",
+    "savingChanges": "جارٍ حفظ التغييرات…",
+    "savingIncome": "جارٍ حفظ الدخل…",
+    "saving": "جارٍ الحفظ…"
+  },
+  "dashboard": {
+    "forecastTitle": "توقعات (الشهر القادم)",
+    "expectedIncome": "الدخل المتوقع",
+    "expectedExpenses": "المصروفات المتوقعة",
+    "expectedSavings": "الادخار المتوقع",
+    "budgetSetTitle": "تعيين ميزانية شهرية",
+    "budgetSaved": "تم حفظ الميزانية",
+    "limitPlaceholder": "الحد",
+    "goalCreate": "إنشاء هدف",
+    "goalCreated": "تم إنشاء الهدف",
+    "goalNamePh": "اسم الهدف",
+    "targetPh": "المبلغ المستهدف",
+    "goalsTitle": "الأهداف",
+    "alertsTitle": "التنبيهات",
+    "noAlerts": "لا توجد تنبيهات.",
+    "markRead": "تعليم كمقروء",
+    "budgetRemaining": "المتبقي: {amount}"
   },
   "notFound": {
     "title": "الصفحة غير موجودة",
@@ -139,7 +160,13 @@
     "newCardT": "التفاصيل",
     "newCardD": "تُعرض المبالغ بعملتك الافتراضية.",
     "phTitle": "مثال: راتب أبريل، عميل X",
-    "types": { "salary": "راتب", "freelance": "عمل حر / مشروع", "other": "أخرى" }
+    "types": { "salary": "راتب", "freelance": "عمل حر / مشروع", "other": "أخرى" },
+    "recurringSectionTitle": "دخل متكرر",
+    "recurringSectionDesc": "قوالب تُنشئ سجلات تلقائيًا حسب الجدول.",
+    "recurringSaved": "تم حفظ الدخل المتكرر",
+    "addRecurringTemplate": "إضافة قالب",
+    "freqMonthly": "شهري",
+    "freqWeekly": "أسبوعي"
   },
   "expense": {
     "pageTitle": "المصروفات",
@@ -264,6 +291,13 @@
     "ideasTitle": "أفكار لاحقًا",
     "ideas1": "فواتير متكررة (إنترنت، Cursor، موظفون، جمعية) — لديكم بالفعل كـ مصروفات ثابتة من إضافة مصروف → متكرر. تتكرر شهريًا في التقارير تلقائيًا.",
     "ideas2": "التذكير/التقويم/البريد يحتاج جدولة (Vercel Cron، مهمة ويندوز، أو خادم) لنداء واجهة إرسال البريد. الخطوة التالية: تاريخ استحقاق لكل بند أو تصدير iCal. يمكن لاحقًا قائمة «الأسبوع القادم».",
-    "table": { "type": "النوع" }
+    "table": { "type": "النوع" },
+    "budgetUsageTitle": "استخدام الميزانية",
+    "budgetUsageDesc": "المنفق مقابل حدود التصنيف الشهرية",
+    "lineSource": {
+      "variable": "متغيّر",
+      "recurring": "متكرر",
+      "fixed_once": "لمرة واحدة"
+    }
   }
 }

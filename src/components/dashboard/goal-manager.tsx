@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export function GoalManager() {
+  const t = useTranslations("dashboard");
+  const tC = useTranslations("common");
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -20,7 +23,7 @@ export function GoalManager() {
         body: JSON.stringify({ name, targetAmount: Number(targetAmount) }),
       }),
     onSuccess: () => {
-      toast.success("Goal created");
+      toast.success(t("goalCreated"));
       setName("");
       setTargetAmount("");
       qc.invalidateQueries({ queryKey: ["goals"] });
@@ -31,19 +34,24 @@ export function GoalManager() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Create goal</CardTitle>
+        <CardTitle className="text-base">{t("goalCreate")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 sm:flex-row">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Goal name" className="h-10" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("goalNamePh")}
+          className="h-10"
+        />
         <Input
           type="number"
           value={targetAmount}
           onChange={(e) => setTargetAmount(e.target.value)}
-          placeholder="Target amount"
+          placeholder={t("targetPh")}
           className="h-10"
         />
         <Button type="button" className="h-10" disabled={!name || !targetAmount || create.isPending} onClick={() => create.mutate()}>
-          Save
+          {tC("save")}
         </Button>
       </CardContent>
     </Card>

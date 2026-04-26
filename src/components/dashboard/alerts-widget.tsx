@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ type Row = {
 };
 
 export function AlertsWidget() {
+  const t = useTranslations("dashboard");
   const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ["notifications", "unread"],
@@ -28,11 +30,11 @@ export function AlertsWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Alerts</CardTitle>
+        <CardTitle className="text-base">{t("alertsTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No alerts.</p>
+          <p className="text-sm text-muted-foreground">{t("noAlerts")}</p>
         ) : (
           rows.slice(0, 5).map((r) => (
             <div key={r._id} className="rounded-lg border p-2.5">
@@ -42,7 +44,7 @@ export function AlertsWidget() {
                   <p className="text-xs text-muted-foreground">{r.body}</p>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => markRead.mutate(r._id)}>
-                  Mark read
+                  {t("markRead")}
                 </Button>
               </div>
             </div>

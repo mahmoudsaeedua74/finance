@@ -43,7 +43,7 @@ export default function NewIncomePage() {
         }),
       }),
     onMutate: () => {
-      const toastId = toast.loading("Saving income...");
+      const toastId = toast.loading(tC("savingIncome"));
       return { toastId };
     },
     onSuccess: (_d, _v, ctx) => {
@@ -138,7 +138,7 @@ export default function NewIncomePage() {
               {m.isPending ? (
                 <>
                   <Loader2 className="me-2 size-4 animate-spin" />
-                  Saving...
+                  {tC("saving")}
                 </>
               ) : (
                 tC("save")

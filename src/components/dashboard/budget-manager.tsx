@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
-import { EXPENSE_CATEGORY_PRESETS } from "@/lib/expense-categories";
+import { EXPENSE_CATEGORY_PRESETS, labelExpenseCategory } from "@/lib/expense-categories";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export function BudgetManager() {
+  const t = useTranslations("dashboard");
+  const tC = useTranslations("common");
+  const tCat = useTranslations("expense.categories");
   const { year, month } = useMonth();
   const qc = useQueryClient();
   const [category, setCategory] = useState<string>(EXPENSE_CATEGORY_PRESETS[0]);
@@ -23,7 +27,7 @@ export function BudgetManager() {
         body: JSON.stringify({ category, year, month, limit: Number(limit) }),
       }),
     onSuccess: () => {
-      toast.success("Budget saved");
+      toast.success(t("budgetSaved"));
       setLimit("");
       qc.invalidateQueries({ queryKey: ["budgets-usage", year, month] });
     },
@@ -33,7 +37,7 @@ export function BudgetManager() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Set monthly budget</CardTitle>
+        <CardTitle className="text-base">{t("budgetSetTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 sm:flex-row">
         <select
@@ -43,13 +47,13 @@ export function BudgetManager() {
         >
           {EXPENSE_CATEGORY_PRESETS.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {labelExpenseCategory(c, tCat)}
             </option>
           ))}
         </select>
         <Input
           type="number"
-          placeholder="Limit"
+          placeholder={t("limitPlaceholder")}
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
           className="h-10"
@@ -60,7 +64,7 @@ export function BudgetManager() {
           disabled={!limit || save.isPending}
           onClick={() => save.mutate()}
         >
-          Save
+          {tC("save")}
         </Button>
       </CardContent>
     </Card>

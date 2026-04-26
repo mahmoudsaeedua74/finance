@@ -34,7 +34,28 @@
     "addExpense": "Add expense",
     "theme": "Theme",
     "month": "Month",
-    "noneInView": "None in this view."
+    "noneInView": "None in this view.",
+    "savingChanges": "Saving changes…",
+    "savingIncome": "Saving income…",
+    "saving": "Saving…"
+  },
+  "dashboard": {
+    "forecastTitle": "Forecast (next month)",
+    "expectedIncome": "Expected income",
+    "expectedExpenses": "Expected expenses",
+    "expectedSavings": "Expected savings",
+    "budgetSetTitle": "Set monthly budget",
+    "budgetSaved": "Budget saved",
+    "limitPlaceholder": "Limit",
+    "goalCreate": "Create goal",
+    "goalCreated": "Goal created",
+    "goalNamePh": "Goal name",
+    "targetPh": "Target amount",
+    "goalsTitle": "Goals",
+    "alertsTitle": "Alerts",
+    "noAlerts": "No alerts.",
+    "markRead": "Mark read",
+    "budgetRemaining": "Remaining: {amount}"
   },
   "notFound": {
     "title": "Page not found",
@@ -139,7 +160,13 @@
     "newCardT": "Details",
     "newCardD": "Amounts are shown in your default currency.",
     "phTitle": "e.g. April salary, Client Acme",
-    "types": { "salary": "Salary", "freelance": "Freelance / project", "other": "Other" }
+    "types": { "salary": "Salary", "freelance": "Freelance / project", "other": "Other" },
+    "recurringSectionTitle": "Recurring income",
+    "recurringSectionDesc": "Templates that auto-generate entries by schedule.",
+    "recurringSaved": "Recurring income saved",
+    "addRecurringTemplate": "Add template",
+    "freqMonthly": "Monthly",
+    "freqWeekly": "Weekly"
   },
   "expense": {
     "pageTitle": "Expenses",
@@ -264,6 +291,13 @@
     "ideasTitle": "Ideas to go further",
     "ideas1": "Recurring bills (internet, Cursor, employees, gam3eya) — you already have them as recurring fixed expenses in Add expense → Recurring. They repeat every month automatically in reports.",
     "ideas2": "Reminders / calendar / email nudges need a scheduler (e.g. Vercel Cron, Windows Task, or a job server) to call a send-email API on a schedule. Next step: pick 1 “due date” per item or use iCal file export. Happy to add a simple “upcoming this week” list later.",
-    "table": { "type": "Type" }
+    "table": { "type": "Type" },
+    "budgetUsageTitle": "Budget usage",
+    "budgetUsageDesc": "Spent vs monthly category limits",
+    "lineSource": {
+      "variable": "Variable",
+      "recurring": "Recurring",
+      "fixed_once": "One-time"
+    }
   }
 }

@@ -111,7 +111,7 @@ export default function IncomeListPage() {
       });
     },
     onMutate: () => {
-      const toastId = toast.loading("Saving changes...");
+      const toastId = toast.loading(tC("savingChanges"));
       return { toastId };
     },
     onSuccess: (_d, _v, ctx) => {
@@ -143,7 +143,7 @@ export default function IncomeListPage() {
         }),
       }),
     onSuccess: () => {
-      toast.success("Recurring income saved");
+      toast.success(t("recurringSaved"));
       setRt("");
       setRa("");
       setRf("monthly");
@@ -243,21 +243,21 @@ export default function IncomeListPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recurring income</CardTitle>
-          <CardDescription>Templates that auto-generate entries by schedule.</CardDescription>
+          <CardTitle>{t("recurringSectionTitle")}</CardTitle>
+          <CardDescription>{t("recurringSectionDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <Input
               className="h-11 sm:col-span-2"
-              placeholder="Title"
+              placeholder={tC("title")}
               value={rt}
               onChange={(e) => setRt(e.target.value)}
             />
             <Input
               className="h-11"
               type="number"
-              placeholder="Amount"
+              placeholder={tC("amount")}
               value={ra}
               onChange={(e) => setRa(e.target.value)}
             />
@@ -272,8 +272,8 @@ export default function IncomeListPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
+                <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -282,7 +282,7 @@ export default function IncomeListPage() {
               onClick={() => createRecurring.mutate()}
               disabled={!rt || !ra || createRecurring.isPending}
             >
-              Add template
+              {t("addRecurringTemplate")}
             </Button>
           </div>
           {recurringRows.length > 0 && (
@@ -291,7 +291,8 @@ export default function IncomeListPage() {
                 <div key={r._id} className="flex items-center justify-between text-sm">
                   <span>{r.title}</span>
                   <span className="text-muted-foreground">
-                    {r.frequency} · {formatMoney(r.amount)}
+                    {r.frequency === "monthly" ? t("freqMonthly") : t("freqWeekly")} ·{" "}
+                    {formatMoney(r.amount)}
                   </span>
                 </div>
               ))}
@@ -345,7 +346,7 @@ export default function IncomeListPage() {
               {update.isPending ? (
                 <>
                   <Loader2 className="me-2 size-4 animate-spin" />
-                  Saving...
+                  {tC("saving")}
                 </>
               ) : (
                 tC("save")

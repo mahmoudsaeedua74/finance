@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { useMonth } from "@/context/month-context";
+import { isPresetExpenseCategory } from "@/lib/expense-categories";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
@@ -22,6 +24,8 @@ function statusClass(status: BudgetUsage["status"]) {
 }
 
 export function BudgetCards() {
+  const t = useTranslations("dashboard");
+  const tCat = useTranslations("expense.categories");
   const { year, month } = useMonth();
   const { data } = useQuery({
     queryKey: ["budgets-usage", year, month],
@@ -36,7 +40,9 @@ export function BudgetCards() {
       {rows.slice(0, 3).map((r) => (
         <Card key={r.category}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm capitalize">{r.category}</CardTitle>
+            <CardTitle className="text-sm capitalize">
+              {isPresetExpenseCategory(r.category) ? tCat(r.category) : r.category}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-sm text-muted-foreground">
@@ -45,7 +51,9 @@ export function BudgetCards() {
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div className={`h-full ${statusClass(r.status)}`} style={{ width: `${Math.min(100, r.percentage)}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground">Remaining: {formatMoney(r.remaining)}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("budgetRemaining", { amount: formatMoney(r.remaining) })}
+            </p>
           </CardContent>
         </Card>
       ))}
