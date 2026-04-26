@@ -182,7 +182,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col md:min-h-0 md:overflow-hidden">
         <header className="sticky top-0 z-30 w-full min-w-0 shrink-0 border-b border-border/80 bg-background/90 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/85 md:hidden">
-          <div className="mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-2 px-2 sm:px-3">
+          <div className="mx-auto flex min-h-14 w-full min-w-0 max-w-7xl items-center gap-2 py-1.5 ps-2 pe-2 sm:ps-3 sm:pe-3">
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger
                 className={cn(
@@ -240,15 +240,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
               </SheetContent>
             </Sheet>
-            <div className="min-w-0 flex-1 text-center">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                {tLayout("appName")}
+            <div
+              className={cn(
+                "flex min-w-0 flex-1 flex-col justify-center gap-0.5 border-s border-border/50 ps-2",
+                isRtl ? "items-start text-start" : "items-end text-end"
+              )}
+            >
+              <p className="line-clamp-1 text-[0.6rem] font-bold uppercase leading-none tracking-wider text-muted-foreground">
+                {tLayout("netThisMonth")}
               </p>
-              <p className="truncate text-sm font-bold leading-tight text-foreground">
-                {tLayout("personal")}
+              <p
+                className="max-w-full truncate font-mono text-lg font-bold leading-none tabular-nums text-foreground sm:text-xl"
+                dir="ltr"
+                title={chip}
+              >
+                {chip}
               </p>
             </div>
-            <div className="w-11 shrink-0" aria-hidden />
           </div>
         </header>
 
