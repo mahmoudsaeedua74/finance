@@ -87,6 +87,14 @@ export function buildTemplatesListRows(
   }));
 }
 
+/** Non-template line items in actual transaction date order (all-time list). */
+export function buildNonTemplateEntryRows(docs: Lean[]): ExpenseListRow[] {
+  return docs.map((d) => ({
+    ...serializeForApi(d),
+    rowKind: d.kind === "fixed" ? "fixed_once" : "variable",
+  }));
+}
+
 export function expenseCreatedJson(doc: {
   _id: unknown;
   title: string;

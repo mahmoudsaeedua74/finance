@@ -13,7 +13,8 @@ import {
   filterRowsByNameQuery,
   sortRowsByNameAmountDate,
 } from "@/lib/sort-filter";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
+import { toLocalYmd } from "@/lib/ymd";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, monthLabel, formatMoney } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -66,7 +67,7 @@ function EditP({
   const { invalidateProjects } = useFinanceInvalidation();
   const [name, setName] = useState(row.name);
   const [amount, setAmount] = useState(String(row.amount));
-  const [date, setDate] = useState(new Date(row.date).toISOString().slice(0, 10));
+  const [date, setDate] = useState(toLocalYmd(new Date(row.date)));
   const [note, setNote] = useState(row.note?.trim() ?? "");
   const save = useMutation({
     mutationFn: () =>
@@ -172,7 +173,7 @@ export default function ProjectsPage() {
   const t = useTranslations("projects");
   const tC = useTranslations("common");
   const locale = useLocale();
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const { invalidateProjects } = useFinanceInvalidation();
   const {
     flatData: monthRowsRaw,
@@ -221,7 +222,7 @@ export default function ProjectsPage() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(
-    new Date(year, month - 1, 12).toISOString().slice(0, 10)
+    toLocalYmd(new Date(year, month - 1, 12))
   );
   const [payoutNote, setPayoutNote] = useState("");
   const [edit, setEdit] = useState<Row | null>(null);
@@ -234,7 +235,7 @@ export default function ProjectsPage() {
     setName("");
     setAmount("");
     setPayoutNote("");
-    setDate(new Date(year, month - 1, 12).toISOString().slice(0, 10));
+    setDate(toLocalYmd(new Date(year, month - 1, 12)));
     setAddOpen(true);
   }, [year, month]);
 

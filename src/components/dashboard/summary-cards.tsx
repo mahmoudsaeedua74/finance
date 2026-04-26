@@ -11,9 +11,17 @@ import { cn } from "@/lib/utils";
 
 const cardMotion = { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 } };
 
-function SummaryCardsInner({ report }: { report: MonthlyReportDto | undefined }) {
+function SummaryCardsInner({
+  report,
+  allTime = false,
+}: {
+  report: MonthlyReportDto | undefined;
+  allTime?: boolean;
+}) {
   const t = useTranslations("summary");
   const s = report?.summary;
+  const exHint = allTime ? t("expenseHintAllTime") : t("expenseHint");
+  const incHint = allTime ? t("incomeHintAllTime") : t("incomeHint");
   if (!s) {
     return (
       <div className="grid min-w-0 max-w-full grid-cols-1 gap-2.5 min-[400px]:gap-3 sm:grid-cols-3">
@@ -44,7 +52,7 @@ function SummaryCardsInner({ report }: { report: MonthlyReportDto | undefined })
             <p className="text-xl font-bold tabular-nums tracking-tight min-[400px]:text-2xl">
               {formatMoney(s.totalIncome)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{t("incomeHint")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{incHint}</p>
           </CardContent>
         </Card>
       </motion.div>
@@ -64,7 +72,7 @@ function SummaryCardsInner({ report }: { report: MonthlyReportDto | undefined })
             <p className="text-xl font-bold tabular-nums tracking-tight min-[400px]:text-2xl">
               {formatMoney(s.totalExpenses)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{t("expenseHint")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{exHint}</p>
           </CardContent>
         </Card>
       </motion.div>

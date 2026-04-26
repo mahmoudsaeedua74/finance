@@ -1,15 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useMonth } from "@/context/month-context";
 import { queryKeys } from "@/features/_lib/query-keys";
 
 /**
- * Centralizes React Query invalidation for finance entities and the monthly report
- * so list + form mutations stay consistent.
+ * Centralizes React Query invalidation for finance entities, ledger, and reports.
  */
 export function useFinanceInvalidation() {
   const qc = useQueryClient();
-  const { year, month } = useMonth();
 
   return useMemo(
     () => ({
@@ -17,42 +14,39 @@ export function useFinanceInvalidation() {
       invalidateNotifications: () => {
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
       },
+      /** Any monthly `GET /api/reports/monthly?…` (report month picker on /report). */
       invalidateReport: () => {
-        void qc.invalidateQueries({ queryKey: queryKeys.report(year, month) });
+        void qc.invalidateQueries({ queryKey: ["report"] });
       },
-      /** Match `/income/new`: broad `incomes` key plus the current month report. */
-      invalidateIncomes: (options?: { allQueries?: boolean }) => {
-        if (options?.allQueries) {
-          void qc.invalidateQueries({ queryKey: queryKeys.incomes.all() });
-          void qc.invalidateQueries({ queryKey: ["recurring-incomes"] });
-        } else {
-          void qc.invalidateQueries({ queryKey: queryKeys.incomes.month(year, month) });
-        }
-        void qc.invalidateQueries({ queryKey: queryKeys.report(year, month) });
+      invalidateLedger: () => {
+        void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
+      },
+      invalidateIncomes: () => {
+        void qc.invalidateQueries({ queryKey: queryKeys.incomes.all() });
+        void qc.invalidateQueries({ queryKey: queryKeys.recurringIncomes() });
+        void qc.invalidateQueries({ queryKey: ["report"] });
+        void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
       },
       /**
-       * @param options.includeAllList — also refresh the unscoped expenses list (templates, etc.).
+       * @param options.includeAllList — also refresh template-only list keys.
        */
       invalidateExpenses: (options?: { includeAllList?: boolean }) => {
-        void qc.invalidateQueries({ queryKey: queryKeys.expenses.month(year, month) });
+        void qc.invalidateQueries({ queryKey: ["expenses"] });
         if (options?.includeAllList) {
           void qc.invalidateQueries({ queryKey: queryKeys.expenses.all() });
         }
-        void qc.invalidateQueries({ queryKey: queryKeys.report(year, month) });
+        void qc.invalidateQueries({ queryKey: ["report"] });
+        void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
       },
       invalidateProjects: () => {
-        void qc.invalidateQueries({ queryKey: queryKeys.projects.month(year, month) });
-        void qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
-        void qc.invalidateQueries({ queryKey: queryKeys.projects.allForSpend() });
-        void qc.invalidateQueries({ queryKey: queryKeys.projects.distinctNames() });
-        void qc.invalidateQueries({ queryKey: ["projects", "summary"] });
-        void qc.invalidateQueries({ queryKey: ["projects", "monthPl"] });
-        void qc.invalidateQueries({ queryKey: queryKeys.report(year, month) });
+        void qc.invalidateQueries({ queryKey: ["projects"] });
+        void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
+        void qc.invalidateQueries({ queryKey: ["report"] });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
       },
     }),
-    [qc, year, month]
+    [qc]
   );
 }

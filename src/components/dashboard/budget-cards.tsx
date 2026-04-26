@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
 import { isPresetExpenseCategory } from "@/lib/expense-categories";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ function statusClass(status: BudgetUsage["status"]) {
 export function BudgetCards() {
   const t = useTranslations("dashboard");
   const tCat = useTranslations("expense.categories");
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const { data } = useQuery({
     queryKey: ["budgets-usage", year, month],
     queryFn: () => jsonFetch<{ data: { rows: BudgetUsage[] } }>(`/api/budgets/usage?year=${year}&month=${month}`),

@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
 import { cn } from "@/lib/utils";
 import { resolveExpenseCategoryForSave } from "@/lib/expense-categories";
+import { toLocalYmd } from "@/lib/ymd";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { ProjectSpendField } from "@/components/expense/project-spend-field";
 import { Receipt, CalendarClock, Repeat } from "lucide-react";
@@ -61,12 +62,12 @@ export default function NewExpensePage() {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
   const router = useRouter();
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const { mVar, mFix, mRec } = useCreateExpenseFormMutations({
     onDone: () => router.push("/expense"),
     tSaved: { v: t("savedV"), f: t("savedF"), r: t("savedR") },
   });
-  const defDate = new Date(year, month - 1, 10).toISOString().slice(0, 10);
+  const defDate = toLocalYmd(new Date(year, month - 1, 10));
 
   const [varTitle, setVarTitle] = useState("");
   const [varAmount, setVarAmount] = useState("");
@@ -86,7 +87,7 @@ export default function NewExpensePage() {
   const [recProjectName, setRecProjectName] = useState("");
   /** First month the rule counts (default: first day of *next* month so new subscriptions don’t hit this month’s total). */
   const [recFrom, setRecFrom] = useState(
-    new Date(year, month, 1).toISOString().slice(0, 10),
+    toLocalYmd(new Date(year, month, 1)),
   );
   const [recTo, setRecTo] = useState("");
 

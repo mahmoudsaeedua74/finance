@@ -2,14 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney } from "@/lib/format";
 
 export function ForecastWidget() {
   const t = useTranslations("dashboard");
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const { data } = useQuery({
     queryKey: ["forecast", year, month],
     queryFn: () => jsonFetch<{ data: { expectedIncome: number; expectedExpenses: number; expectedSavings: number } }>(`/api/forecast?year=${year}&month=${month}`),

@@ -3,10 +3,12 @@
  */
 export const queryKeys = {
   report: (year: number, month: number) => ["report", year, month] as const,
+  ledgerReport: () => ["ledger-report"] as const,
 
   expenses: {
     month: (year: number, month: number) => ["expenses", year, month] as const,
     all: () => ["expenses", "all"] as const,
+    allLineItems: () => ["expenses", "all-entries"] as const,
   },
 
   incomes: {

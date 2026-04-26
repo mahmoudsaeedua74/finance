@@ -39,6 +39,8 @@ export type UpdateExpenseInput =
       title: string;
       amount: number;
       category: string;
+      /** Same instant as `validFrom` for templates (list/sort + API model). */
+      date: string;
       validFrom: string;
       validTo: string | null;
       recurring: true;

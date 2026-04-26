@@ -29,6 +29,7 @@ import { isPresetExpenseCategory, labelExpenseCategory } from "@/lib/expense-cat
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
+import { ReportForecastCompare } from "@/components/report/report-forecast-compare";
 
 export default function ReportPage() {
   const t = useTranslations("report");
@@ -85,6 +86,8 @@ export default function ReportPage() {
       {error && <QueryErrorAlert error={error} />}
 
       <ReportFiltersPanel raw={raw} filter={filter} setFilter={setFilter} />
+
+      <ReportForecastCompare />
 
       <div className="flex flex-wrap gap-2">
         <Button

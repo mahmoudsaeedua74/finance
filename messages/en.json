@@ -150,6 +150,7 @@
     "appName": "Finance",
     "personal": "Personal",
     "netThisMonth": "Net this month",
+    "netAllTime": "All-time net",
     "monthOverview": "Month & overview",
     "jumpTo": "Jump to a screen (same as bottom bar)",
     "toggleTheme": "Toggle color theme",
@@ -164,6 +165,7 @@
   "home": {
     "title": "Dashboard",
     "description": "Overview for {month} — track income, spending, and net balance in one place.",
+    "descriptionAllTime": "All-time income, spending, and net in one place (no month filter). Use Report for a specific month.",
     "breakdown": "Breakdown & charts",
     "loadErrorTitle": "Could not load data",
     "loadErrorBody": "Check MongoDB and MONGODB_URI in .env."
@@ -171,8 +173,10 @@
   "summary": {
     "income": "Total income",
     "incomeHint": "Includes project payouts",
+    "incomeHintAllTime": "All income lines + all project payouts ever recorded",
     "expense": "Total expenses",
     "expenseHint": "Variable + fixed this month",
+    "expenseHintAllTime": "One-off spend + each recurring month counted through today",
     "net": "Net balance",
     "netHint": "Income minus expenses"
   },
@@ -199,12 +203,15 @@
   },
   "income": {
     "pageTitle": "Income",
+    "pageDescAll": "All income lines (any month).",
     "pageDesc": "Records for {month}",
     "add": "Add income",
     "lineTitle": "Line items",
     "lineDesc": "Salary, freelance, savings circle, and ad-hoc income in this month.",
+    "lineDescAll": "Salary, freelance, savings circle, and ad-hoc pay — all dates.",
     "table": { "date": "Date", "type": "Type" },
     "noRows": "No income this month yet.",
+    "noRowsAll": "No income lines yet.",
     "editTitle": "Edit income",
     "deleteQ": "Delete this income?",
     "saved": "Income saved",
@@ -231,14 +238,17 @@
   },
   "expense": {
     "pageTitle": "Expenses",
-    "pageSub": "{month} view + your recurring rules",
+    "pageSub": "Top: amounts for {month} only. Below: all recurring rules you’ve saved (not filtered by the selected month).",
+    "pageSubAll": "One-off, variable, and one-time fixed lines (all dates). Recurring: your saved rules (per-month amount when active).",
     "add": "Add expense",
     "thisMonth": "This month",
+    "lineItemsTitle": "Spending lines",
+    "lineItemsDesc": "Every logged line with a date (not the rules list below).",
     "thisMonthDesc": "Variable, one-time fixed, and the portion of recurring rules that apply in {month}.",
     "noRows": "No expenses in this month.",
     "kinds": { "recurring": "Recurring", "fixed": "Fixed once", "variable": "Variable" },
     "recurring": "Recurring rules",
-    "recurringDesc": "Fixed monthly items (savings circle, team payroll, etc.). Shown in every month they are active.",
+    "recurringDesc": "Your rule library: each row is the per-month amount while the date range is active. This list is not scoped to the selected month — use This month above for that month’s totals.",
     "noRecurring": "No recurring rules yet.",
     "table": { "from": "From", "to": "To", "perMonth": "Per month", "kind": "Kind" },
     "formAmountPerMonth": "Amount (per month)",
@@ -374,6 +384,13 @@
       "variable": "Variable",
       "recurring": "Recurring",
       "fixed_once": "One-time"
-    }
+    },
+    "forecastSectionTitle": "What’s coming (estimate)",
+    "forecastFor": "Estimated for {month}",
+    "forecastRecurringNote": "Recurring fixed expenses & recurring income for that month, plus 3-month averages for variable spend and ad-hoc income.",
+    "forecastIn": "Expected income",
+    "forecastOut": "Expected expenses",
+    "forecastNet": "Expected net",
+    "forecastBreakdown": "Recurring expenses: {recExp} · Recurring income (templates): {recInc} — the rest is from your last 3 months of patterns."
   }
 }

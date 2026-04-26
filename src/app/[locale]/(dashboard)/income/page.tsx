@@ -4,9 +4,10 @@ import { useMutation } from "@tanstack/react-query";
 import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
 import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { useLocale, useTranslations } from "next-intl";
-import { useMonth } from "@/context/month-context";
+import { queryKeys } from "@/features/_lib/query-keys";
 import { jsonFetch } from "@/lib/fetcher";
-import { formatDateMedium, monthLabel, formatMoney } from "@/lib/format";
+import { formatDateMedium, formatMoney } from "@/lib/format";
+import { toLocalYmd } from "@/lib/ymd";
 import {
   Table,
   TableBody,
@@ -57,7 +58,6 @@ export default function IncomeListPage() {
   const t = useTranslations("income");
   const tC = useTranslations("common");
   const locale = useLocale();
-  const { year, month } = useMonth();
   const { invalidateIncomes } = useFinanceInvalidation();
   const {
     flatData: rows,
@@ -67,9 +67,8 @@ export default function IncomeListPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteOffsetQuery<Row>({
-    queryKey: ["incomes", year, month],
-    getUrl: (off, lim) =>
-      `/api/incomes?year=${year}&month=${month}&offset=${off}&limit=${lim}`,
+    queryKey: queryKeys.incomes.all(),
+    getUrl: (off, lim) => `/api/incomes?offset=${off}&limit=${lim}`,
   });
   type RecRow = {
     _id: string;
@@ -96,7 +95,7 @@ export default function IncomeListPage() {
   const [rt, setRt] = useState("");
   const [ra, setRa] = useState("");
   const [rf, setRf] = useState<"monthly" | "weekly">("monthly");
-  const [rs, setRs] = useState(new Date().toISOString().slice(0, 10));
+  const [rs, setRs] = useState(toLocalYmd(new Date()));
 
   const del = useMutation({
     mutationFn: (id: string) => jsonFetch(`/api/incomes/${id}`, { method: "DELETE" }),
@@ -157,8 +156,8 @@ export default function IncomeListPage() {
       setRt("");
       setRa("");
       setRf("monthly");
-      setRs(new Date().toISOString().slice(0, 10));
-      invalidateIncomes({ allQueries: true });
+      setRs(toLocalYmd(new Date()));
+      invalidateIncomes();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -170,7 +169,7 @@ export default function IncomeListPage() {
     <div className="max-w-4xl space-y-4">
       <PageHeader
         title={t("pageTitle")}
-        description={t("pageDesc", { month: monthLabel(year, month, locale) })}
+        description={t("pageDescAll")}
         action={
           <Link className={cn(buttonVariants())} href="/income/new">
             {t("add")}
@@ -183,7 +182,7 @@ export default function IncomeListPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t("lineTitle")}</CardTitle>
-          <CardDescription>{t("lineDesc")}</CardDescription>
+          <CardDescription>{t("lineDescAll")}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -192,7 +191,7 @@ export default function IncomeListPage() {
               rows={6}
             />
           ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("noRows")}</p>
+            <p className="text-sm text-muted-foreground">{t("noRowsAll")}</p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
               <Table>
@@ -226,7 +225,7 @@ export default function IncomeListPage() {
                             setEdit(r);
                             setTx(r.title);
                             setA(String(r.amount));
-                            setD(new Date(r.date).toISOString().slice(0, 10));
+                            setD(toLocalYmd(new Date(r.date)));
                             setTy(r.incomeType);
                           }}
                         >

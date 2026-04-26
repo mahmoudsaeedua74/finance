@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useMonth } from "@/context/month-context";
-import { formatDateLong, formatDateMedium, monthLabel, formatMoney } from "@/lib/format";
+import { formatDateLong, formatDateMedium, formatMoney } from "@/lib/format";
+import { toLocalYmd } from "@/lib/ymd";
 import {
   Table,
   TableBody,
@@ -32,7 +32,7 @@ import { ProjectSpendField } from "@/components/expense/project-spend-field";
 import { labelExpenseCategory } from "@/lib/expense-categories";
 import {
   useDeleteExpense,
-  useExpensesForMonth,
+  useExpenseAllLineItems,
   useExpenseTemplatesList,
   useUpdateExpense,
   type ExpenseRow,
@@ -66,20 +66,19 @@ function EditForm({
   const [amount, setAmount] = useState(String(row.amount));
   const [cat, setCat] = useState(row.category);
   const [date, setDate] = useState(
-    (row.displayDate
-      ? new Date(row.displayDate)
-      : new Date(row.date)
+    toLocalYmd(
+      row.displayDate
+        ? new Date(row.displayDate)
+        : new Date(row.date)
     )
-      .toISOString()
-      .slice(0, 10)
   );
   const [vf, setVf] = useState(
     row.isTemplate
-      ? new Date(row.validFrom!).toISOString().slice(0, 10)
+      ? toLocalYmd(new Date(row.validFrom!))
       : date
   );
   const [vt, setVt] = useState(
-    row.validTo ? new Date(row.validTo).toISOString().slice(0, 10) : ""
+    row.validTo ? toLocalYmd(new Date(row.validTo)) : ""
   );
   const [projectName, setProjectName] = useState(row.projectName?.trim() ?? "");
 
@@ -200,7 +199,6 @@ export default function ExpenseListPage() {
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
-  const { year, month } = useMonth();
   const {
     flatData: rows,
     isLoading,
@@ -208,7 +206,7 @@ export default function ExpenseListPage() {
     fetchNextPage: fetchNextMonth,
     hasNextPage: hasNextMonth,
     isFetchingNextPage: isFetchingMonth,
-  } = useExpensesForMonth();
+  } = useExpenseAllLineItems();
   const {
     flatData: templateRows,
     fetchNextPage: fetchNextTmpl,
@@ -225,7 +223,7 @@ export default function ExpenseListPage() {
     <div className="max-w-5xl space-y-4">
       <PageHeader
         title={t("pageTitle")}
-        description={t("pageSub", { month: monthLabel(year, month, locale) })}
+        description={t("pageSubAll")}
         action={
           <Link className={cn(buttonVariants())} href="/expense/new">
             {t("add")}
@@ -237,10 +235,8 @@ export default function ExpenseListPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("thisMonth")}</CardTitle>
-          <CardDescription>
-            {t("thisMonthDesc", { month: monthLabel(year, month, locale) })}
-          </CardDescription>
+          <CardTitle>{t("lineItemsTitle")}</CardTitle>
+          <CardDescription>{t("lineItemsDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (

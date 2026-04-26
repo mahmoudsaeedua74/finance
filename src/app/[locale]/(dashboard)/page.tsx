@@ -1,21 +1,19 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { ReportChartsLazy } from "@/components/dashboard/report-charts-lazy";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { BudgetCards } from "@/components/dashboard/budget-cards";
 import { GoalsWidget } from "@/components/dashboard/goals-widget";
 import { AlertsWidget } from "@/components/dashboard/alerts-widget";
-import { ForecastWidget } from "@/components/dashboard/forecast-widget";
 import { SmartInsightsWidget } from "@/components/dashboard/insights-widget";
 import { BudgetManager } from "@/components/dashboard/budget-manager";
 import { GoalManager } from "@/components/dashboard/goal-manager";
-import { useMonth } from "@/context/month-context";
 import { jsonFetch } from "@/lib/fetcher";
-import { monthLabel } from "@/lib/format";
 import type { MonthlyReportDto } from "@/types/report";
+import { queryKeys } from "@/features/_lib/query-keys";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
@@ -25,16 +23,11 @@ import { BarChart3 } from "lucide-react";
 import { MonthCompareSection } from "@/components/dashboard/month-compare-section";
 
 export default function DashboardPage() {
-  const { year, month } = useMonth();
-  const locale = useLocale();
   const t = useTranslations("home");
   const tC = useTranslations("common");
   const { data, isLoading, error } = useQuery({
-    queryKey: ["report", year, month],
-    queryFn: () =>
-      jsonFetch<{ data: MonthlyReportDto }>(
-        `/api/reports/monthly?year=${year}&month=${month}`
-      ),
+    queryKey: queryKeys.ledgerReport(),
+    queryFn: () => jsonFetch<{ data: MonthlyReportDto }>("/api/summary/ledger"),
   });
   const report = data?.data;
 
@@ -42,9 +35,7 @@ export default function DashboardPage() {
     <div className="min-w-0 max-w-6xl space-y-5 sm:space-y-7">
       <PageHeader
         title={t("title")}
-        description={t("description", {
-          month: monthLabel(year, month, locale),
-        })}
+        description={t("descriptionAllTime")}
         icon={<BarChart3 className="size-5" />}
         action={
           <div className="hidden min-w-0 flex-wrap gap-2 min-[500px]:flex">
@@ -79,7 +70,7 @@ export default function DashboardPage() {
         />
       )}
 
-      <SummaryCards report={!isLoading ? report : undefined} />
+      <SummaryCards report={!isLoading ? report : undefined} allTime />
       <MonthCompareSection />
       <BudgetCards />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -90,7 +81,6 @@ export default function DashboardPage() {
         <GoalsWidget />
         <AlertsWidget />
       </div>
-      <ForecastWidget />
       <SmartInsightsWidget report={!isLoading ? report : undefined} />
 
       <InsightsPanel report={!isLoading ? report : undefined} />

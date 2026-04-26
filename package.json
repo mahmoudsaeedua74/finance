@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "seed": "tsx scripts/seed.ts",
     "create-user": "tsx scripts/create-user.ts",
-    "backfill-user-id": "tsx scripts/backfill-user-id.ts"
+    "backfill-user-id": "tsx scripts/backfill-user-id.ts",
+    "sync-template-dates": "tsx scripts/sync-template-expense-dates.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

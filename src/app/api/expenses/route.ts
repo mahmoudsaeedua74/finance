@@ -6,6 +6,7 @@ import { expenseNonTemplateInMonth, expenseTemplatesApplyingInMonth, monthDateBo
 import { parseExpensePostBody } from "@/lib/api/expense-post-body";
 import {
   buildMonthViewExpenseRows,
+  buildNonTemplateEntryRows,
   buildTemplatesListRows,
   expenseCreatedJson,
   EXPENSE_API_LIST_PROJECTION,
@@ -25,9 +26,20 @@ export async function GET(req: Request) {
     const { limit, offset } = parseListPagination(searchParams);
     const yearQ = searchParams.get("year");
     const monthQ = searchParams.get("month");
+    const entriesQ = searchParams.get("entries");
     await connectDB();
     const listSel = String(EXPENSE_API_LIST_PROJECTION);
     const take = limit + 1;
+    if (entriesQ === "1" && (yearQ == null || monthQ == null)) {
+      const lines = await Expense.find({ userId: user.id, isTemplate: false })
+        .select(listSel)
+        .sort({ date: -1, _id: -1 })
+        .skip(offset)
+        .limit(take)
+        .lean();
+      const rows = buildNonTemplateEntryRows(lines as never[]);
+      return NextResponse.json({ ...toPaginatedBody(rows, offset, limit) });
+    }
     if (yearQ == null || monthQ == null) {
       const templates = await Expense.find({ userId: user.id, isTemplate: true })
         .select(listSel)

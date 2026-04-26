@@ -49,6 +49,12 @@ export async function PUT(req: Request, { params }: Ctx) {
       projectName: projectNameRaw,
     } = body;
     await connectDB();
+    const existing = await Expense.findOne({ _id: params.id, userId: user.id }).lean();
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const willBeTemplate =
+      isTemplate != null ? Boolean(isTemplate) : existing.isTemplate;
+
     const update: Record<string, unknown> = {};
     if (title != null) update.title = String(title);
     if (amount != null) update.amount = Number(amount);
@@ -57,16 +63,25 @@ export async function PUT(req: Request, { params }: Ctx) {
     if (date != null) update.date = new Date(date);
     if (recurring != null) update.recurring = Boolean(recurring);
     if (isTemplate != null) update.isTemplate = Boolean(isTemplate);
-    if (validFrom != null) update.validFrom = new Date(validFrom);
+    if (validFrom != null) {
+      const vf = new Date(String(validFrom));
+      update.validFrom = vf;
+      // Templates: `date` is the list/sort field and must follow the rule start (see Expense model).
+      if (willBeTemplate) {
+        update.date = vf;
+      }
+    }
     if (validTo !== undefined) update.validTo = validTo ? new Date(validTo) : null;
     if (projectNameRaw !== undefined) {
       update.projectName =
         typeof projectNameRaw === "string" ? projectNameRaw.trim().slice(0, 200) : "";
     }
 
-    const doc = await Expense.findOneAndUpdate({ _id: params.id, userId: user.id }, update, {
-      new: true,
-    });
+    const doc = await Expense.findOneAndUpdate(
+      { _id: params.id, userId: user.id },
+      update,
+      { new: true }
+    );
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
     queueAfterExpense(uid, "updated", {

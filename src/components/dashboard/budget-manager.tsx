@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
 import { EXPENSE_CATEGORY_PRESETS, labelExpenseCategory } from "@/lib/expense-categories";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ export function BudgetManager() {
   const t = useTranslations("dashboard");
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const qc = useQueryClient();
   const [category, setCategory] = useState<string>(EXPENSE_CATEGORY_PRESETS[0]);
   const [limit, setLimit] = useState("");

@@ -8,6 +8,11 @@ export function toYearMonthString(year: number, month1to12: number) {
   return `${year}-${String(month1to12).padStart(2, "0")}`;
 }
 
+export function addCalendarMonths(year: number, month1to12: number, delta: number) {
+  const d = new Date(year, month1to12 - 1 + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
 export function parseYearMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number);
   if (!y || !m || m < 1 || m > 12) return null;

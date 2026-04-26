@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { jsonFetch } from "@/lib/fetcher";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
 import { monthLabel, formatMoney } from "@/lib/format";
 import type { MonthlyReportDto } from "@/types/report";
 import { cn } from "@/lib/utils";
@@ -59,7 +59,7 @@ function DeltaLine({
 
 export function MonthCompareSection() {
   const t = useTranslations("monthCompare");
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const locale = useLocale();
   const { y: py, m: pm } = prevMonth(year, month);
 

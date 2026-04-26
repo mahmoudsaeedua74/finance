@@ -4,7 +4,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { useMonth } from "@/context/month-context";
 import { queryKeys } from "@/features/_lib/query-keys";
 import { withMutationToasts, toastErrorOnly } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
@@ -13,14 +12,29 @@ import type { ExpenseRow, UpdateExpenseInput } from "./types";
 import { createExpense, deleteExpense, updateExpense } from "./api";
 import type { CreateRecurringTemplateInput, CreateVariableExpenseInput } from "./types";
 
-export function useExpensesForMonth() {
-  const { year, month } = useMonth();
+/** Month-scoped view (e.g. reports) — pass year/month from the report picker. */
+export function useExpensesForMonth(year: number, month: number) {
   return useInfiniteOffsetQuery<ExpenseRow>({
     queryKey: queryKeys.expenses.month(year, month),
     getUrl: (off, lim) => {
       const params = new URLSearchParams({
         year: String(year),
         month: String(month),
+        offset: String(off),
+        limit: String(lim),
+      });
+      return `/api/expenses?${params.toString()}`;
+    },
+  });
+}
+
+/** All one-off, variable, and one-time fixed lines (excludes recurring rule definitions). */
+export function useExpenseAllLineItems() {
+  return useInfiniteOffsetQuery<ExpenseRow>({
+    queryKey: queryKeys.expenses.allLineItems(),
+    getUrl: (off, lim) => {
+      const params = new URLSearchParams({
+        entries: "1",
         offset: String(off),
         limit: String(lim),
       });
@@ -57,11 +71,13 @@ function buildUpdateBody(
   v: EditPayload["values"]
 ): UpdateExpenseInput {
   if (row.isTemplate) {
+    const vfIso = new Date(v.validFrom).toISOString();
     return {
       title: v.title,
       amount: v.amount,
       category: resolveExpenseCategoryForSave(v.category),
-      validFrom: new Date(v.validFrom).toISOString(),
+      date: vfIso,
+      validFrom: vfIso,
       validTo: v.validTo ? new Date(v.validTo).toISOString() : null,
       recurring: true,
       isTemplate: true,

@@ -14,7 +14,8 @@ import { Loader2 } from "lucide-react";
 import { jsonFetch } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
-import { useMonth } from "@/context/month-context";
+import { useTodayYearMonth } from "@/hooks/use-today-year-month";
+import { toLocalYmd } from "@/lib/ymd";
 
 const values = ["salary", "freelance", "gam3eya", "other"] as const;
 
@@ -23,11 +24,11 @@ export default function NewIncomePage() {
   const tC = useTranslations("common");
   const router = useRouter();
   const { invalidateIncomes } = useFinanceInvalidation();
-  const { year, month } = useMonth();
+  const { year, month } = useTodayYearMonth();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(
-    () => new Date(year, month - 1, 15).toISOString().slice(0, 10)
+    () => toLocalYmd(new Date(year, month - 1, 15))
   );
   const [incomeType, setIncomeType] = useState<string>("other");
 
@@ -52,7 +53,7 @@ export default function NewIncomePage() {
       } else {
         toast.success(t("saved"));
       }
-      invalidateIncomes({ allQueries: true });
+      invalidateIncomes();
       router.push("/income");
     },
     onError: (e: Error, _v, ctx) => {

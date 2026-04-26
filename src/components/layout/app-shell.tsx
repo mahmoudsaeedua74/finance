@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { DesktopMonthBar } from "@/components/layout/desktop-month-bar";
-import { useMonthNetBalanceDisplay } from "@/hooks/use-month-net-balance";
+import { useLedgerNetDisplay } from "@/hooks/use-ledger-net-balance";
 import { MobileBottomChrome } from "@/components/layout/mobile-bottom-chrome";
 import { LanguageSwitcher } from "@/components/locale/LanguageSwitcher";
 import { signOut } from "next-auth/react";
@@ -107,7 +107,7 @@ function SidebarTheme({ themeLabel }: { themeLabel: string }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const chip = useMonthNetBalanceDisplay();
+  const chip = useLedgerNetDisplay();
   const pathname = usePathname();
   const tLayout = useTranslations("layout");
   const shortBottomChrome =
@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="shrink-0 space-y-2 border-t border-border/80 bg-muted/20 p-3">
           <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-            {tLayout("netThisMonth")}
+            {tLayout("netAllTime")}
           </p>
           <p className="font-mono text-lg font-semibold tabular-nums tracking-tight text-foreground">
             {chip}
@@ -213,7 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <SidebarTheme themeLabel={tComm("theme")} />
                   <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-muted/50 to-transparent p-3 ring-1 ring-inset ring-border/40">
                     <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {tLayout("netThisMonth")}
+                      {tLayout("netAllTime")}
                     </p>
                     <p className="mt-0.5 font-mono text-lg font-semibold tabular-nums">
                       {chip}
@@ -247,7 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             >
               <p className="line-clamp-1 text-[0.6rem] font-bold uppercase leading-none tracking-wider text-muted-foreground">
-                {tLayout("netThisMonth")}
+                {tLayout("netAllTime")}
               </p>
               <p
                 className="max-w-full truncate font-mono text-lg font-bold leading-none tabular-nums text-foreground sm:text-xl"
