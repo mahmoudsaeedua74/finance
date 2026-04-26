@@ -4,11 +4,14 @@ import { z } from "zod";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { RecurringIncomeTemplate } from "@/lib/models";
+import { normalizeIncomeType } from "@/lib/income-types";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
   amount: z.number().positive().optional(),
   frequency: z.enum(["monthly", "weekly"]).optional(),
+  incomeType: z.enum(["salary", "freelance", "gam3eya", "other"]).optional(),
+  payDayOfMonth: z.coerce.number().int().min(1).max(30).optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional().nullable(),
   active: z.boolean().optional(),
@@ -30,6 +33,9 @@ export async function PUT(req: Request, { params }: Ctx) {
   }
   await connectDB();
   const update: Record<string, unknown> = { ...parsed.data };
+  if (parsed.data.incomeType != null) {
+    update.incomeType = normalizeIncomeType(parsed.data.incomeType);
+  }
   if (parsed.data.startDate) update.startDate = new Date(parsed.data.startDate);
   if (parsed.data.endDate !== undefined) update.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
   const doc = await RecurringIncomeTemplate.findOneAndUpdate(

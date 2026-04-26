@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { queryKeys } from "@/features/_lib/query-keys";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateMedium, formatMoney } from "@/lib/format";
-import { toLocalYmd } from "@/lib/ymd";
+import { toLocalYmd, defaultFormDateYmd } from "@/lib/ymd";
 import {
   Table,
   TableBody,
@@ -76,6 +76,10 @@ export default function IncomeListPage() {
     amount: number;
     frequency: "monthly" | "weekly";
     active: boolean;
+    startDate: string;
+    endDate: string | null;
+    payDayOfMonth: number;
+    incomeType: string;
   };
   const {
     flatData: recurringRows,
@@ -83,7 +87,7 @@ export default function IncomeListPage() {
     hasNextPage: hasNextRecurring,
     isFetchingNextPage: isFetchingRecurring,
   } = useInfiniteOffsetQuery<RecRow>({
-    queryKey: ["recurring-incomes"],
+    queryKey: queryKeys.recurringIncomes(),
     getUrl: (off, lim) => `/api/recurring-incomes?offset=${off}&limit=${lim}`,
   });
 
@@ -94,8 +98,32 @@ export default function IncomeListPage() {
   const [ty, setTy] = useState("other");
   const [rt, setRt] = useState("");
   const [ra, setRa] = useState("");
+  const [rIncomeType, setRIncomeType] = useState("salary");
+  const [rPay, setRPay] = useState(() =>
+    String(Math.min(30, Math.max(1, new Date().getDate())))
+  );
   const [rf, setRf] = useState<"monthly" | "weekly">("monthly");
-  const [rs, setRs] = useState(toLocalYmd(new Date()));
+  const [rs, setRs] = useState(() => defaultFormDateYmd());
+  const [re, setRe] = useState("");
+  const [recEdit, setRecEdit] = useState<RecRow | null>(null);
+  const [ert, setErt] = useState("");
+  const [era, setEra] = useState("");
+  const [eit, setEit] = useState("salary");
+  const [ePay, setEpay] = useState("5");
+  const [ef, setEf] = useState<"monthly" | "weekly">("monthly");
+  const [es, setEs] = useState("");
+  const [ee, setEe] = useState("");
+
+  const openRecEdit = (r: RecRow) => {
+    setRecEdit(r);
+    setErt(r.title);
+    setEra(String(r.amount));
+    setEit(r.incomeType || "salary");
+    setEpay(String(r.payDayOfMonth ?? 5));
+    setEf(r.frequency);
+    setEs(toLocalYmd(new Date(r.startDate)));
+    setEe(r.endDate ? toLocalYmd(new Date(r.endDate)) : "");
+  };
 
   const del = useMutation({
     mutationFn: (id: string) => jsonFetch(`/api/incomes/${id}`, { method: "DELETE" }),
@@ -148,15 +176,62 @@ export default function IncomeListPage() {
           title: rt,
           amount: Number(ra),
           frequency: rf,
+          incomeType: rIncomeType,
+          payDayOfMonth: rf === "monthly" ? Math.min(30, Math.max(1, Math.round(parseFloat(rPay)) || 5)) : undefined,
           startDate: new Date(rs).toISOString(),
+          endDate: re.trim() ? new Date(re).toISOString() : null,
         }),
       }),
     onSuccess: () => {
       toast.success(t("recurringSaved"));
       setRt("");
       setRa("");
+      setRIncomeType("salary");
+      setRPay(String(Math.min(30, Math.max(1, new Date().getDate()))));
       setRf("monthly");
-      setRs(toLocalYmd(new Date()));
+      setRs(defaultFormDateYmd());
+      setRe("");
+      invalidateIncomes();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateRecurring = useMutation({
+    mutationFn: () => {
+      if (!recEdit) return Promise.reject();
+      return jsonFetch(`/api/recurring-incomes/${recEdit._id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: ert,
+          amount: parseFloat(era),
+          frequency: ef,
+          incomeType: eit,
+          payDayOfMonth: ef === "monthly" ? Math.min(30, Math.max(1, Math.round(parseFloat(ePay)) || 5)) : undefined,
+          startDate: new Date(es).toISOString(),
+          endDate: ee.trim() ? new Date(ee).toISOString() : null,
+        }),
+      });
+    },
+    onMutate: () => {
+      const toastId = toast.loading(tC("savingChanges"));
+      return { toastId };
+    },
+    onSuccess: (_d, _v, ctx) => {
+      if (ctx?.toastId) toast.success(tC("updated"), { id: ctx.toastId });
+      else toast.success(tC("updated"));
+      setRecEdit(null);
+      invalidateIncomes();
+    },
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.toastId) toast.error(e.message, { id: ctx.toastId });
+      else toast.error(e.message);
+    },
+  });
+
+  const deleteRecurring = useMutation({
+    mutationFn: (id: string) => jsonFetch(`/api/recurring-incomes/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(tC("deleted"));
       invalidateIncomes();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -266,9 +341,10 @@ export default function IncomeListPage() {
           <CardDescription>{t("recurringSectionDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <p className="text-xs text-muted-foreground sm:text-sm">{t("recurringPayDayHelp")}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
-              className="h-11 sm:col-span-2"
+              className="h-11"
               placeholder={tC("title")}
               value={rt}
               onChange={(e) => setRt(e.target.value)}
@@ -276,18 +352,63 @@ export default function IncomeListPage() {
             <Input
               className="h-11"
               type="number"
+              step="0.01"
               placeholder={tC("amount")}
               value={ra}
               onChange={(e) => setRa(e.target.value)}
             />
-            <Input
-              className="h-11"
-              type="date"
-              value={rs}
-              onChange={(e) => setRs(e.target.value)}
-            />
+            <div className="space-y-1">
+              <Label className="text-xs">{t("recurringType")}</Label>
+              <Select
+                value={rIncomeType}
+                onValueChange={(v) => v != null && setRIncomeType(v)}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="salary">{t("types.salary")}</SelectItem>
+                  <SelectItem value="freelance">{t("types.freelance")}</SelectItem>
+                  <SelectItem value="gam3eya">{t("types.gam3eya")}</SelectItem>
+                  <SelectItem value="other">{t("types.other")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {rf === "monthly" ? (
+              <div className="space-y-1">
+                <Label className="text-xs">{t("recurringPayDay")}</Label>
+                <Input
+                  className="h-11"
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={rPay}
+                  onChange={(e) => setRPay(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="hidden sm:block" aria-hidden />
+            )}
+            <div className="space-y-1">
+              <Label className="text-xs">{t("recurringFrom")}</Label>
+              <Input
+                className="h-11"
+                type="date"
+                value={rs}
+                onChange={(e) => setRs(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t("recurringEnd")}</Label>
+              <Input
+                className="h-11"
+                type="date"
+                value={re}
+                onChange={(e) => setRe(e.target.value)}
+              />
+            </div>
             <Select value={rf} onValueChange={(v) => v && setRf(v as "monthly" | "weekly")}>
-              <SelectTrigger className="h-11">
+              <SelectTrigger className="h-11 sm:col-span-2">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -297,26 +418,87 @@ export default function IncomeListPage() {
             </Select>
             <Button
               type="button"
-              className="h-11 sm:col-span-1"
+              className="h-11 w-full min-[500px]:w-auto"
               onClick={() => createRecurring.mutate()}
               disabled={!rt || !ra || createRecurring.isPending}
             >
               {t("addRecurringTemplate")}
             </Button>
           </div>
-          {recurringRows.length > 0 && (
-            <div className="space-y-2">
-              <div className="space-y-2 rounded-md border p-3">
-                {recurringRows.map((r) => (
-                  <div key={r._id} className="flex items-center justify-between text-sm">
-                    <span>{r.title}</span>
-                    <span className="text-muted-foreground">
-                      {r.frequency === "monthly" ? t("freqMonthly") : t("freqWeekly")} ·{" "}
-                      {formatMoney(r.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+          {recurringRows.length > 0 ? (
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{tC("title")}</TableHead>
+                    <TableHead className="hidden min-[400px]:table-cell">{t("recurringType")}</TableHead>
+                    <TableHead className="hidden min-[500px]:table-cell whitespace-nowrap">
+                      {t("recurringTableFrom")}
+                    </TableHead>
+                    <TableHead className="hidden min-[500px]:table-cell whitespace-nowrap">
+                      {t("recurringTableTo")}
+                    </TableHead>
+                    <TableHead className="hidden sm:table-cell whitespace-nowrap text-center text-xs">
+                      {t("recurringTablePayDay")}
+                    </TableHead>
+                    <TableHead className="text-end">{tC("amount")}</TableHead>
+                    <TableHead className="w-28 text-end">{tC("actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recurringRows.map((r) => (
+                    <TableRow key={r._id}>
+                      <TableCell>
+                        <div className="font-medium">{r.title}</div>
+                        <div className="text-[0.7rem] text-muted-foreground sm:hidden">
+                          {r.frequency === "monthly" ? t("freqMonthly") : t("freqWeekly")} ·{" "}
+                          {typeLabel(r.incomeType || "salary")}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden min-[400px]:table-cell text-sm">
+                        {typeLabel(r.incomeType || "salary")}
+                      </TableCell>
+                      <TableCell className="hidden min-[500px]:table-cell text-sm text-muted-foreground">
+                        {formatDateMedium(new Date(r.startDate), locale)}
+                      </TableCell>
+                      <TableCell className="hidden min-[500px]:table-cell text-sm text-muted-foreground">
+                        {r.endDate ? formatDateMedium(new Date(r.endDate), locale) : "—"}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-center text-sm">
+                        {r.frequency === "monthly" ? r.payDayOfMonth ?? "—" : "—"}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums text-sm">
+                        {formatMoney(r.amount)}
+                        <div className="text-[0.65rem] text-muted-foreground sm:hidden">
+                          {r.frequency === "monthly" ? t("freqMonthly") : t("freqWeekly")}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openRecEdit(r)}
+                        >
+                          {tC("edit")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm(t("deleteRecurringQ"))) {
+                              deleteRecurring.mutate(r._id);
+                            }
+                          }}
+                        >
+                          {tC("delete")}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
               <PaginatedListFooter
                 hasNextPage={!!hasNextRecurring}
                 isFetchingNextPage={isFetchingRecurring}
@@ -326,9 +508,107 @@ export default function IncomeListPage() {
                 labelEnd={tC("endOfList")}
               />
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!recEdit}
+        onOpenChange={() => {
+          setRecEdit(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("editRecurring")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
+              <Label>{tC("title")}</Label>
+              <Input value={ert} onChange={(e) => setErt(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{tC("amount")}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={era}
+                onChange={(e) => setEra(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{t("recurringType")}</Label>
+              <Select value={eit} onValueChange={(v) => v != null && setEit(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="salary">{t("types.salary")}</SelectItem>
+                  <SelectItem value="freelance">{t("types.freelance")}</SelectItem>
+                  <SelectItem value="gam3eya">{t("types.gam3eya")}</SelectItem>
+                  <SelectItem value="other">{t("types.other")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {ef === "monthly" ? (
+              <div className="flex flex-col gap-2">
+                <Label>{t("recurringPayDay")}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={ePay}
+                  onChange={(e) => setEpay(e.target.value)}
+                />
+              </div>
+            ) : null}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label>{t("recurringFrom")}</Label>
+                <Input type="date" value={es} onChange={(e) => setEs(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>{t("recurringEnd")}</Label>
+                <Input type="date" value={ee} onChange={(e) => setEe(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{t("recurringSchedule")}</Label>
+              <Select value={ef} onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
+                  <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRecEdit(null)}
+              disabled={updateRecurring.isPending}
+            >
+              {tC("close")}
+            </Button>
+            <Button
+              onClick={() => updateRecurring.mutate()}
+              disabled={updateRecurring.isPending}
+            >
+              {updateRecurring.isPending ? (
+                <>
+                  <Loader2 className="me-2 size-4 animate-spin" />
+                  {tC("saving")}
+                </>
+              ) : (
+                tC("save")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!edit} onOpenChange={() => setEdit(null)}>
         <DialogContent>

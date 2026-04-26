@@ -9,6 +9,8 @@ export interface IIncome {
   amount: number;
   date: Date;
   incomeType: IncomeType;
+  /** If set, this row was materialized from a {@link RecurringIncomeTemplate} (dedup key). */
+  recurringSourceId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,12 @@ const IncomeSchema = new Schema<IIncome>(
       type: String,
       enum: ["salary", "freelance", "gam3eya", "other"],
       default: "other",
+    },
+    recurringSourceId: {
+      type: Schema.Types.ObjectId,
+      ref: "RecurringIncomeTemplate",
+      default: null,
+      index: true,
     },
   },
   { timestamps: true }
