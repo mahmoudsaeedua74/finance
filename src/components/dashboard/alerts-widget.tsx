@@ -58,14 +58,14 @@ export function AlertsWidget() {
               </div>
             </div>
             ))}
-            {(hasNextPage || isFetchingNextPage) && (
+            {hasNextPage && (
               <div className="pt-1">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   className="w-full"
-                  disabled={!hasNextPage && !isFetchingNextPage}
+                  disabled={isFetchingNextPage}
                   onClick={() => void fetchNextPage()}
                 >
                   {isFetchingNextPage ? tC("loadingMore") : tC("loadMore")}

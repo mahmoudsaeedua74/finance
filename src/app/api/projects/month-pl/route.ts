@@ -95,9 +95,12 @@ export async function GET(req: Request) {
     };
     addSp(expNon);
     addSp(expTpl);
-    const keys = new Set([...receivedByKey.keys(), ...spendByKey.keys()]);
+    const keys = new Set([
+      ...Array.from(receivedByKey.keys()),
+      ...Array.from(spendByKey.keys()),
+    ]);
     const rows: PlRow[] = [];
-    for (const k of keys) {
+    for (const k of Array.from(keys)) {
       const rec = receivedByKey.get(k);
       const sp = spendByKey.get(k);
       const label = rec?.display ?? sp?.display ?? k;

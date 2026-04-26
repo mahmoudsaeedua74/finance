@@ -24,6 +24,7 @@ export function useFinanceInvalidation() {
       invalidateIncomes: (options?: { allQueries?: boolean }) => {
         if (options?.allQueries) {
           void qc.invalidateQueries({ queryKey: queryKeys.incomes.all() });
+          void qc.invalidateQueries({ queryKey: ["recurring-incomes"] });
         } else {
           void qc.invalidateQueries({ queryKey: queryKeys.incomes.month(year, month) });
         }

@@ -8,8 +8,8 @@ export type PaginatedResponse<T> = {
   nextOffset: number | null;
 };
 
-type Options<T> = {
-  queryKey: unknown[];
+type Options = {
+  queryKey: readonly unknown[];
   pageSize?: number;
   getUrl: (offset: number, limit: number) => string;
   enabled?: boolean;
@@ -19,7 +19,7 @@ type Options<T> = {
  * Offset-based infinite list (load more / infinite scroll) backed by
  * `GET` handlers that return `hasMore` + `nextOffset`.
  */
-export function useInfiniteOffsetQuery<T>(opts: Options<T>) {
+export function useInfiniteOffsetQuery<T>(opts: Options) {
   const pageSize = opts.pageSize ?? 30;
   const q = useInfiniteQuery({
     queryKey: opts.queryKey,
