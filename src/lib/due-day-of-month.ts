@@ -38,3 +38,13 @@ export function defaultDueDayFromValidFrom(validFrom: Date) {
   const day = validFrom.getUTCDate();
   return Math.min(30, Math.max(1, day));
 }
+
+/**
+ * Next calendar day (y, m, d) with 1–12 months (Gregorian, same as `getYMDInTimeZone`).
+ */
+export function addOneCivilDay(y: number, m: number, d: number) {
+  const last = new Date(y, m, 0).getDate();
+  if (d < last) return { y, m, d: d + 1 };
+  if (m < 12) return { y, m: m + 1, d: 1 };
+  return { y: y + 1, m: 1, d: 1 };
+}

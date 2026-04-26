@@ -1,11 +1,11 @@
-import { Notification } from "@/lib/models";
+import { Notification, type NotificationSeverity } from "@/lib/models";
 
 export async function notifyOnce(input: {
   userId: string;
   type: string;
   title: string;
   body: string;
-  severity?: "info" | "warning" | "critical";
+  severity?: NotificationSeverity;
   dedupKey: string;
   dedupWindowHours?: number;
   meta?: Record<string, unknown>;

@@ -13,6 +13,7 @@ import {
   FileBarChart2,
   Settings,
   Wallet,
+  Bell,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -33,6 +34,9 @@ import { MobileBottomChrome } from "@/components/layout/mobile-bottom-chrome";
 import { LanguageSwitcher } from "@/components/locale/LanguageSwitcher";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
+import { NotificationInboxPanel, NotificationBellButton } from "@/components/notifications/notification-inbox-panel";
+import { NotificationAudioWatcher } from "@/components/notifications/notification-audio-watcher";
+import { useNotificationSummary } from "@/hooks/use-notification-summary";
 
 const sideLinks = [
   { href: "/", k: "dashboard" as const, Icon: LayoutGrid },
@@ -107,6 +111,9 @@ function SidebarTheme({ themeLabel }: { themeLabel: string }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const { data: notifSum } = useNotificationSummary();
+  const unreadN = notifSum?.data?.unreadCount ?? 0;
   const chip = useLedgerNetDisplay();
   const pathname = usePathname();
   const tLayout = useTranslations("layout");
@@ -128,6 +135,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         "md:min-h-0 md:h-svh md:overflow-hidden md:flex-row"
       )}
     >
+      <NotificationAudioWatcher />
+      <Sheet open={inboxOpen} onOpenChange={setInboxOpen}>
+        <SheetContent
+          side={isRtl ? "left" : "right"}
+          className="flex w-[min(100vw,26rem)] flex-col gap-0 p-0 sm:max-w-md"
+        >
+          <SheetHeader className="shrink-0 space-y-1 border-b border-border/70 px-4 py-3 text-start">
+            <SheetTitle className="text-start">{tLayout("notif.inboxTitle")}</SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-hidden px-4 py-3">
+            <NotificationInboxPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
       <aside
         className={cn(
           "hidden w-[15.5rem] min-w-0 shrink-0 flex-col border-e border-border/80",
@@ -157,6 +178,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LanguageSwitcher className="w-full justify-center" />
           </div>
           <NavList className="px-0.5" />
+          <div className="space-y-2 border-t border-border/50 pt-3">
+            <p className="px-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+              {tLayout("notif.inbox")}
+            </p>
+            <NotificationBellButton
+              unread={unreadN}
+              onOpen={() => setInboxOpen(true)}
+              className="w-full justify-start"
+            />
+          </div>
         </div>
         <div className="shrink-0 space-y-2 border-t border-border/80 bg-muted/20 p-3">
           <p className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
@@ -223,6 +254,30 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {tLayout("jumpTo")}
                   </p>
                   <NavList onNavigate={() => setSheetOpen(false)} />
+                  <div className="border-t border-border/50 pt-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-12 w-full justify-start gap-2.5 font-medium"
+                      onClick={() => {
+                        setSheetOpen(false);
+                        setInboxOpen(true);
+                      }}
+                    >
+                      <span className="relative inline-flex">
+                        <Bell className="size-5" aria-hidden />
+                        {unreadN > 0 ? (
+                          <span
+                            className="absolute -end-1.5 -top-1 min-w-[1.1rem] rounded-full bg-destructive px-1 text-center text-[0.6rem] font-bold leading-4 text-destructive-foreground"
+                            aria-label={tLayout("notif.unreadCount", { n: unreadN })}
+                          >
+                            {unreadN > 99 ? "99+" : unreadN}
+                          </span>
+                        ) : null}
+                      </span>
+                      {tLayout("notif.inbox")}
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -242,20 +297,33 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Sheet>
             <div
               className={cn(
-                "flex min-w-0 flex-1 flex-col justify-center gap-0.5 border-s border-border/50 ps-2",
-                isRtl ? "items-start text-start" : "items-end text-end"
+                "flex min-w-0 flex-1 items-center justify-end gap-1.5 border-s border-border/50 ps-2",
+                isRtl ? "flex-row-reverse" : "flex-row"
               )}
             >
-              <p className="line-clamp-1 text-[0.6rem] font-bold uppercase leading-none tracking-wider text-muted-foreground">
-                {tLayout("netAllTime")}
-              </p>
-              <p
-                className="max-w-full truncate font-mono text-lg font-bold leading-none tabular-nums text-foreground sm:text-xl"
-                dir="ltr"
-                title={chip}
+              <NotificationBellButton
+                compact
+                unread={unreadN}
+                onOpen={() => setInboxOpen(true)}
+                className="size-11 shrink-0 touch-manipulation rounded-xl border-border/80"
+              />
+              <div
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col justify-center gap-0.5",
+                  isRtl ? "items-start text-start" : "items-end text-end"
+                )}
               >
-                {chip}
-              </p>
+                <p className="line-clamp-1 text-[0.6rem] font-bold uppercase leading-none tracking-wider text-muted-foreground">
+                  {tLayout("netAllTime")}
+                </p>
+                <p
+                  className="max-w-full truncate font-mono text-lg font-bold leading-none tabular-nums text-foreground sm:text-xl"
+                  dir="ltr"
+                  title={chip}
+                >
+                  {chip}
+                </p>
+              </div>
             </div>
           </div>
         </header>

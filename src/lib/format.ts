@@ -43,3 +43,7 @@ export function formatDateLong(d: Date, localeCode = "en") {
 export function formatDateMedium(d: Date, localeCode = "en") {
   return dformat(d, "MMM d, yyyy", { locale: dfLocale(localeCode) });
 }
+
+export function formatDateTime(d: Date, localeCode = "en") {
+  return dformat(d, "PPp", { locale: dfLocale(localeCode) });
+}

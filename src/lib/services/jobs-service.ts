@@ -10,11 +10,13 @@ import {
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
 import { templateAppliesInMonth } from "@/lib/monthly";
 import {
+  addOneCivilDay,
   defaultDueDayFromValidFrom,
   effectiveDueDayInMonth,
   getYMDInTimeZone,
   getRecurringDueTimezone,
 } from "@/lib/due-day-of-month";
+import type { NotificationSeverity } from "@/lib/models";
 import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { notifyOnce } from "@/lib/services/notification-service";
 import { maybeNotifyLowNetBalance } from "@/lib/services/activity-notifications";
@@ -65,7 +67,7 @@ async function notifyMirrorEmail(
   prefs: Prefs,
   input: {
     type: string;
-    severity: "info" | "warning" | "critical";
+    severity: NotificationSeverity;
     title: string;
     body: string;
     dedupKey: string;
@@ -96,7 +98,11 @@ async function notifyMirrorEmail(
   return row;
 }
 
-/** When calendar day (in RECURRING_DUE_TIMEZONE) matches the template due day, remind in-app (+ email if enabled). */
+/**
+ * (1) Day before: “due tomorrow” — amber in UI, email if mirror on.
+ * (2) Due day: success/green in UI, email if mirror on.
+ * Uses calendar days in `RECURRING_DUE_TIMEZONE` (see `getYMDInTimeZone` / `addOneCivilDay`).
+ */
 async function notifyRecurringDueDays(
   userId: string,
   u: { _id: unknown; email: string },
@@ -106,26 +112,48 @@ async function notifyRecurringDueDays(
   if (prefs.recurringDueRemindersEnabled === false) return;
   const tz = getRecurringDueTimezone();
   const { y, m, d } = getYMDInTimeZone(now, tz);
+  const tomorrow = addOneCivilDay(y, m, d);
   const templates = await Expense.find({ userId, isTemplate: true, recurring: true })
     .select({ validFrom: 1, validTo: 1, dueDayOfMonth: 1, title: 1, amount: 1 })
     .lean();
   for (const t of templates) {
-    if (!templateAppliesInMonth(t.validFrom, t.validTo, y, m)) continue;
+    const titleS = t.title?.trim() || "Recurring expense";
+    const amountStr = Number(t.amount).toFixed(2);
     const dom =
       t.dueDayOfMonth != null && t.dueDayOfMonth >= 1 && t.dueDayOfMonth <= 30
         ? t.dueDayOfMonth
         : defaultDueDayFromValidFrom(new Date(t.validFrom));
-    const eff = effectiveDueDayInMonth(dom, y, m);
-    if (d !== eff) continue;
-    const titleS = t.title?.trim() || "Recurring expense";
+
+    const effTomorrow = effectiveDueDayInMonth(dom, tomorrow.y, tomorrow.m);
+    if (
+      templateAppliesInMonth(t.validFrom, t.validTo, tomorrow.y, tomorrow.m) &&
+      tomorrow.d === effTomorrow
+    ) {
+      await notifyMirrorEmail(
+        { _id: u._id, email: u.email },
+        prefs,
+        {
+          type: "expense.recurring_due_soon",
+          severity: "info",
+          title: `غدًا الاستحقاق: ${titleS}`,
+          body: `المبلغ الشهري ${amountStr} — الاستحقاق غدًا (${tomorrow.y}-${String(tomorrow.m).padStart(2, "0")}-${String(effTomorrow).padStart(2, "0")}, ${tz}). تذكير تتبع فقط، ليس سحبًا من البنك. · Due tomorrow: ${amountStr} — tracking reminder only, not a bank charge.`,
+          dedupKey: `recurring-due-soon-${String(t._id)}-${tomorrow.y}-${tomorrow.m}-${effTomorrow}`,
+          dedupWindowHours: 36,
+        }
+      );
+    }
+
+    if (!templateAppliesInMonth(t.validFrom, t.validTo, y, m)) continue;
+    const effToday = effectiveDueDayInMonth(dom, y, m);
+    if (d !== effToday) continue;
     await notifyMirrorEmail(
       { _id: u._id, email: u.email },
       prefs,
       {
         type: "expense.recurring_due",
-        severity: "info",
-        title: `Due today: ${titleS}`,
-        body: `Recurring amount ${Number(t.amount).toFixed(2)} (month ${y}-${String(m).padStart(2, "0")}, day ${eff}, ${tz}). This is a tracking reminder only, not a bank charge.`,
+        severity: "success",
+        title: `اليوم: ${titleS} — تم (تتبع)`,
+        body: `مبلغ ${amountStr} — يوم الاستحقاق (${y}-${String(m).padStart(2, "0")}-${String(effToday).padStart(2, "0")}, ${tz}). يمكنك اعتباره «مدفوعًا» في خطتك؛ تذكير تتبع فقط. · Due day — treat as settled in your plan; tracking only, not a bank charge.`,
         dedupKey: `recurring-due-${String(t._id)}-${y}-${m}`,
         dedupWindowHours: 36,
       }

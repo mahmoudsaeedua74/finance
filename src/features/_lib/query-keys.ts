@@ -25,7 +25,12 @@ export const queryKeys = {
   },
 
   notificationPreferences: () => ["notification-preferences"] as const,
-  notifications: { root: () => ["notifications"] as const, unread: () => ["notifications", "unread"] as const },
+  notifications: {
+    root: () => ["notifications"] as const,
+    unread: () => ["notifications", "unread"] as const,
+    summary: () => ["notifications", "summary"] as const,
+    allInbox: () => ["notifications", "inbox", "all"] as const,
+  },
 
   monthCompare: (cy: number, cm: number, py: number, pm: number) =>
     ["report-compare", cy, cm, py, pm] as const,

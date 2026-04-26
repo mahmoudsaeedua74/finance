@@ -161,7 +161,31 @@
     "goToMonth": "Pick month & year",
     "screenNav": "Screen navigation",
     "mainNav": "Main navigation",
-    "appSidebar": "App sidebar"
+    "appSidebar": "App sidebar",
+    "notif": {
+      "inbox": "Notifications",
+      "inboxTitle": "All notifications",
+      "openInbox": "Open notification inbox",
+      "inboxHelper": "Read each line in full. The tag shows the kind. Unread have a blue dot. Mark read to clear, or use mark all read.",
+      "markAllRead": "Mark all read",
+      "soundOn": "Sound when a new alert arrives",
+      "desktopHelper": "For alerts while this tab is in the background, allow browser notifications (use the button, then allow in the browser prompt).",
+      "enableBrowser": "Request browser permission",
+      "browserGranted": "Browser notifications allowed",
+      "empty": "No notifications yet.",
+      "read": "Mark read",
+      "unreadCount": "{n} unread",
+      "typeUnknown": "App",
+      "typeRecurringDue": "Recurring — due day",
+      "typeRecurringSoon": "Recurring — tomorrow",
+      "typeBudget": "Budget",
+      "typeNet": "Net balance",
+      "typeIncome": "Income",
+      "typeAuth": "Account",
+      "typeBehavior": "Activity",
+      "typeDigest": "Digest",
+      "newAlert": "New alert"
+    }
   },
   "month": { "prev": "Previous month", "next": "Next month" },
   "home": {

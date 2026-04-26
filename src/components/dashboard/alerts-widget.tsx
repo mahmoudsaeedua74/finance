@@ -6,14 +6,9 @@ import { useTranslations } from "next-intl";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-type Row = {
-  _id: string;
-  title: string;
-  body: string;
-  severity: "info" | "warning" | "critical";
-  readAt?: string | null;
-};
+import { cn } from "@/lib/utils";
+import { queryKeys } from "@/features/_lib/query-keys";
+import { type NotifRow, notificationRowClassName } from "@/lib/notification-ui-styles";
 
 export function AlertsWidget() {
   const t = useTranslations("dashboard");
@@ -24,14 +19,14 @@ export function AlertsWidget() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteOffsetQuery<Row>({
-    queryKey: ["notifications", "unread"],
+  } = useInfiniteOffsetQuery<NotifRow>({
+    queryKey: queryKeys.notifications.unread(),
     getUrl: (off, lim) =>
       `/api/notifications?unread=1&offset=${off}&limit=${lim}`,
   });
   const markRead = useMutation({
     mutationFn: (id: string) => jsonFetch(`/api/notifications/${id}/read`, { method: "POST" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.notifications.root() }),
   });
 
   const rows = notifRows;
@@ -46,7 +41,10 @@ export function AlertsWidget() {
         ) : (
           <>
             {rows.map((r) => (
-            <div key={r._id} className="rounded-lg border p-2.5">
+            <div
+              key={r._id}
+              className={cn("rounded-lg p-2.5", notificationRowClassName(r))}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">{r.title}</p>

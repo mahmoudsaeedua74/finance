@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
 
-export type NotificationSeverity = "info" | "warning" | "critical";
+export type NotificationSeverity = "info" | "warning" | "critical" | "success";
 
 export interface INotification {
   _id: string;
@@ -20,7 +20,7 @@ const NotificationSchema = new Schema<INotification>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     type: { type: String, required: true, trim: true },
-    severity: { type: String, enum: ["info", "warning", "critical"], default: "info" },
+    severity: { type: String, enum: ["info", "warning", "critical", "success"], default: "info" },
     title: { type: String, required: true, trim: true },
     body: { type: String, required: true, trim: true },
     meta: { type: Schema.Types.Mixed, default: {} },
