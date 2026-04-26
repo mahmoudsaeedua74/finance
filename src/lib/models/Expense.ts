@@ -21,6 +21,8 @@ export interface IExpense {
   isTemplate: boolean;
   validFrom: Date;
   validTo: Date | null;
+  /** Spend attributed to a project (same text as `Project.name` for P&L). */
+  projectName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,9 +39,11 @@ const ExpenseSchema = new Schema<IExpense>(
     isTemplate: { type: Boolean, default: false },
     validFrom: { type: Date, required: true },
     validTo: { type: Date, default: null },
+    projectName: { type: String, trim: true, default: "" },
   },
   { timestamps: true }
 );
+ExpenseSchema.index({ userId: 1, projectName: 1 });
 
 ExpenseSchema.index({ userId: 1, date: -1 });
 ExpenseSchema.index({ userId: 1, isTemplate: 1, validFrom: 1 });

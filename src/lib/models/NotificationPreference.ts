@@ -13,6 +13,10 @@ export interface INotificationPreference {
   noLoginReminderEmail: boolean;
   netDecreaseEmail: boolean;
   inactivityNudgeEmail: boolean;
+  /** In-app notifications when income / expense / project rows change. Default true. */
+  activityNotificationsEnabled: boolean;
+  /** When set (e.g. 2000), warn in-app if this month’s net is below this value. Null = off. */
+  lowBalanceThreshold: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +33,8 @@ const NotificationPreferenceSchema = new Schema<INotificationPreference>(
     noLoginReminderEmail: { type: Boolean, default: true },
     netDecreaseEmail: { type: Boolean, default: true },
     inactivityNudgeEmail: { type: Boolean, default: true },
+    activityNotificationsEnabled: { type: Boolean, default: true },
+    lowBalanceThreshold: { type: Number, default: null, min: 0 },
   },
   { timestamps: true }
 );

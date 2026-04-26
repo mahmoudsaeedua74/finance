@@ -16,6 +16,7 @@ import { useMonth } from "@/context/month-context";
 import { cn } from "@/lib/utils";
 import { resolveExpenseCategoryForSave } from "@/lib/expense-categories";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
+import { ProjectSpendField } from "@/components/expense/project-spend-field";
 import { Receipt, CalendarClock, Repeat } from "lucide-react";
 
 const field = "h-11 w-full min-w-0";
@@ -71,15 +72,18 @@ export default function NewExpensePage() {
   const [varAmount, setVarAmount] = useState("");
   const [varCat, setVarCat] = useState("general");
   const [varDate, setVarDate] = useState(defDate);
+  const [varProjectName, setVarProjectName] = useState("");
 
   const [fixTitle, setFixTitle] = useState("");
   const [fixAmount, setFixAmount] = useState("");
   const [fixCat, setFixCat] = useState("subscription");
   const [fixDate, setFixDate] = useState(defDate);
+  const [fixProjectName, setFixProjectName] = useState("");
 
   const [recTitle, setRecTitle] = useState("");
   const [recAmount, setRecAmount] = useState("");
   const [recCat, setRecCat] = useState("employee");
+  const [recProjectName, setRecProjectName] = useState("");
   const [recFrom, setRecFrom] = useState(
     new Date(year, month - 1, 1).toISOString().slice(0, 10),
   );
@@ -95,6 +99,7 @@ export default function NewExpensePage() {
           category: resolveExpenseCategoryForSave(varCat),
           kind: "variable",
           date: new Date(varDate).toISOString(),
+          ...(varProjectName.trim() ? { projectName: varProjectName } : {}),
         }),
       }),
     onSuccess: () => {
@@ -115,6 +120,7 @@ export default function NewExpensePage() {
           category: resolveExpenseCategoryForSave(fixCat),
           kind: "fixed",
           date: new Date(fixDate).toISOString(),
+          ...(fixProjectName.trim() ? { projectName: fixProjectName } : {}),
         }),
       }),
     onSuccess: () => {
@@ -137,6 +143,7 @@ export default function NewExpensePage() {
           recurring: true,
           validFrom: new Date(recFrom).toISOString(),
           validTo: recTo ? new Date(recTo).toISOString() : null,
+          ...(recProjectName.trim() ? { projectName: recProjectName } : {}),
         }),
       }),
     onSuccess: () => {
@@ -258,6 +265,12 @@ export default function NewExpensePage() {
                     onChange={(e) => setVarDate(e.target.value)}
                   />
                 </FieldCol>
+                <ProjectSpendField
+                  id="v-proj"
+                  className="sm:col-span-2"
+                  value={varProjectName}
+                  onChange={setVarProjectName}
+                />
                 <div className={actionRowClass}>
                   <Button
                     type="button"
@@ -321,6 +334,12 @@ export default function NewExpensePage() {
                     onChange={(e) => setFixDate(e.target.value)}
                   />
                 </FieldCol>
+                <ProjectSpendField
+                  id="f-proj"
+                  className="sm:col-span-2"
+                  value={fixProjectName}
+                  onChange={setFixProjectName}
+                />
                 <div className={actionRowClass}>
                   <Button
                     type="button"
@@ -399,6 +418,12 @@ export default function NewExpensePage() {
                     onChange={(e) => setRecTo(e.target.value)}
                   />
                 </FieldCol>
+                <ProjectSpendField
+                  id="r-proj"
+                  className="sm:col-span-2"
+                  value={recProjectName}
+                  onChange={setRecProjectName}
+                />
                 <div className={actionRowClass}>
                   <Button
                     type="button"

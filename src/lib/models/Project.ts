@@ -6,6 +6,8 @@ export interface IProject {
   name: string;
   amount: number;
   date: Date;
+  /** Optional note (reason / details) for this payout line. */
+  note?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +18,7 @@ const ProjectSchema = new Schema<IProject>(
     name: { type: String, required: true, trim: true },
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
+    note: { type: String, trim: true, default: "" },
   },
   { timestamps: true }
 );

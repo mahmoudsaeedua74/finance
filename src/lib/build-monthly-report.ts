@@ -1,5 +1,5 @@
 import { startOfMonth } from "date-fns";
-import { Expense, Income, Project } from "@/lib/models";
+import { Expense, Income, Project, type IExpense } from "@/lib/models";
 import {
   addToMap,
   isDateInMonth,
@@ -50,9 +50,10 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
     date: Date;
     category: string;
     source: "variable" | "recurring" | "fixed_once";
+    projectName?: string;
   }[] = [];
 
-  for (const e of expenses) {
+  for (const e of expenses as IExpense[]) {
     if (e.isTemplate && e.recurring) {
       if (!templateAppliesInMonth(new Date(e.validFrom), e.validTo, year, month)) {
         continue;
@@ -66,6 +67,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
         date: startOfMonth(new Date(year, month - 1, 1)),
         category: e.category,
         source: "recurring",
+        projectName: e.projectName?.trim() || undefined,
       });
     } else if (!e.isTemplate) {
       if (isDateInMonth(new Date(e.date), year, month)) {
@@ -78,6 +80,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
           date: e.date,
           category: e.category,
           source: e.kind === "fixed" ? "fixed_once" : "variable",
+          projectName: e.projectName?.trim() || undefined,
         });
       }
     }
@@ -117,6 +120,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       name: p.name,
       amount: p.amount,
       date: p.date,
+      ...(p.note?.trim() ? { note: p.note.trim() } : {}),
     })),
     expenseLineItems: expenseLineItems.map((r) => ({
       _id: r._id,
@@ -125,6 +129,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       date: r.date,
       category: r.category,
       source: r.source,
+      ...(r.projectName ? { projectName: r.projectName } : {}),
     })),
     insights,
     budgetUsage: budgetUsage.rows,

@@ -22,6 +22,8 @@ export async function GET() {
         noLoginReminderEmail: true,
         netDecreaseEmail: true,
         inactivityNudgeEmail: true,
+        activityNotificationsEnabled: true,
+        lowBalanceThreshold: null as number | null,
       },
     });
   }
@@ -36,6 +38,11 @@ export async function GET() {
       noLoginReminderEmail: p.noLoginReminderEmail,
       netDecreaseEmail: p.netDecreaseEmail,
       inactivityNudgeEmail: p.inactivityNudgeEmail,
+      activityNotificationsEnabled: p.activityNotificationsEnabled !== false,
+      lowBalanceThreshold:
+        p.lowBalanceThreshold != null && p.lowBalanceThreshold > 0
+          ? p.lowBalanceThreshold
+          : null,
     },
   });
 }
@@ -50,6 +57,8 @@ type Body = {
   noLoginReminderEmail?: boolean;
   netDecreaseEmail?: boolean;
   inactivityNudgeEmail?: boolean;
+  activityNotificationsEnabled?: boolean;
+  lowBalanceThreshold?: number | null;
 };
 
 export async function PUT(req: Request) {
@@ -76,8 +85,19 @@ export async function PUT(req: Request) {
     "noLoginReminderEmail",
     "netDecreaseEmail",
     "inactivityNudgeEmail",
+    "activityNotificationsEnabled",
   ] as const) {
     if (typeof body[k] === "boolean") update[k] = body[k];
+  }
+  if (body.lowBalanceThreshold === null) {
+    update.lowBalanceThreshold = null;
+  } else if (body.lowBalanceThreshold != null) {
+    const n = Number(body.lowBalanceThreshold);
+    if (Number.isFinite(n) && n > 0) {
+      update.lowBalanceThreshold = Math.min(1e12, n);
+    } else {
+      update.lowBalanceThreshold = null;
+    }
   }
   const doc = await NotificationPreference.findOneAndUpdate(
     { userId: user.id },

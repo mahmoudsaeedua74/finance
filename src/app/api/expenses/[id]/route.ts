@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
+import {
+  maybeNotifyLowNetBalance,
+  notifyExpenseActivity,
+} from "@/lib/services/activity-notifications";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +49,7 @@ export async function PUT(req: Request, { params }: Ctx) {
       isTemplate,
       validFrom,
       validTo,
+      projectName: projectNameRaw,
     } = body;
     await connectDB();
     const update: Record<string, unknown> = {};
@@ -57,11 +62,21 @@ export async function PUT(req: Request, { params }: Ctx) {
     if (isTemplate != null) update.isTemplate = Boolean(isTemplate);
     if (validFrom != null) update.validFrom = new Date(validFrom);
     if (validTo !== undefined) update.validTo = validTo ? new Date(validTo) : null;
+    if (projectNameRaw !== undefined) {
+      update.projectName =
+        typeof projectNameRaw === "string" ? projectNameRaw.trim().slice(0, 200) : "";
+    }
 
     const doc = await Expense.findOneAndUpdate({ _id: params.id, userId: user.id }, update, {
       new: true,
     });
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const uid = String(user.id);
+    await notifyExpenseActivity(uid, "updated", {
+      title: doc.title,
+      amount: doc.amount,
+    });
+    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ data: { ...doc.toObject(), _id: String(doc._id) } });
   } catch (e) {
     return NextResponse.json(
@@ -81,6 +96,12 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     await connectDB();
     const res = await Expense.findOneAndDelete({ _id: params.id, userId: user.id });
     if (!res) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const uid = String(user.id);
+    await notifyExpenseActivity(uid, "deleted", {
+      title: res.title,
+      amount: res.amount,
+    });
+    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

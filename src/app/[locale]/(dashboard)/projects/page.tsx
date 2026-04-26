@@ -17,10 +17,12 @@ import { formatDateLong, monthLabel, formatMoney } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { exportProjectListExcel } from "@/lib/export-excel";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, ArrowUpDown, Search, Plus, Loader2 } from "lucide-react";
 import {
@@ -47,7 +49,10 @@ type Row = {
   name: string;
   amount: number;
   date: string;
+  note?: string;
 };
+
+type ExpenseRowLite = { projectName?: string; amount: number };
 
 function EditP({
   row,
@@ -62,6 +67,7 @@ function EditP({
   const [name, setName] = useState(row.name);
   const [amount, setAmount] = useState(String(row.amount));
   const [date, setDate] = useState(new Date(row.date).toISOString().slice(0, 10));
+  const [note, setNote] = useState(row.note?.trim() ?? "");
   const save = useMutation({
     mutationFn: () =>
       jsonFetch(`/api/projects/${row._id}`, {
@@ -70,6 +76,7 @@ function EditP({
           name,
           amount: parseFloat(amount),
           date: new Date(date).toISOString(),
+          note,
         }),
       }),
     onMutate: () => {
@@ -126,6 +133,17 @@ function EditP({
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
+        <div className="flex flex-col gap-2.5">
+          <Label htmlFor={`edit-proj-note-${row._id}`}>{t("lineNote")}</Label>
+          <Textarea
+            id={`edit-proj-note-${row._id}`}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={t("lineNotePh")}
+            rows={2}
+            className="min-h-14"
+          />
+        </div>
         <DialogFooter className="gap-2 sm:gap-0 sm:pt-0">
           <Button type="button" variant="outline" onClick={onDone} disabled={save.isPending}>
             {tC("close")}
@@ -165,12 +183,18 @@ export default function ProjectsPage() {
     queryKey: ["projects", "all"],
     queryFn: () => jsonFetch<{ data: Row[] }>("/api/projects"),
   });
+  const { data: expensesMonth } = useQuery({
+    queryKey: ["expenses", year, month],
+    queryFn: () =>
+      jsonFetch<{ data: ExpenseRowLite[] }>(`/api/expenses?year=${year}&month=${month}`),
+  });
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(
     new Date(year, month - 1, 12).toISOString().slice(0, 10)
   );
+  const [payoutNote, setPayoutNote] = useState("");
   const [edit, setEdit] = useState<Row | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -180,6 +204,7 @@ export default function ProjectsPage() {
   const openAddDialog = useCallback(() => {
     setName("");
     setAmount("");
+    setPayoutNote("");
     setDate(new Date(year, month - 1, 12).toISOString().slice(0, 10));
     setAddOpen(true);
   }, [year, month]);
@@ -192,12 +217,14 @@ export default function ProjectsPage() {
           name,
           amount: parseFloat(amount),
           date: new Date(date).toISOString(),
+          note: payoutNote,
         }),
       }),
     onSuccess: () => {
       toast.success(t("saveOk"));
       setName("");
       setAmount("");
+      setPayoutNote("");
       setAddOpen(false);
       invalidateProjects();
     },
@@ -236,6 +263,48 @@ export default function ProjectsPage() {
       .sort((a, b) => b.total - a.total);
   }, [allRows]);
 
+  const projectPlRows = useMemo(() => {
+    const payouts = data?.data ?? [];
+    const expRows = expensesMonth?.data ?? [];
+    const spendByKey = new Map<string, { amount: number; display: string }>();
+    for (const e of expRows) {
+      const raw = e.projectName?.trim();
+      if (!raw) continue;
+      const k = raw.toLowerCase();
+      const prev = spendByKey.get(k);
+      const display = prev?.display ?? raw;
+      spendByKey.set(k, { amount: (prev?.amount ?? 0) + e.amount, display });
+    }
+    const receivedByKey = new Map<string, { amount: number; display: string }>();
+    for (const r of payouts) {
+      const n = r.name?.trim();
+      if (!n) continue;
+      const k = n.toLowerCase();
+      const prev = receivedByKey.get(k);
+      const display = prev?.display ?? n;
+      receivedByKey.set(k, { amount: (prev?.amount ?? 0) + r.amount, display });
+    }
+    const keys = new Set<string>();
+    for (const k of Array.from(spendByKey.keys())) keys.add(k);
+    for (const k of Array.from(receivedByKey.keys())) keys.add(k);
+    return Array.from(keys)
+      .map((k) => {
+        const rec = receivedByKey.get(k);
+        const sp = spendByKey.get(k);
+        const display = rec?.display ?? sp?.display ?? k;
+        return {
+          key: k,
+          label: display,
+          received: rec?.amount ?? 0,
+          spent: sp?.amount ?? 0,
+          net: (rec?.amount ?? 0) - (sp?.amount ?? 0),
+        };
+      })
+      .sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
+      );
+  }, [data?.data, expensesMonth?.data]);
+
   return (
     <div className="max-w-4xl space-y-4">
       <PageHeader
@@ -244,6 +313,52 @@ export default function ProjectsPage() {
       />
 
       {error && <QueryErrorAlert error={error} />}
+
+      {projectPlRows.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("plCardTitle")}</CardTitle>
+            <CardDescription>
+              {t("plCardDesc", { month: monthLabel(year, month, locale) })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{tC("project")}</TableHead>
+                    <TableHead className="text-end">{t("plReceived")}</TableHead>
+                    <TableHead className="text-end">{t("plSpent")}</TableHead>
+                    <TableHead className="text-end">{t("plNet")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projectPlRows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell className="font-medium">{row.label}</TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {formatMoney(row.received)}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums text-muted-foreground">
+                        {formatMoney(row.spent)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-end tabular-nums font-medium",
+                          row.net >= 0 ? "text-foreground" : "text-destructive"
+                        )}
+                      >
+                        {formatMoney(row.net)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex w-full flex-wrap items-end gap-3 sm:gap-4">
         <div className="min-w-0 flex-1 basis-full flex flex-col gap-2.5 lg:basis-[22rem]">
@@ -354,7 +469,7 @@ export default function ProjectsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <DataTableSkeleton columnShapes={["sm", "fill", "end", "end"]} rows={5} />
+            <DataTableSkeleton columnShapes={["sm", "fill", "sm", "end", "end"]} rows={5} />
           ) : monthView.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPayouts")}</p>
           ) : (
@@ -370,6 +485,7 @@ export default function ProjectsPage() {
                   <TableRow>
                     <TableHead>{tC("date")}</TableHead>
                     <TableHead>{tC("project")}</TableHead>
+                    <TableHead className="hidden min-[480px]:table-cell">{t("lineNote")}</TableHead>
                     <TableHead className="text-end">{tC("amount")}</TableHead>
                     <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
                   </TableRow>
@@ -381,6 +497,9 @@ export default function ProjectsPage() {
                         {formatDateLong(new Date(r.date), locale)}
                       </TableCell>
                       <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground min-[480px]:table-cell">
+                        {r.note?.trim() || "—"}
+                      </TableCell>
                       <TableCell className="text-end tabular-nums">
                         {formatMoney(r.amount)}
                       </TableCell>
@@ -427,6 +546,7 @@ export default function ProjectsPage() {
                   <TableRow>
                     <TableHead>{tC("date")}</TableHead>
                     <TableHead>{tC("project")}</TableHead>
+                    <TableHead className="hidden min-[480px]:table-cell">{t("lineNote")}</TableHead>
                     <TableHead className="text-end">{tC("amount")}</TableHead>
                     <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
                   </TableRow>
@@ -438,6 +558,9 @@ export default function ProjectsPage() {
                         {formatDateLong(new Date(r.date), locale)}
                       </TableCell>
                       <TableCell>{r.name}</TableCell>
+                      <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground min-[480px]:table-cell">
+                        {r.note?.trim() || "—"}
+                      </TableCell>
                       <TableCell className="text-end tabular-nums">
                         {formatMoney(r.amount)}
                       </TableCell>
@@ -507,6 +630,17 @@ export default function ProjectsPage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Label htmlFor="add-proj-note">{t("lineNote")}</Label>
+              <Textarea
+                id="add-proj-note"
+                value={payoutNote}
+                onChange={(e) => setPayoutNote(e.target.value)}
+                placeholder={t("lineNotePh")}
+                rows={2}
+                className="min-h-14"
               />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">

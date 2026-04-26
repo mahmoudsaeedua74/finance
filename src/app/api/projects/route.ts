@@ -3,6 +3,10 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Project } from "@/lib/models";
 import { isDateInMonth } from "@/lib/monthly";
+import {
+  maybeNotifyLowNetBalance,
+  notifyProjectActivity,
+} from "@/lib/services/activity-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +25,7 @@ export async function GET(req: Request) {
         name: d.name,
         amount: d.amount,
         date: d.date,
+        note: d.note?.trim() || "",
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       }))
@@ -43,7 +48,7 @@ export async function POST(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
-    const { name, amount, date } = body;
+    const { name, amount, date, note } = body;
     if (!name || amount == null || !date) {
       return NextResponse.json(
         { error: "name, amount, and date are required" },
@@ -56,7 +61,14 @@ export async function POST(req: Request) {
       name: String(name),
       amount: Number(amount),
       date: new Date(date),
+      note: typeof note === "string" ? note.trim().slice(0, 500) : "",
     });
+    const uid = String(user.id);
+    await notifyProjectActivity(uid, "created", {
+      name: String(name),
+      amount: Number(amount),
+    });
+    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json(
       { data: { ...doc.toObject(), _id: String(doc._id) } },
       { status: 201 }

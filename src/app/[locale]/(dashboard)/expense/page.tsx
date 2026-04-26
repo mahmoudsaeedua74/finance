@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
+import { ProjectSpendField } from "@/components/expense/project-spend-field";
 import { labelExpenseCategory, resolveExpenseCategoryForSave } from "@/lib/expense-categories";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { PageHeader } from "@/components/ui/page-header";
@@ -51,6 +52,7 @@ type Row = {
   validTo?: string | null;
   rowKind: "variable" | "fixed_once" | "recurring";
   displayDate?: string;
+  projectName?: string;
 };
 
 function KindBadge({ r }: { r: Row }) {
@@ -91,6 +93,7 @@ function EditForm({
   const [vt, setVt] = useState(
     row.validTo ? new Date(row.validTo).toISOString().slice(0, 10) : ""
   );
+  const [projectName, setProjectName] = useState(row.projectName?.trim() ?? "");
 
   const save = useMutation({
     mutationFn: () => {
@@ -106,6 +109,7 @@ function EditForm({
             recurring: true,
             isTemplate: true,
             kind: "fixed",
+            projectName,
           }),
         });
       }
@@ -117,6 +121,7 @@ function EditForm({
           category: resolveExpenseCategoryForSave(cat),
           date: new Date(date).toISOString(),
           kind: row.rowKind === "variable" ? "variable" : "fixed",
+          projectName,
         }),
       });
     },
@@ -176,6 +181,11 @@ function EditForm({
             <Label>{t("endOpt")}</Label>
             <Input type="date" value={vt} onChange={(e) => setVt(e.target.value)} />
           </div>
+          <ProjectSpendField
+            id={`edit-proj-rec-${row._id}`}
+            value={projectName}
+            onChange={setProjectName}
+          />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -205,6 +215,11 @@ function EditForm({
             <Label>{tC("date")}</Label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
+          <ProjectSpendField
+            id={`edit-proj-${row._id}`}
+            value={projectName}
+            onChange={setProjectName}
+          />
         </div>
       )}
       <DialogFooter className="mt-4">
@@ -228,6 +243,7 @@ function EditForm({
 
 export default function ExpenseListPage() {
   const t = useTranslations("expense");
+  const tR = useTranslations("report");
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
@@ -281,7 +297,7 @@ export default function ExpenseListPage() {
         <CardContent>
           {isLoading ? (
             <DataTableSkeleton
-              columnShapes={["sm", "fill", "xs", "md", "end", "end"]}
+              columnShapes={["sm", "fill", "xs", "md", "sm", "end", "end"]}
               rows={6}
             />
           ) : rows.length === 0 ? (
@@ -295,6 +311,7 @@ export default function ExpenseListPage() {
                     <TableHead>{tC("title")}</TableHead>
                     <TableHead>{t("table.kind")}</TableHead>
                     <TableHead>{tC("category")}</TableHead>
+                    <TableHead className="hidden min-[520px]:table-cell">{tR("expenseProject")}</TableHead>
                     <TableHead className="text-end">{tC("amount")}</TableHead>
                     <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
                   </TableRow>
@@ -317,6 +334,9 @@ export default function ExpenseListPage() {
                         </TableCell>
                         <TableCell className="text-sm">
                           {labelExpenseCategory(r.category, tCat)}
+                        </TableCell>
+                        <TableCell className="hidden max-w-[10rem] truncate text-sm text-muted-foreground min-[520px]:table-cell">
+                          {r.projectName?.trim() || "—"}
                         </TableCell>
                         <TableCell className="tabular-nums text-end">
                           {formatMoney(r.amount)}
@@ -368,6 +388,7 @@ export default function ExpenseListPage() {
                     <TableHead>{tC("category")}</TableHead>
                     <TableHead>{t("table.from")}</TableHead>
                     <TableHead>{t("table.to")}</TableHead>
+                    <TableHead className="hidden md:table-cell">{tR("expenseProject")}</TableHead>
                     <TableHead className="text-end">{t("table.perMonth")}</TableHead>
                     <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
                   </TableRow>
@@ -388,6 +409,9 @@ export default function ExpenseListPage() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {tr.validTo ? formatDateLong(new Date(tr.validTo), locale) : "∞"}
+                        </TableCell>
+                        <TableCell className="hidden max-w-[8rem] truncate text-sm text-muted-foreground md:table-cell">
+                          {tr.projectName?.trim() || "—"}
                         </TableCell>
                         <TableCell className="text-end tabular-nums">
                           {formatMoney(tr.amount)}

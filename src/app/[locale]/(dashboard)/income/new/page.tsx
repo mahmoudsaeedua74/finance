@@ -91,7 +91,11 @@ export default function NewIncomePage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("phTitle")}
+              aria-describedby="income-title-help"
             />
+            <p id="income-title-help" className="text-xs text-muted-foreground">
+              {t("titleHelp")}
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="amount">{tC("amount")}</Label>

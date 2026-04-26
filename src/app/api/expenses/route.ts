@@ -3,6 +3,10 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
 import { isDateInMonth, templateAppliesInMonth } from "@/lib/monthly";
+import {
+  maybeNotifyLowNetBalance,
+  notifyExpenseActivity,
+} from "@/lib/services/activity-notifications";
 import { startOfMonth } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +22,7 @@ function serialize(d: {
   isTemplate: boolean;
   validFrom: Date;
   validTo: Date | null;
+  projectName?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }) {
@@ -32,6 +37,7 @@ function serialize(d: {
     isTemplate: d.isTemplate,
     validFrom: d.validFrom,
     validTo: d.validTo,
+    projectName: d.projectName?.trim() || "",
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   };
@@ -127,7 +133,10 @@ export async function POST(req: Request) {
       isTemplate,
       validFrom,
       validTo,
+      projectName: projectNameRaw,
     } = body;
+    const projectName =
+      typeof projectNameRaw === "string" ? projectNameRaw.trim().slice(0, 200) : "";
     if (!title || amount == null) {
       return NextResponse.json(
         { error: "title and amount are required" },
@@ -159,7 +168,14 @@ export async function POST(req: Request) {
         isTemplate: true,
         validFrom: vf,
         validTo: vt,
+        projectName,
       });
+      const uid = String(user.id);
+      await notifyExpenseActivity(uid, "created", {
+        title: String(title),
+        amount: Number(amount),
+      });
+      await maybeNotifyLowNetBalance(uid);
       return NextResponse.json(
         { data: { ...doc.toObject(), _id: String(doc._id) } },
         { status: 201 }
@@ -182,7 +198,14 @@ export async function POST(req: Request) {
       isTemplate: false,
       validFrom: dt,
       validTo: null,
+      projectName,
     });
+    const uid = String(user.id);
+    await notifyExpenseActivity(uid, "created", {
+      title: String(title),
+      amount: Number(amount),
+    });
+    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json(
       { data: { ...doc.toObject(), _id: String(doc._id) } },
       { status: 201 }

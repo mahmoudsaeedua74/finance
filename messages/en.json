@@ -203,6 +203,7 @@
     "newCardT": "Details",
     "newCardD": "Amounts are shown in your default currency.",
     "phTitle": "e.g. April salary, Client Acme",
+    "titleHelp": "Short label you will recognize: what the money is, or which month / source.",
     "types": {
       "salary": "Salary",
       "freelance": "Freelance / project",
@@ -259,6 +260,9 @@
     "varReason": "Reason (what & why)",
     "varReasonHelp": "One short line is enough: bus to the office, lunch out, something you wanted to buy, small daily things.",
     "varReasonPh": "e.g. Bus to work, coffee with a friend, phone cable…",
+    "projectTag": "Link to project (optional)",
+    "projectTagPh": "Type or pick a project name",
+    "projectTagHelp": "Must match a project name so this spend appears in that project’s monthly balance. Add the project under Projects first, or type the exact name.",
     "categories": {
       "general": "Everyday / not sure (catch‑all)",
       "food": "Food, groceries, delivery",
@@ -277,7 +281,14 @@
   },
   "projects": {
     "title": "Projects",
-    "desc": "Track per-project cash-in. A separate project line in {month} is rolled into the same “income” total as your salary and freelance items.",
+    "desc": "Record money received for each project name. Tag expenses to the same name to see received vs spent and net per project this month.",
+    "plCardTitle": "Project balance (this month)",
+    "plCardDesc": "Received = project payouts in {month}. Spent = expenses linked to the same project name.",
+    "plReceived": "Received",
+    "plSpent": "Spent",
+    "plNet": "Net",
+    "lineNote": "Note (optional)",
+    "lineNotePh": "e.g. invoice #, milestone, reason",
     "phSearch": "Filter by project name…",
     "sortBy": "Sort by",
     "sort": { "date": "Date", "name": "Name", "amount": "Amount" },
@@ -343,6 +354,7 @@
     "ideas1": "Recurring bills (internet, Cursor, employees, gam3eya) — you already have them as recurring fixed expenses in Add expense → Recurring. They repeat every month automatically in reports.",
     "ideas2": "Reminders / calendar / email nudges need a scheduler (e.g. Vercel Cron, Windows Task, or a job server) to call a send-email API on a schedule. Next step: pick 1 “due date” per item or use iCal file export. Happy to add a simple “upcoming this week” list later.",
     "table": { "type": "Type" },
+    "expenseProject": "Project",
     "budgetUsageTitle": "Budget usage",
     "budgetUsageDesc": "Spent vs monthly category limits",
     "lineSource": {

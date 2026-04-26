@@ -37,6 +37,7 @@ export function useFinanceInvalidation() {
       invalidateProjects: () => {
         void qc.invalidateQueries({ queryKey: ["projects", year, month] });
         void qc.invalidateQueries({ queryKey: ["projects", "all"] });
+        void qc.invalidateQueries({ queryKey: ["projects", "all-for-spend"] });
         void qc.invalidateQueries({ queryKey: ["report", year, month] });
       },
     }),

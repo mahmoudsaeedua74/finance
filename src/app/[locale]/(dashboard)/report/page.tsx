@@ -35,6 +35,7 @@ export default function ReportPage() {
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
   const tInc = useTranslations("income");
+  const tProj = useTranslations("projects");
   const locale = useLocale();
   const { year, month } = useMonth();
   const [filter, setFilter] = useState<ReportFilterState>(getDefaultReportFilters);
@@ -193,6 +194,7 @@ export default function ReportPage() {
                         <TableHead>{tC("title")}</TableHead>
                         <TableHead>{tC("category")}</TableHead>
                         <TableHead>{t("table.type")}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t("expenseProject")}</TableHead>
                         <TableHead className="text-end">{tC("amount")}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -210,6 +212,9 @@ export default function ReportPage() {
                           </TableCell>
                           <TableCell className="text-sm capitalize">
                             {t(`lineSource.${e.source}`)}
+                          </TableCell>
+                          <TableCell className="hidden max-w-[10rem] truncate text-sm text-muted-foreground sm:table-cell">
+                            {e.projectName?.trim() || "—"}
                           </TableCell>
                           <TableCell className="text-end tabular-nums">
                             {formatMoney(e.amount)}
@@ -273,6 +278,7 @@ export default function ReportPage() {
                       <TableRow>
                         <TableHead>{tC("date")}</TableHead>
                         <TableHead>{tC("project")}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{tProj("lineNote")}</TableHead>
                         <TableHead className="text-end">{tC("amount")}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -283,6 +289,9 @@ export default function ReportPage() {
                             {formatDateLong(new Date(r.date), locale)}
                           </TableCell>
                           <TableCell>{r.name}</TableCell>
+                          <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:table-cell">
+                            {r.note?.trim() || "—"}
+                          </TableCell>
                           <TableCell className="text-end tabular-nums">
                             {formatMoney(r.amount)}
                           </TableCell>

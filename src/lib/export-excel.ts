@@ -30,21 +30,23 @@ export function exportMonthlyReportExcel(
   ];
 
   const projectRows: (string | number)[][] = [
-    ["Date", "Project", "Amount"],
+    ["Date", "Project", "Amount", "Note"],
     ...data.projectLineItems.map((p) => [
       new Date(p.date).toISOString().slice(0, 10),
       p.name,
       p.amount,
+      p.note ?? "",
     ]),
   ];
 
   const expenseRows: (string | number)[][] = [
-    ["Date", "Title", "Category", "Type", "Amount"],
+    ["Date", "Title", "Category", "Type", "Project", "Amount"],
     ...data.expenseLineItems.map((e) => [
       new Date(e.date).toISOString().slice(0, 10),
       e.title,
       e.category,
       e.source,
+      e.projectName ?? "",
       e.amount,
     ]),
   ];
@@ -83,15 +85,16 @@ export function exportMonthlyReportExcel(
  * One sheet: all projects in any shape (e.g. all-time list).
  */
 export function exportProjectListExcel(
-  rows: { name: string; amount: number; date: string }[],
+  rows: { name: string; amount: number; date: string; note?: string }[],
   filename = "projects.xlsx"
 ) {
   const aoa = [
-    ["Date", "Project", "Amount"],
+    ["Date", "Project", "Amount", "Note"],
     ...rows.map((r) => [
       new Date(r.date).toISOString().slice(0, 10),
       r.name,
       r.amount,
+      r.note?.trim() ?? "",
     ]),
   ];
   const total = rows.reduce((s, r) => s + r.amount, 0);

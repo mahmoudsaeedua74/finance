@@ -26,6 +26,7 @@ export type MonthlyReportDto = {
     name: string;
     amount: number;
     date: string;
+    note?: string;
   }[];
   expenseLineItems: {
     _id: string;
@@ -34,6 +35,8 @@ export type MonthlyReportDto = {
     date: string;
     category: string;
     source: "variable" | "recurring" | "fixed_once";
+    /** Spend linked to a project name (optional). */
+    projectName?: string;
   }[];
   insights: {
     overspent: boolean;
