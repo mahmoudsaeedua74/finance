@@ -23,6 +23,7 @@ type Pref = {
   netDecreaseEmail: boolean;
   inactivityNudgeEmail: boolean;
   activityNotificationsEnabled: boolean;
+  recurringDueRemindersEnabled: boolean;
   lowBalanceThreshold: number | null;
 };
 
@@ -118,6 +119,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {boolRow("mirrorInAppToEmail", t("mirrorInApp"), t("mirrorInAppDesc"))}
+          {boolRow("recurringDueRemindersEnabled", t("recurringDue"), t("recurringDueDesc"))}
           {boolRow("digestEmailEnabled", t("digestEmail"), t("digestEmailDesc"))}
           {boolRow("criticalEmailEnabled", t("criticalEmail"), t("criticalEmailDesc"))}
           {boolRow("noLoginReminderEmail", t("noLogin"), t("noLoginDesc"))}

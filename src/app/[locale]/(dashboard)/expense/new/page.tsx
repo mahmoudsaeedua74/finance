@@ -90,6 +90,8 @@ export default function NewExpensePage() {
     toLocalYmd(new Date(year, month, 1)),
   );
   const [recTo, setRecTo] = useState("");
+  /** Calendar day 1–30 for monthly due reminder (not the monthly report split). */
+  const [recDueDay, setRecDueDay] = useState("10");
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -373,6 +375,20 @@ export default function NewExpensePage() {
                     onChange={(e) => setRecTo(e.target.value)}
                   />
                 </FieldCol>
+                <FieldCol>
+                  <FieldLabel htmlFor="r-due" helper={t("dueDayOfMonthHelp")}>
+                    {t("dueDayOfMonth")}
+                  </FieldLabel>
+                  <Input
+                    id="r-due"
+                    className={field}
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={recDueDay}
+                    onChange={(e) => setRecDueDay(e.target.value)}
+                  />
+                </FieldCol>
                 <ProjectSpendField
                   id="r-proj"
                   className="sm:col-span-2"
@@ -400,6 +416,10 @@ export default function NewExpensePage() {
                         recurring: true,
                         validFrom: new Date(recFrom).toISOString(),
                         validTo: recTo ? new Date(recTo).toISOString() : null,
+                        dueDayOfMonth: Math.min(
+                          30,
+                          Math.max(1, Math.round(parseFloat(recDueDay)) || 10)
+                        ),
                         ...(recProjectName.trim() ? { projectName: recProjectName } : {}),
                       })
                     }

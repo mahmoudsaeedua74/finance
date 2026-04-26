@@ -70,4 +70,32 @@ describe("parseExpensePostBody", () => {
     });
     expect(r.ok).toBe(false);
   });
+
+  it("rejects due day outside 1–30 for recurring", () => {
+    const r = parseExpensePostBody({
+      title: "a",
+      amount: 1,
+      isTemplate: true,
+      recurring: true,
+      validFrom: "2024-01-01T00:00:00.000Z",
+      dueDayOfMonth: 31,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("accepts due day 1–30 for recurring", () => {
+    const r = parseExpensePostBody({
+      title: "Net",
+      amount: 200,
+      isTemplate: true,
+      recurring: true,
+      validFrom: "2024-01-10T00:00:00.000Z",
+      validTo: null,
+      dueDayOfMonth: 10,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok && r.data.variant === "recurring") {
+      expect(r.data.dueDayOfMonth).toBe(10);
+    }
+  });
 });

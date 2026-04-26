@@ -1,8 +1,9 @@
 import { startOfMonth } from "date-fns";
+import { defaultDueDayFromValidFrom } from "@/lib/due-day-of-month";
 
 /** Fields needed for list + detail responses (excludes `__v` bloat on the wire). */
 export const EXPENSE_API_LIST_PROJECTION =
-  "title amount date category kind recurring isTemplate validFrom validTo projectName createdAt updatedAt" as const;
+  "title amount date category kind recurring isTemplate validFrom validTo dueDayOfMonth projectName createdAt updatedAt" as const;
 
 type Lean = {
   _id: unknown;
@@ -15,6 +16,7 @@ type Lean = {
   isTemplate: boolean;
   validFrom: Date;
   validTo: Date | null;
+  dueDayOfMonth?: number;
   projectName?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -32,6 +34,14 @@ function serializeForApi(d: Lean) {
     isTemplate: d.isTemplate,
     validFrom: d.validFrom,
     validTo: d.validTo,
+    ...(d.isTemplate
+      ? {
+          dueDayOfMonth:
+            d.dueDayOfMonth != null && d.dueDayOfMonth >= 1
+              ? d.dueDayOfMonth
+              : defaultDueDayFromValidFrom(d.validFrom),
+        }
+      : {}),
     projectName: d.projectName?.trim() || "",
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
@@ -106,6 +116,7 @@ export function expenseCreatedJson(doc: {
   isTemplate: boolean;
   validFrom: Date;
   validTo: Date | null;
+  dueDayOfMonth?: number;
   projectName?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -121,6 +132,14 @@ export function expenseCreatedJson(doc: {
     isTemplate: doc.isTemplate,
     validFrom: doc.validFrom,
     validTo: doc.validTo,
+    ...(doc.isTemplate
+      ? {
+          dueDayOfMonth:
+            doc.dueDayOfMonth != null && doc.dueDayOfMonth >= 1
+              ? doc.dueDayOfMonth
+              : defaultDueDayFromValidFrom(doc.validFrom),
+        }
+      : {}),
     projectName: doc.projectName?.trim() ?? "",
     ...(doc.createdAt ? { createdAt: doc.createdAt } : {}),
     ...(doc.updatedAt ? { updatedAt: doc.updatedAt } : {}),

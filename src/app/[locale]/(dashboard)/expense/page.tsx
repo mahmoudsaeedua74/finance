@@ -80,6 +80,12 @@ function EditForm({
   const [vt, setVt] = useState(
     row.validTo ? toLocalYmd(new Date(row.validTo)) : ""
   );
+  const [dueDay, setDueDay] = useState(
+    String(
+      row.dueDayOfMonth ??
+        Math.min(30, Math.max(1, new Date(row.validFrom!).getUTCDate()))
+    )
+  );
   const [projectName, setProjectName] = useState(row.projectName?.trim() ?? "");
 
   return (
@@ -115,6 +121,19 @@ function EditForm({
           <div>
             <Label>{t("endOpt")}</Label>
             <Input type="date" value={vt} onChange={(e) => setVt(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor={`edit-due-${row._id}`}>{t("dueDayOfMonth")}</Label>
+            <p className="text-xs text-muted-foreground mb-1">{t("dueDayOfMonthHelp")}</p>
+            <Input
+              id={`edit-due-${row._id}`}
+              type="number"
+              min={1}
+              max={30}
+              className="h-11 w-full"
+              value={dueDay}
+              onChange={(e) => setDueDay(e.target.value)}
+            />
           </div>
           <ProjectSpendField
             id={`edit-proj-rec-${row._id}`}
@@ -174,6 +193,7 @@ function EditForm({
                 validFrom: vf,
                 validTo: vt,
                 projectName,
+                dueDayOfMonth: Math.min(30, Math.max(1, Math.round(parseFloat(dueDay)) || 1)),
               },
             })
           }

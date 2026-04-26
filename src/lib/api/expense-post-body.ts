@@ -6,6 +6,8 @@ export type RecurringCreateInput = {
   projectName: string;
   validFrom: Date;
   validTo: Date | null;
+  /** 1–30. If omitted, derived from `validFrom` in the API. */
+  dueDayOfMonth: number;
 };
 
 export type OneOffCreateInput = {
@@ -59,6 +61,14 @@ export function parseExpensePostBody(body: unknown):
     if (b.validTo && vt && Number.isNaN(vt.getTime())) {
       return { ok: false, error: "Invalid validTo", status: 400 };
     }
+    let due = 0;
+    if (b.dueDayOfMonth != null && b.dueDayOfMonth !== "") {
+      const d = Math.round(Number(b.dueDayOfMonth));
+      if (!Number.isFinite(d) || d < 1 || d > 30) {
+        return { ok: false, error: "dueDayOfMonth must be between 1 and 30", status: 400 };
+      }
+      due = d;
+    }
     return {
       ok: true,
       data: {
@@ -69,6 +79,7 @@ export function parseExpensePostBody(body: unknown):
         projectName,
         validFrom: vf,
         validTo: vt,
+        dueDayOfMonth: due,
       },
     };
   }

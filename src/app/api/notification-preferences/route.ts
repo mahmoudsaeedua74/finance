@@ -23,6 +23,7 @@ export async function GET() {
         netDecreaseEmail: true,
         inactivityNudgeEmail: true,
         activityNotificationsEnabled: true,
+        recurringDueRemindersEnabled: true,
         lowBalanceThreshold: null,
       },
     });
@@ -39,6 +40,7 @@ export async function GET() {
       netDecreaseEmail: p.netDecreaseEmail,
       inactivityNudgeEmail: p.inactivityNudgeEmail,
       activityNotificationsEnabled: p.activityNotificationsEnabled !== false,
+      recurringDueRemindersEnabled: p.recurringDueRemindersEnabled !== false,
       lowBalanceThreshold:
         p.lowBalanceThreshold != null && p.lowBalanceThreshold > 0
           ? p.lowBalanceThreshold
@@ -58,6 +60,7 @@ type Body = {
   netDecreaseEmail?: boolean;
   inactivityNudgeEmail?: boolean;
   activityNotificationsEnabled?: boolean;
+  recurringDueRemindersEnabled?: boolean;
   lowBalanceThreshold?: number | null;
 };
 
@@ -86,6 +89,7 @@ export async function PUT(req: Request) {
     "netDecreaseEmail",
     "inactivityNudgeEmail",
     "activityNotificationsEnabled",
+    "recurringDueRemindersEnabled",
   ] as const) {
     if (typeof body[k] === "boolean") update[k] = body[k];
   }

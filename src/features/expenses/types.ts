@@ -9,6 +9,8 @@ export type ExpenseRow = {
   isTemplate: boolean;
   validFrom?: string;
   validTo?: string | null;
+  /** Recurring template: calendar day 1–30 for due reminders. */
+  dueDayOfMonth?: number;
   rowKind: "variable" | "fixed_once" | "recurring";
   displayDate?: string;
   projectName?: string;
@@ -31,6 +33,8 @@ export type CreateRecurringTemplateInput = {
   recurring: true;
   validFrom: string;
   validTo: string | null;
+  /** 1–30; omit to derive from `validFrom` on the server. */
+  dueDayOfMonth?: number;
   projectName?: string;
 };
 
@@ -43,6 +47,7 @@ export type UpdateExpenseInput =
       date: string;
       validFrom: string;
       validTo: string | null;
+      dueDayOfMonth: number;
       recurring: true;
       isTemplate: true;
       kind: "fixed";

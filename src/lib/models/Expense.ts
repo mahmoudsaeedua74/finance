@@ -21,6 +21,11 @@ export interface IExpense {
   isTemplate: boolean;
   validFrom: Date;
   validTo: Date | null;
+  /**
+   * For recurring templates: calendar day of month (1–30) for due reminders.
+   * In shorter months, the effective day is min(due, last day of month).
+   */
+  dueDayOfMonth: number;
   /** Spend attributed to a project (same text as `Project.name` for P&L). */
   projectName?: string;
   createdAt: Date;
@@ -39,6 +44,7 @@ const ExpenseSchema = new Schema<IExpense>(
     isTemplate: { type: Boolean, default: false },
     validFrom: { type: Date, required: true },
     validTo: { type: Date, default: null },
+    dueDayOfMonth: { type: Number, min: 1, max: 30, default: 1 },
     projectName: { type: String, trim: true, default: "" },
   },
   { timestamps: true }

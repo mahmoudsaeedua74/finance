@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/expense-list-response";
 import { queueAfterExpense } from "@/lib/services/activity-notifications";
 import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
+import { defaultDueDayFromValidFrom } from "@/lib/due-day-of-month";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,8 @@ export async function POST(req: Request) {
     await connectDB();
     if (parsed.data.variant === "recurring") {
       const p = parsed.data;
+      const due =
+        p.dueDayOfMonth > 0 ? p.dueDayOfMonth : defaultDueDayFromValidFrom(p.validFrom);
       const doc = await Expense.create({
         userId: user.id,
         title: p.title,
@@ -107,6 +110,7 @@ export async function POST(req: Request) {
         isTemplate: true,
         validFrom: p.validFrom,
         validTo: p.validTo,
+        dueDayOfMonth: due,
         projectName: p.projectName,
       });
       const uid = String(user.id);

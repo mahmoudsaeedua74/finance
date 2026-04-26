@@ -15,6 +15,8 @@ export interface INotificationPreference {
   inactivityNudgeEmail: boolean;
   /** In-app notifications when income / expense / project rows change. Default true. */
   activityNotificationsEnabled: boolean;
+  /** Daily check: remind on the chosen calendar day for each active recurring expense template. Default true. */
+  recurringDueRemindersEnabled: boolean;
   /** When set (e.g. 2000), warn in-app if this month’s net is below this value. Null = off. */
   lowBalanceThreshold: number | null;
   createdAt: Date;
@@ -34,6 +36,7 @@ const NotificationPreferenceSchema = new Schema<INotificationPreference>(
     netDecreaseEmail: { type: Boolean, default: true },
     inactivityNudgeEmail: { type: Boolean, default: true },
     activityNotificationsEnabled: { type: Boolean, default: true },
+    recurringDueRemindersEnabled: { type: Boolean, default: true },
     lowBalanceThreshold: { type: Number, default: null, min: 0 },
   },
   { timestamps: true }

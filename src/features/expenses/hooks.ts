@@ -63,6 +63,7 @@ export type EditPayload = {
     validFrom: string;
     validTo: string;
     projectName: string;
+    dueDayOfMonth: number;
   };
 };
 
@@ -79,6 +80,7 @@ function buildUpdateBody(
       date: vfIso,
       validFrom: vfIso,
       validTo: v.validTo ? new Date(v.validTo).toISOString() : null,
+      dueDayOfMonth: v.dueDayOfMonth,
       recurring: true,
       isTemplate: true,
       kind: "fixed",

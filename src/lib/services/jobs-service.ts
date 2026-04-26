@@ -8,6 +8,13 @@ import {
   User,
 } from "@/lib/models";
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
+import { templateAppliesInMonth } from "@/lib/monthly";
+import {
+  defaultDueDayFromValidFrom,
+  effectiveDueDayInMonth,
+  getYMDInTimeZone,
+  getRecurringDueTimezone,
+} from "@/lib/due-day-of-month";
 import { getBudgetUsage } from "@/lib/services/budget-usage-service";
 import { notifyOnce } from "@/lib/services/notification-service";
 import { maybeNotifyLowNetBalance } from "@/lib/services/activity-notifications";
@@ -28,6 +35,8 @@ type Prefs = {
   digestEnabled: boolean;
   digestCadence: "daily" | "weekly";
   criticalEmailEnabled: boolean;
+  /** Monthly recurring “due day” in-app (and email if mirror on). */
+  recurringDueRemindersEnabled: boolean;
 };
 
 function startOfUtcDay(d: Date) {
@@ -46,6 +55,7 @@ async function loadPrefs(userId: string): Promise<Prefs> {
     digestEnabled: p?.digestEmailEnabled !== false,
     digestCadence: p?.digestCadence || "weekly",
     criticalEmailEnabled: p?.criticalEmailEnabled !== false,
+    recurringDueRemindersEnabled: p?.recurringDueRemindersEnabled !== false,
   };
 }
 
@@ -86,6 +96,43 @@ async function notifyMirrorEmail(
   return row;
 }
 
+/** When calendar day (in RECURRING_DUE_TIMEZONE) matches the template due day, remind in-app (+ email if enabled). */
+async function notifyRecurringDueDays(
+  userId: string,
+  u: { _id: unknown; email: string },
+  prefs: Prefs,
+  now: Date
+) {
+  if (prefs.recurringDueRemindersEnabled === false) return;
+  const tz = getRecurringDueTimezone();
+  const { y, m, d } = getYMDInTimeZone(now, tz);
+  const templates = await Expense.find({ userId, isTemplate: true, recurring: true })
+    .select({ validFrom: 1, validTo: 1, dueDayOfMonth: 1, title: 1, amount: 1 })
+    .lean();
+  for (const t of templates) {
+    if (!templateAppliesInMonth(t.validFrom, t.validTo, y, m)) continue;
+    const dom =
+      t.dueDayOfMonth != null && t.dueDayOfMonth >= 1 && t.dueDayOfMonth <= 30
+        ? t.dueDayOfMonth
+        : defaultDueDayFromValidFrom(new Date(t.validFrom));
+    const eff = effectiveDueDayInMonth(dom, y, m);
+    if (d !== eff) continue;
+    const titleS = t.title?.trim() || "Recurring expense";
+    await notifyMirrorEmail(
+      { _id: u._id, email: u.email },
+      prefs,
+      {
+        type: "expense.recurring_due",
+        severity: "info",
+        title: `Due today: ${titleS}`,
+        body: `Recurring amount ${Number(t.amount).toFixed(2)} (month ${y}-${String(m).padStart(2, "0")}, day ${eff}, ${tz}). This is a tracking reminder only, not a bank charge.`,
+        dedupKey: `recurring-due-${String(t._id)}-${y}-${m}`,
+        dedupWindowHours: 36,
+      }
+    );
+  }
+}
+
 export async function runDailyJobs() {
   const now = new Date();
   const y = now.getFullYear();
@@ -98,6 +145,8 @@ export async function runDailyJobs() {
     const uid = String(u._id);
     const email = u.email;
     const prefs = await loadPrefs(uid);
+
+    await notifyRecurringDueDays(uid, u, prefs, now);
 
     const firstThisMonth = new Date(y, m - 1, 1);
     const firstLastMonth = subMonths(firstThisMonth, 1);
