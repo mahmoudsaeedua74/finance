@@ -31,6 +31,7 @@ export default function RegisterPage() {
       .then(async (r) => {
         const d = (await r.json().catch(() => ({}))) as { open?: boolean; dbError?: boolean };
         if (!r.ok) {
+          setClosed(false);
           setPolicyError(true);
           const h = await checkDbOnClient();
           if (!h.ok) setDbHint(h.message);

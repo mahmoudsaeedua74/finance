@@ -13,14 +13,8 @@ export async function GET() {
     return NextResponse.json({ open, hasUsers: count > 0 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";
-    return NextResponse.json(
-      {
-        open: false,
-        hasUsers: true,
-        dbError: true,
-        error: msg,
-      },
-      { status: 503 }
-    );
+    // Do not send `open` / `hasUsers` here: connection failed, so we don't know. Misleading
+    // `open: false, hasUsers: true` looked like "registration closed" in DevTools.
+    return NextResponse.json({ dbError: true, error: msg }, { status: 503 });
   }
 }
