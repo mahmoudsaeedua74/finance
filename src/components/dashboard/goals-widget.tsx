@@ -18,7 +18,10 @@ export function GoalsWidget() {
   const t = useTranslations("dashboard");
   const { data } = useQuery({
     queryKey: ["goals"],
-    queryFn: () => jsonFetch<{ data: GoalRow[] }>("/api/goals"),
+    queryFn: () =>
+      jsonFetch<{ data: GoalRow[]; hasMore: boolean; nextOffset: number | null }>(
+        "/api/goals?limit=12&offset=0"
+      ),
   });
 
   const goals = data?.data ?? [];

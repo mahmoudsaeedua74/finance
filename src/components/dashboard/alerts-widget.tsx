@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
 import { useTranslations } from "next-intl";
 import { jsonFetch } from "@/lib/fetcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,17 +17,24 @@ type Row = {
 
 export function AlertsWidget() {
   const t = useTranslations("dashboard");
+  const tC = useTranslations("common");
   const qc = useQueryClient();
-  const { data } = useQuery({
+  const {
+    flatData: notifRows,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteOffsetQuery<Row>({
     queryKey: ["notifications", "unread"],
-    queryFn: () => jsonFetch<{ data: Row[] }>("/api/notifications?unread=1"),
+    getUrl: (off, lim) =>
+      `/api/notifications?unread=1&offset=${off}&limit=${lim}`,
   });
   const markRead = useMutation({
     mutationFn: (id: string) => jsonFetch(`/api/notifications/${id}/read`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  const rows = data?.data ?? [];
+  const rows = notifRows;
   return (
     <Card>
       <CardHeader>
@@ -36,7 +44,8 @@ export function AlertsWidget() {
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("noAlerts")}</p>
         ) : (
-          rows.slice(0, 5).map((r) => (
+          <>
+            {rows.map((r) => (
             <div key={r._id} className="rounded-lg border p-2.5">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -48,7 +57,22 @@ export function AlertsWidget() {
                 </Button>
               </div>
             </div>
-          ))
+            ))}
+            {(hasNextPage || isFetchingNextPage) && (
+              <div className="pt-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  disabled={!hasNextPage && !isFetchingNextPage}
+                  onClick={() => void fetchNextPage()}
+                >
+                  {isFetchingNextPage ? tC("loadingMore") : tC("loadMore")}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

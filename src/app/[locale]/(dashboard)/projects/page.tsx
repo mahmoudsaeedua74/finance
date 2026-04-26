@@ -217,13 +217,6 @@ export default function ProjectsPage() {
         data: { byName: { name: string; total: number }[]; totalAmount: number };
       }>("/api/projects/summary"),
   });
-  const { data: sumMonth } = useQuery({
-    queryKey: ["projects", "summary", year, month],
-    queryFn: () =>
-      jsonFetch<{
-        data: { byName: { name: string; total: number }[]; totalAmount: number };
-      }>(`/api/projects/summary?year=${year}&month=${month}`),
-  });
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -508,6 +501,16 @@ export default function ProjectsPage() {
                   ))}
                 </TableBody>
               </Table>
+              {monthView.length > 0 && (
+                <PaginatedListFooter
+                  hasNextPage={!!hasNextMonth}
+                  isFetchingNextPage={isFetchingMonth}
+                  onLoadMore={() => void fetchNextMonth()}
+                  labelLoadMore={tC("loadMore")}
+                  labelLoading={tC("loadingMore")}
+                  labelEnd={tC("endOfList")}
+                />
+              )}
             </div>
           )}
         </CardContent>
@@ -569,6 +572,16 @@ export default function ProjectsPage() {
                   ))}
                 </TableBody>
               </Table>
+              {allView.length > 0 && (
+                <PaginatedListFooter
+                  hasNextPage={!!hasNextAll}
+                  isFetchingNextPage={isFetchingAll}
+                  onLoadMore={() => void fetchNextAll()}
+                  labelLoadMore={tC("loadMore")}
+                  labelLoading={tC("loadingMore")}
+                  labelEnd={tC("endOfList")}
+                />
+              )}
             </div>
           )}
         </CardContent>
