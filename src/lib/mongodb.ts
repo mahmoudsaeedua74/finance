@@ -48,6 +48,11 @@ export async function connectDB(): Promise<typeof mongoose> {
   if (!cache.promise) {
     cache.promise = mongoose.connect(uri, {
       bufferCommands: false,
+      // Fail fast on Vercel/serverless instead of hanging the UI 30+ seconds
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 10_000,
+      connectTimeoutMS: 10_000,
+      socketTimeoutMS: 10_000,
     });
   }
   try {

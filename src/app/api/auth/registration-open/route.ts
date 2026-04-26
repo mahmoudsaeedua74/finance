@@ -12,9 +12,15 @@ export async function GET() {
     const open = count === 0 || process.env.ALLOW_REGISTER === "true";
     return NextResponse.json({ open, hasUsers: count > 0 });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Database error";
     return NextResponse.json(
-      { open: false, hasUsers: true, error: e instanceof Error ? e.message : "error" },
-      { status: 500 }
+      {
+        open: false,
+        hasUsers: true,
+        dbError: true,
+        error: msg,
+      },
+      { status: 503 }
     );
   }
 }

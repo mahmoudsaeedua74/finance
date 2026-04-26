@@ -59,7 +59,10 @@
     "registerClosedDesc": "يوجد حساب بالفعل. اطلب من المالك المشاركة أو تفعيل ALLOW_REGISTER في .env لإضافة مستخدمين.",
     "registerFail": "تعذر إنشاء الحساب",
     "autoLoginFail": "تم إنشاء الحساب. سجّل الدخول يدويًا.",
-    "backToSignIn": "العودة لتسجيل الدخول"
+    "backToSignIn": "العودة لتسجيل الدخول",
+    "registerChecking": "التحقق من التسجيل…",
+    "registerDbError": "تعذر الاتصال بقاعدة البيانات",
+    "registerDbErrorDesc": "الخادم لا يتصل بـ MongoDB. في Vercel عيّن MONGODB_URI (سلسلة اتصال Driver من Atlas)، وافتح Network Access (مثلاً 0.0.0.0/0)، وتأكد من المستخدم وكلمة المرور (رموز خاصة بترميز URL)."
   },
   "nav": {
     "dashboard": "لوحة التحكم",

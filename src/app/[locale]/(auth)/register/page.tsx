@@ -18,14 +18,63 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState<boolean | null>(null);
+  const [regStatus, setRegStatus] = useState<"loading" | "ready" | "dbError">("loading");
+  const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    fetch("/api/auth/registration-open")
-      .then((r) => r.json())
-      .then((d: { open?: boolean }) => setOpen(Boolean(d.open)))
-      .catch(() => setOpen(false));
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 20_000);
+    fetch("/api/auth/registration-open", { signal: ac.signal })
+      .then(async (r) => {
+        const d = (await r.json().catch(() => ({}))) as { open?: boolean; dbError?: boolean };
+        if (!r.ok && d.dbError) {
+          setRegStatus("dbError");
+          return;
+        }
+        if (!r.ok) {
+          setRegStatus("dbError");
+          return;
+        }
+        setOpen(Boolean(d.open));
+        setRegStatus("ready");
+      })
+      .catch(() => {
+        setRegStatus("dbError");
+      });
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
   }, []);
+
+  if (regStatus === "loading") {
+    return (
+      <div className="text-sm text-muted-foreground" aria-live="polite">
+        {t("registerChecking")}
+      </div>
+    );
+  }
+
+  if (regStatus === "dbError") {
+    return (
+      <Card className="w-full max-w-md border-destructive/30 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl">{t("registerDbError")}</CardTitle>
+          <CardDescription className="text-balance">{t("registerDbErrorDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <a
+            href="/api/health/db"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            /api/health/db
+          </a>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (open === false) {
     return (
@@ -40,14 +89,6 @@ export default function RegisterPage() {
           </Link>
         </CardContent>
       </Card>
-    );
-  }
-
-  if (open === null) {
-    return (
-      <div className="text-sm text-muted-foreground" aria-live="polite">
-        …
-      </div>
     );
   }
 
