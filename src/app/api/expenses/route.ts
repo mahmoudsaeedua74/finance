@@ -3,10 +3,7 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
 import { isDateInMonth, templateAppliesInMonth } from "@/lib/monthly";
-import {
-  maybeNotifyLowNetBalance,
-  notifyExpenseActivity,
-} from "@/lib/services/activity-notifications";
+import { queueAfterExpense } from "@/lib/services/activity-notifications";
 import { startOfMonth } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -171,11 +168,10 @@ export async function POST(req: Request) {
         projectName,
       });
       const uid = String(user.id);
-      await notifyExpenseActivity(uid, "created", {
+      queueAfterExpense(uid, "created", {
         title: String(title),
         amount: Number(amount),
       });
-      await maybeNotifyLowNetBalance(uid);
       return NextResponse.json(
         { data: { ...doc.toObject(), _id: String(doc._id) } },
         { status: 201 }
@@ -201,11 +197,10 @@ export async function POST(req: Request) {
       projectName,
     });
     const uid = String(user.id);
-    await notifyExpenseActivity(uid, "created", {
+    queueAfterExpense(uid, "created", {
       title: String(title),
       amount: Number(amount),
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json(
       { data: { ...doc.toObject(), _id: String(doc._id) } },
       { status: 201 }

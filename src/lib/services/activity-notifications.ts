@@ -85,3 +85,52 @@ export async function maybeNotifyLowNetBalance(userId: string) {
     dedupWindowHours: 24,
   });
 }
+
+/**
+ * Run after DB write — do not await in API routes: `buildMonthlyReport` in low-balance check is too slow
+ * to block the HTTP response (was causing multi-second “saving” for users).
+ */
+export function queueAfterExpense(
+  userId: string,
+  action: "created" | "updated" | "deleted",
+  detail: { title: string; amount: number }
+) {
+  void (async () => {
+    try {
+      await notifyExpenseActivity(userId, action, detail);
+      await maybeNotifyLowNetBalance(userId);
+    } catch (e) {
+      console.error("queueAfterExpense", e);
+    }
+  })();
+}
+
+export function queueAfterIncome(
+  userId: string,
+  action: "created" | "updated" | "deleted",
+  detail: { title: string; amount: number }
+) {
+  void (async () => {
+    try {
+      await notifyIncomeActivity(userId, action, detail);
+      await maybeNotifyLowNetBalance(userId);
+    } catch (e) {
+      console.error("queueAfterIncome", e);
+    }
+  })();
+}
+
+export function queueAfterProject(
+  userId: string,
+  action: "created" | "updated" | "deleted",
+  detail: { name: string; amount: number }
+) {
+  void (async () => {
+    try {
+      await notifyProjectActivity(userId, action, detail);
+      await maybeNotifyLowNetBalance(userId);
+    } catch (e) {
+      console.error("queueAfterProject", e);
+    }
+  })();
+}

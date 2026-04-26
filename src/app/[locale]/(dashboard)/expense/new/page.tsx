@@ -84,8 +84,9 @@ export default function NewExpensePage() {
   const [recAmount, setRecAmount] = useState("");
   const [recCat, setRecCat] = useState("employee");
   const [recProjectName, setRecProjectName] = useState("");
+  /** First month the rule counts (default: first day of *next* month so new subscriptions don’t hit this month’s total). */
   const [recFrom, setRecFrom] = useState(
-    new Date(year, month - 1, 1).toISOString().slice(0, 10),
+    new Date(year, month, 1).toISOString().slice(0, 10),
   );
   const [recTo, setRecTo] = useState("");
 
@@ -399,7 +400,9 @@ export default function NewExpensePage() {
                   />
                 </FieldCol>
                 <FieldCol>
-                  <FieldLabel htmlFor="r-from">{t("table.from")}</FieldLabel>
+                  <FieldLabel htmlFor="r-from" helper={t("recFromHelp")}>
+                    {t("table.from")}
+                  </FieldLabel>
                   <Input
                     id="r-from"
                     className={field}

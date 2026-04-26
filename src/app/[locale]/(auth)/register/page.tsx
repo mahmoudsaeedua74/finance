@@ -1,23 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { routing } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { checkDbOnClient } from "@/lib/client-db-health";
-
 export default function RegisterPage() {
   const t = useTranslations("auth");
-  const router = useRouter();
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [dbHint, setDbHint] = useState<string | null>(null);
 
   return (
     <Card className="w-full max-w-md border-border/80 shadow-lg">
@@ -26,28 +24,11 @@ export default function RegisterPage() {
         <CardDescription>{t("registerDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {dbHint && (
-          <div
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
-            role="status"
-          >
-            <p className="font-medium text-destructive">{t("registerDbError")}</p>
-            <p className="mt-1 font-mono text-xs break-words text-muted-foreground">{dbHint}</p>
-          </div>
-        )}
         <form
           className="space-y-4"
           onSubmit={async (e) => {
             e.preventDefault();
             setLoading(true);
-            setDbHint(null);
-            const h = await checkDbOnClient();
-            if (!h.ok) {
-              setDbHint(h.message);
-              toast.error(t("registerDbError"), { description: h.message, duration: 12_000 });
-              setLoading(false);
-              return;
-            }
             try {
               const r = await fetch("/api/auth/register", {
                 method: "POST",
@@ -56,15 +37,25 @@ export default function RegisterPage() {
               });
               const body = await r.json().catch(() => ({}));
               if (!r.ok) {
-                toast.error((body as { error?: string }).error || t("registerFail"));
+                const msg = (body as { error?: string }).error;
+                if (r.status >= 500 || /db|connection|database/i.test(String(msg || ""))) {
+                  toast.error(t("registerDbError"), {
+                    description: msg,
+                    duration: 12_000,
+                  });
+                } else {
+                  toast.error(msg || t("registerFail"));
+                }
                 setLoading(false);
                 return;
               }
-              router.push("/login?registered=1");
-              router.refresh();
+              const loginPath =
+                locale === routing.defaultLocale
+                  ? "/login?registered=1"
+                  : `/${locale}/login?registered=1`;
+              window.location.replace(loginPath);
             } catch {
               toast.error(t("registerFail"));
-            } finally {
               setLoading(false);
             }
           }}

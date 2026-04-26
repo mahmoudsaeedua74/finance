@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Project } from "@/lib/models";
-import {
-  maybeNotifyLowNetBalance,
-  notifyProjectActivity,
-} from "@/lib/services/activity-notifications";
+import { queueAfterProject } from "@/lib/services/activity-notifications";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -55,11 +52,10 @@ export async function PUT(req: Request, { params }: Ctx) {
     );
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
-    await notifyProjectActivity(uid, "updated", {
+    queueAfterProject(uid, "updated", {
       name: doc.name,
       amount: doc.amount,
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ data: { ...doc.toObject(), _id: String(doc._id) } });
   } catch (e) {
     return NextResponse.json(
@@ -80,11 +76,10 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const res = await Project.findOneAndDelete({ _id: params.id, userId: user.id });
     if (!res) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
-    await notifyProjectActivity(uid, "deleted", {
+    queueAfterProject(uid, "deleted", {
       name: res.name,
       amount: res.amount,
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

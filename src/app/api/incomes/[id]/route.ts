@@ -3,10 +3,7 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
 import { normalizeIncomeType } from "@/lib/income-types";
-import {
-  maybeNotifyLowNetBalance,
-  notifyIncomeActivity,
-} from "@/lib/services/activity-notifications";
+import { queueAfterIncome } from "@/lib/services/activity-notifications";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -54,11 +51,10 @@ export async function PUT(req: Request, { params }: Ctx) {
     );
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
-    await notifyIncomeActivity(uid, "updated", {
+    queueAfterIncome(uid, "updated", {
       title: doc.title,
       amount: doc.amount,
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ data: { ...doc.toObject(), _id: String(doc._id) } });
   } catch (e) {
     return NextResponse.json(
@@ -79,11 +75,10 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const res = await Income.findOneAndDelete({ _id: params.id, userId: user.id });
     if (!res) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
-    await notifyIncomeActivity(uid, "deleted", {
+    queueAfterIncome(uid, "deleted", {
       title: res.title,
       amount: res.amount,
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

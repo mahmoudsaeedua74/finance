@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -10,40 +10,41 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { checkDbOnClient } from "@/lib/client-db-health";
 import { toastNextAuthLoginFailure } from "@/lib/auth-failure-toast";
+import { safePathAfterAuth } from "@/lib/safe-callback-url";
 
 function LoginForm() {
   const t = useTranslations("auth");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const didHandleUrlQuery = useRef(false);
+  const urlHandled = useRef(false);
 
   useEffect(() => {
-    if (didHandleUrlQuery.current) return;
+    if (urlHandled.current) return;
     const err = searchParams.get("error");
     if (err) {
-      didHandleUrlQuery.current = true;
-      toastNextAuthLoginFailure(
-        t,
-        { error: err, ok: false },
-        null
-      );
+      urlHandled.current = true;
+      toastNextAuthLoginFailure(t, { error: err, ok: false }, null);
       router.replace(pathname);
       return;
     }
     if (searchParams.get("registered") === "1") {
-      didHandleUrlQuery.current = true;
+      urlHandled.current = true;
       toast.success(t("accountCreatedSignIn"));
       router.replace(pathname);
     }
   }, [searchParams, pathname, router, t]);
 
-  const callback = searchParams.get("callbackUrl") || "/";
+  const defaultAfterLogin = safePathAfterAuth(
+    searchParams.get("callbackUrl"),
+    locale
+  );
+
   return (
     <Card className="w-full max-w-md border-border/80 shadow-lg">
       <CardHeader>
@@ -56,28 +57,34 @@ function LoginForm() {
           onSubmit={async (e) => {
             e.preventDefault();
             setLoading(true);
-            const health = await checkDbOnClient();
-            if (!health.ok) {
-              setLoading(false);
-              toast.error(t("registerDbError"), {
-                description: health.message,
-                duration: 14_000,
+            try {
+              const res = await signIn("credentials", {
+                email: email.trim().toLowerCase(),
+                password,
+                redirect: false,
+                callbackUrl: defaultAfterLogin,
               });
-              return;
+              if (res?.ok) {
+                let next = defaultAfterLogin;
+                if (res.url) {
+                  try {
+                    const u = new URL(res.url, window.location.origin);
+                    if (u.origin === window.location.origin) {
+                      next = u.pathname + u.search || `/${locale}`;
+                    }
+                  } catch {
+                    /* use defaultAfterLogin */
+                  }
+                }
+                window.location.replace(next);
+                return;
+              }
+              toastNextAuthLoginFailure(t, res, null);
+            } catch {
+              toast.error(t("registerDbError"));
+            } finally {
+              setLoading(false);
             }
-            const res = await signIn("credentials", {
-              email: email.trim().toLowerCase(),
-              password,
-              redirect: false,
-            });
-            setLoading(false);
-            if (res?.ok) {
-              router.push(callback);
-              router.refresh();
-              toast.success(t("signedIn"));
-              return;
-            }
-            toastNextAuthLoginFailure(t, res, null);
           }}
         >
           <div className="space-y-2">
@@ -110,7 +117,10 @@ function LoginForm() {
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           {t("noAccount")}{" "}
-          <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+          <Link
+            href="/register"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
             {t("createAccount")}
           </Link>
         </p>

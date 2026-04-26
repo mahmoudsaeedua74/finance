@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Expense } from "@/lib/models";
-import {
-  maybeNotifyLowNetBalance,
-  notifyExpenseActivity,
-} from "@/lib/services/activity-notifications";
+import { queueAfterExpense } from "@/lib/services/activity-notifications";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -72,11 +69,10 @@ export async function PUT(req: Request, { params }: Ctx) {
     });
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
-    await notifyExpenseActivity(uid, "updated", {
+    queueAfterExpense(uid, "updated", {
       title: doc.title,
       amount: doc.amount,
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ data: { ...doc.toObject(), _id: String(doc._id) } });
   } catch (e) {
     return NextResponse.json(
@@ -97,11 +93,10 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const res = await Expense.findOneAndDelete({ _id: params.id, userId: user.id });
     if (!res) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const uid = String(user.id);
-    await notifyExpenseActivity(uid, "deleted", {
+    queueAfterExpense(uid, "deleted", {
       title: res.title,
       amount: res.amount,
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(

@@ -4,10 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
 import { normalizeIncomeType } from "@/lib/income-types";
 import { isDateInMonth } from "@/lib/monthly";
-import {
-  maybeNotifyLowNetBalance,
-  notifyIncomeActivity,
-} from "@/lib/services/activity-notifications";
+import { queueAfterIncome } from "@/lib/services/activity-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -68,8 +65,7 @@ export async function POST(req: Request) {
     });
     const uid = String(user.id);
     const row = { title: String(title), amount: Number(amount) };
-    await notifyIncomeActivity(uid, "created", row);
-    await maybeNotifyLowNetBalance(uid);
+    queueAfterIncome(uid, "created", row);
     return NextResponse.json(
       { data: { ...doc.toObject(), _id: String(doc._id) } },
       { status: 201 }

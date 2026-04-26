@@ -3,10 +3,7 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Project } from "@/lib/models";
 import { isDateInMonth } from "@/lib/monthly";
-import {
-  maybeNotifyLowNetBalance,
-  notifyProjectActivity,
-} from "@/lib/services/activity-notifications";
+import { queueAfterProject } from "@/lib/services/activity-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -64,11 +61,10 @@ export async function POST(req: Request) {
       note: typeof note === "string" ? note.trim().slice(0, 500) : "",
     });
     const uid = String(user.id);
-    await notifyProjectActivity(uid, "created", {
+    queueAfterProject(uid, "created", {
       name: String(name),
       amount: Number(amount),
     });
-    await maybeNotifyLowNetBalance(uid);
     return NextResponse.json(
       { data: { ...doc.toObject(), _id: String(doc._id) } },
       { status: 201 }
