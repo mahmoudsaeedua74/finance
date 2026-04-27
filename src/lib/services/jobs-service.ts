@@ -21,10 +21,82 @@ import { notifyOnce } from "@/lib/services/notification-service";
 import { maybeNotifyLowNetBalance } from "@/lib/services/activity-notifications";
 import { materializeRecurringIncomes } from "@/lib/services/recurring-income-service";
 import { renderDigestEmail } from "@/lib/email/templates/digest";
+import { renderLoginReminderEmail } from "@/lib/email/templates/login-reminder-email";
 import { renderMirrorNotificationEmail } from "@/lib/email/templates/mirror-notification";
 import { sendEmail, isSmtpConfigured } from "@/lib/services/email-service";
+import { getHourAndDateKeyInZone } from "@/lib/timezone-utils";
 
 const appName = () => process.env.EMAIL_APP_NAME || "Personal Finance";
+
+const MS_24H = 24 * 60 * 60 * 1000;
+
+function clampReminderHour(n: number, fallback: number) {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(23, Math.max(0, Math.round(n)));
+}
+
+/**
+ * Email + in-app when user had no dashboard/session ping for ≥24h.
+ * Sends only during local wall-clock hours [start,end] (default 10–23 in LOGIN_REMINDER_TIMEZONE).
+ * Email bypasses «mirror to email» — dedicated reminder when preference is on.
+ */
+async function maybeNotifyDailyLoginReminder(
+  u: {
+    _id: unknown;
+    email: string;
+    name?: string;
+    createdAt?: Date;
+    lastLoginAt?: Date | null;
+  },
+  prefs: Prefs,
+  now: Date
+) {
+  if (!prefs.noLoginReminderEmail) return;
+
+  const tz = process.env.LOGIN_REMINDER_TIMEZONE?.trim() || "Africa/Cairo";
+  const startH = clampReminderHour(Number(process.env.LOGIN_REMINDER_START_HOUR ?? 10), 10);
+  const endH = clampReminderHour(Number(process.env.LOGIN_REMINDER_END_HOUR ?? 23), 23);
+  const { hour, dateKey } = getHourAndDateKeyInZone(now, tz);
+  if (hour < startH || hour > endH) return;
+
+  const uid = String(u._id);
+  const createdAt = u.createdAt ? new Date(u.createdAt) : new Date(0);
+  const last = u.lastLoginAt ? new Date(u.lastLoginAt) : null;
+  const accountReady = now.getTime() - createdAt.getTime() >= MS_24H;
+  const inactive24 =
+    last == null ? accountReady : now.getTime() - last.getTime() >= MS_24H;
+  if (!inactive24) return;
+
+  const dedupKey = `login-reminder-${dateKey}-${uid}`;
+  const hoursSinceActivity = last ? (now.getTime() - last.getTime()) / 3600_000 : undefined;
+
+  const row = await notifyOnce({
+    userId: uid,
+    type: "auth.no_login_recent",
+    severity: "info",
+    title: "لم نر نشاطًا من التطبيق منذ ٢٤ ساعة",
+    body: "افتح التطبيق لمتابعة دخلك ومصروفاتك ورؤيتك السريعة.",
+    dedupKey,
+    dedupWindowHours: 48,
+  });
+
+  const createdMs = row.createdAt ? new Date(row.createdAt).getTime() : now.getTime();
+  if (now.getTime() - createdMs > 120_000) return;
+
+  if (!isSmtpConfigured()) return;
+
+  const tpl = renderLoginReminderEmail({
+    appName: appName(),
+    userName: typeof u.name === "string" ? u.name : undefined,
+    hoursSinceActivity,
+  });
+  await sendEmail({
+    to: u.email,
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+  });
+}
 
 type Prefs = {
   inactivityDays: number;
@@ -38,10 +110,6 @@ type Prefs = {
   /** Monthly recurring “due day” in-app (and email if mirror on). */
   recurringDueRemindersEnabled: boolean;
 };
-
-function startOfUtcDay(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
 
 async function loadPrefs(userId: string): Promise<Prefs> {
   const p = await NotificationPreference.findOne({ userId }).lean();
@@ -162,7 +230,6 @@ export async function runDailyJobs() {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth() + 1;
-  const startTodayUtc = startOfUtcDay(now);
 
   const users = await User.find().lean();
 
@@ -201,27 +268,7 @@ export async function runDailyJobs() {
       }
     }
 
-    if (prefs.noLoginReminderEmail) {
-      const created = u.createdAt ? new Date(u.createdAt) : new Date(0);
-      const accountAgeH = (now.getTime() - created.getTime()) / 3600_000;
-      const last = u.lastLoginAt ? new Date(u.lastLoginAt) : null;
-      const hasLoggedInToday = last && last >= startTodayUtc;
-      if (accountAgeH > 12 && !hasLoggedInToday) {
-        const key = `nologin-${startTodayUtc.toISOString().slice(0, 10)}`;
-        await notifyMirrorEmail(
-          { _id: u._id, email },
-          prefs,
-          {
-            type: "auth.no_login_today",
-            severity: "info",
-            title: "You have not signed in today",
-            body: "Open the app to review your month and stay on top of spending.",
-            dedupKey: key,
-            dedupWindowHours: 26,
-          }
-        );
-      }
-    }
+    await maybeNotifyDailyLoginReminder(u, prefs, now);
 
     const since = subDays(now, prefs.inactivityDays);
     const anyActivity = await Promise.all([
