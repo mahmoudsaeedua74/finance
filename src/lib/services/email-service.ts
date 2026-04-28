@@ -20,11 +20,23 @@ export async function sendEmail(input: {
   subject: string;
   html: string;
   text: string;
+  attachments?: {
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }[];
 }) {
   const transport = getTransport();
   if (!transport) return { sent: false, reason: "smtp-not-configured" as const };
   const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
-  await transport.sendMail({ from, to: input.to, subject: input.subject, html: input.html, text: input.text });
+  await transport.sendMail({
+    from,
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+    text: input.text,
+    attachments: input.attachments,
+  });
   return { sent: true as const };
 }
 

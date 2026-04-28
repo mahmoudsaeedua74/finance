@@ -22,9 +22,12 @@ import { maybeNotifyLowNetBalance } from "@/lib/services/activity-notifications"
 import { materializeRecurringIncomes } from "@/lib/services/recurring-income-service";
 import { renderDigestEmail } from "@/lib/email/templates/digest";
 import { renderLoginReminderEmail } from "@/lib/email/templates/login-reminder-email";
+import { renderMonthlyClosingEmail } from "@/lib/email/templates/monthly-closing";
 import { renderMirrorNotificationEmail } from "@/lib/email/templates/mirror-notification";
 import { sendEmail, isSmtpConfigured } from "@/lib/services/email-service";
 import { getHourAndDateKeyInZone } from "@/lib/timezone-utils";
+import { monthlyReportPdfToBuffer } from "@/lib/monthly-report-pdf";
+import type { MonthlyReportDto } from "@/types/report";
 
 const appName = () => process.env.EMAIL_APP_NAME || "Personal Finance";
 
@@ -349,6 +352,10 @@ export async function runMonthlyJobs() {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth() + 1;
+  const prev = subMonths(new Date(y, m - 1, 1), 1);
+  const yPrev = prev.getFullYear();
+  const mPrev = prev.getMonth() + 1;
+  const periodLabel = `${yPrev}-${String(mPrev).padStart(2, "0")}`;
   for (const u of users) {
     const uid = String(u._id);
     const email = u.email;
@@ -376,6 +383,66 @@ export async function runMonthlyJobs() {
       { $setOnInsert: { cadence: "weekly" } },
       { upsert: true }
     );
+
+    const closingReport = await buildMonthlyReport(yPrev, mPrev, uid);
+    const net = Number(closingReport.summary.netBalance.toFixed(2));
+    const top = closingReport.insights.biggestExpenseCategory;
+    const topText = top ? `${top.name} (${top.amount.toFixed(2)})` : "N/A";
+    await notifyOnce({
+      userId: uid,
+      type: "finance.monthly_closing",
+      severity: net >= 0 ? "success" : "warning",
+      title: `Monthly closing ready · ${periodLabel}`,
+      body: `Income ${closingReport.summary.totalIncome.toFixed(2)} · Expenses ${closingReport.summary.totalExpenses.toFixed(2)} · Net ${net.toFixed(2)} · Top category: ${topText}`,
+      dedupKey: `monthly-closing-${uid}-${periodLabel}`,
+      dedupWindowHours: 24 * 45,
+      meta: {
+        period: periodLabel,
+        totalIncome: closingReport.summary.totalIncome,
+        totalExpenses: closingReport.summary.totalExpenses,
+        netBalance: net,
+      },
+    });
+
+    if (isSmtpConfigured()) {
+      const tpl = renderMonthlyClosingEmail({
+        appName: appName(),
+        periodLabel,
+        totalIncome: closingReport.summary.totalIncome,
+        totalExpenses: closingReport.summary.totalExpenses,
+        netBalance: net,
+        biggestExpenseCategory: top,
+      });
+      const dto = {
+        ...closingReport,
+        incomeLineItems: closingReport.incomeLineItems.map((x) => ({
+          ...x,
+          date: new Date(x.date).toISOString(),
+        })),
+        projectLineItems: closingReport.projectLineItems.map((x) => ({
+          ...x,
+          date: new Date(x.date).toISOString(),
+        })),
+        expenseLineItems: closingReport.expenseLineItems.map((x) => ({
+          ...x,
+          date: new Date(x.date).toISOString(),
+        })),
+      } as unknown as MonthlyReportDto;
+      const pdfBuffer = monthlyReportPdfToBuffer(dto);
+      await sendEmail({
+        to: email,
+        subject: tpl.subject,
+        html: tpl.html,
+        text: tpl.text,
+        attachments: [
+          {
+            filename: `monthly-closing-${periodLabel}.pdf`,
+            content: pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+    }
   }
   return { ok: true };
 }
