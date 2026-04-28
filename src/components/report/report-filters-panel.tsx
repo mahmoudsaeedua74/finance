@@ -7,16 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import {
@@ -37,20 +27,22 @@ import { useCategories } from "@/hooks/use-categories";
 const filterLabelClass = "text-xs font-medium text-foreground/80";
 const filterLabelSlotClass = "flex min-h-9 flex-col justify-end";
 
-const reportSelectTriggerClass = cn(
-  "h-11 w-full min-w-0 justify-between gap-2 rounded-xl border border-border/80 bg-background px-3 text-left text-sm font-normal shadow-sm transition-[box-shadow,background-color,border-color] hover:border-border hover:bg-muted/40 data-[size=default]:h-11 data-placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+const nativeSelectClass = cn(
+  "h-11 w-full min-w-0 rounded-xl border border-border/80 bg-background px-3 text-left text-sm shadow-sm transition-[box-shadow,background-color,border-color] hover:border-border hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/40",
 );
-
-const reportSelectContentClass =
-  "max-h-[min(22rem,70vh)] rounded-xl border border-border/50 bg-popover p-1.5 text-popover-foreground shadow-lg";
 
 type ReportFiltersPanelProps = {
   raw: MonthlyReportDto | undefined;
   filter: ReportFilterState;
   setFilter: Dispatch<SetStateAction<ReportFilterState>>;
+  range: "monthly" | "yearly" | "all";
 };
 
-export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPanelProps) {
+export function ReportFiltersPanel({
+  raw,
+  filter,
+  setFilter,
+}: ReportFiltersPanelProps) {
   const t = useTranslations("report");
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
@@ -58,20 +50,27 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
 
   const monthCategoryKeys = useMemo(
     () => (raw ? getUniqueExpenseCategories(raw) : []),
-    [raw]
+    [raw],
   );
   const expenseCatQ = useCategories("expense");
   const categoryOptions = useMemo(() => {
     const fromApi = (expenseCatQ.data?.data ?? []).map((c) => c.name);
     const fromMonth = monthCategoryKeys;
-    const all = Array.from(new Set([...EXPENSE_CATEGORY_PRESETS, ...fromApi, ...fromMonth]));
-    return all.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    const all = Array.from(
+      new Set([...EXPENSE_CATEGORY_PRESETS, ...fromApi, ...fromMonth]),
+    );
+    return all.sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
   }, [expenseCatQ.data?.data, monthCategoryKeys]);
   const extraCategoryKeys = useMemo(
     () => categoryOptions.filter((c) => !isPresetExpenseCategory(c)),
-    [categoryOptions]
+    [categoryOptions],
   );
-  const projectOptions = useMemo(() => (raw ? raw.projectLineItems : []), [raw]);
+  const projectOptions = useMemo(
+    () => (raw ? raw.projectLineItems : []),
+    [raw],
+  );
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card to-muted/15 shadow-sm">
@@ -107,14 +106,19 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
               <Label htmlFor="rep-search" className={filterLabelClass}>
                 {tC("search")}
               </Label>
-              <p className="text-[0.7rem] leading-snug text-transparent sm:text-xs" aria-hidden>
+              <p
+                className="text-[0.7rem] leading-snug text-transparent sm:text-xs"
+                aria-hidden
+              >
                 .
               </p>
             </div>
             <Input
               id="rep-search"
               value={filter.search}
-              onChange={(e) => setFilter((f) => ({ ...f, search: e.target.value }))}
+              onChange={(e) =>
+                setFilter((f) => ({ ...f, search: e.target.value }))
+              }
               placeholder={t("phSearch")}
               className="h-11 w-full rounded-xl border-border/80 bg-background shadow-sm"
             />
@@ -128,60 +132,30 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
                 {t("filterCatSub")}
               </p>
             </div>
-            <Select
+            <select
+              id="filter-expense-cat"
+              className={nativeSelectClass}
               value={filter.expenseCategory}
-              onValueChange={(v) => v && setFilter((f) => ({ ...f, expenseCategory: v }))}
+              onChange={(e) =>
+                setFilter((f) => ({ ...f, expenseCategory: e.target.value }))
+              }
             >
-              <SelectTrigger className={reportSelectTriggerClass} id="filter-expense-cat">
-                <SelectValue>
-                  {filter.expenseCategory === "all"
-                    ? t("allCats")
-                    : labelExpenseCategory(filter.expenseCategory, tCat)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent
-                className={reportSelectContentClass}
-                align="start"
-                sideOffset={6}
-              >
-                <SelectItem value="all" className="cursor-pointer rounded-lg py-2.5">
-                  {t("allCats")}
-                </SelectItem>
-                <SelectSeparator className="my-1" />
-                <SelectGroup>
-                  {EXPENSE_CATEGORY_PRESETS.map((c) => (
-                    <SelectItem
-                      key={c}
-                      value={c}
-                      className="cursor-pointer rounded-lg py-2.5"
-                      title={labelExpenseCategory(c, tCat)}
-                    >
-                      {labelExpenseCategory(c, tCat)}
-                    </SelectItem>
+              <option value="all">{t("allCats")}</option>
+              {EXPENSE_CATEGORY_PRESETS.map((c) => (
+                <option key={c} value={c}>
+                  {labelExpenseCategory(c, tCat)}
+                </option>
+              ))}
+              {extraCategoryKeys.length > 0 && (
+                <optgroup label={t("otherCatsThisMonth")}>
+                  {extraCategoryKeys.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
-                </SelectGroup>
-                {extraCategoryKeys.length > 0 && (
-                  <>
-                    <SelectSeparator className="my-1" />
-                    <SelectLabel className="px-2 pt-0.5 pb-1.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-                      {t("otherCatsThisMonth")}
-                    </SelectLabel>
-                    {extraCategoryKeys.map((c) => (
-                      <SelectItem
-                        key={c}
-                        value={c}
-                        className="cursor-pointer rounded-lg py-2.5"
-                        title={c}
-                      >
-                        <span className="line-clamp-2 w-full min-w-0 break-words text-start whitespace-normal">
-                          {c}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
+                </optgroup>
+              )}
+            </select>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
             <div className={filterLabelSlotClass}>
@@ -192,45 +166,21 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
                 {t("filterProjSub")}
               </p>
             </div>
-            <Select
+            <select
+              id="filter-project"
+              className={nativeSelectClass}
               value={filter.projectId}
-              onValueChange={(v) => v && setFilter((f) => ({ ...f, projectId: v }))}
+              onChange={(e) =>
+                setFilter((f) => ({ ...f, projectId: e.target.value }))
+              }
             >
-              <SelectTrigger className={reportSelectTriggerClass} id="filter-project">
-                <SelectValue>
-                  {filter.projectId === "all"
-                    ? t("allProjs")
-                    : projectOptions.find((p) => p._id === filter.projectId)?.name ??
-                      t("allProjs")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent
-                className={reportSelectContentClass}
-                align="start"
-                sideOffset={6}
-              >
-                <SelectItem value="all" className="cursor-pointer rounded-lg py-2.5">
-                  {t("allProjs")}
-                </SelectItem>
-                {projectOptions.length > 0 && <SelectSeparator className="my-1" />}
-                {projectOptions.map((p) => (
-                  <SelectItem
-                    key={p._id}
-                    value={p._id}
-                    className="cursor-pointer items-start gap-0 rounded-lg py-2.5"
-                  >
-                    <span className="flex w-full min-w-0 flex-col items-start gap-0.5 text-start">
-                      <span className="w-full line-clamp-2 font-medium leading-snug break-words whitespace-normal">
-                        {p.name}
-                      </span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {formatMoney(p.amount)}
-                      </span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="all">{t("allProjs")}</option>
+              {projectOptions.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name} ({formatMoney(p.amount)})
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex w-full min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
             <div className={filterLabelSlotClass}>
@@ -241,38 +191,25 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
                 {t("filterIncSub")}
               </p>
             </div>
-            <Select
+            <select
+              id="filter-income-src"
+              className={nativeSelectClass}
               value={filter.incomeSource}
-              onValueChange={(v) =>
-                v && setFilter((f) => ({ ...f, incomeSource: v as ReportFilterState["incomeSource"] }))
+              onChange={(e) =>
+                setFilter((f) => ({
+                  ...f,
+                  incomeSource: e.target
+                    .value as ReportFilterState["incomeSource"],
+                }))
               }
             >
-              <SelectTrigger className={reportSelectTriggerClass} id="filter-income-src">
-                <SelectValue>
-                  {filter.incomeSource === "all" ? t("allIncSources") : tInc(filter.incomeSource)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent
-                className={reportSelectContentClass}
-                align="start"
-                sideOffset={6}
-              >
-                <SelectItem value="all" className="cursor-pointer rounded-lg py-2.5">
-                  {t("allIncSources")}
-                </SelectItem>
-                <SelectSeparator className="my-1" />
-                {INCOME_TYPES.map((key) => (
-                  <SelectItem
-                    key={key}
-                    value={key}
-                    className="cursor-pointer rounded-lg py-2.5"
-                    title={tInc(key)}
-                  >
-                    {tInc(key)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="all">{t("allIncSources")}</option>
+              {INCOME_TYPES.map((key) => (
+                <option key={key} value={key}>
+                  {tInc(key)}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

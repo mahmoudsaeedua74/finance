@@ -20,6 +20,15 @@ async function fetchJson(url: string) {
 
 async function fetchOunceUsd(): Promise<number> {
   try {
+    const d = (await fetchJson(
+      "https://api.gold-api.com/price/XAU"
+    )) as { price?: number };
+    const p = Number(d.price);
+    if (Number.isFinite(p) && p > 0) return p;
+  } catch {
+    // try fallback below
+  }
+  try {
     const d = (await fetchJson("https://api.metals.live/v1/spot/gold")) as unknown;
     if (Array.isArray(d) && d.length > 0) {
       const first = d[0] as unknown;
@@ -32,12 +41,18 @@ async function fetchOunceUsd(): Promise<number> {
   } catch {
     // try fallback below
   }
-  const fallback = (await fetchJson(
-    "https://api.gold-api.com/price/XAU"
-  )) as { price?: number };
-  const p = Number(fallback.price);
-  if (!Number.isFinite(p) || p <= 0) throw new Error("Could not fetch gold ounce price");
-  return p;
+  const cafe = (await fetchJson(
+    "https://www.goldprice.cafe/api/history?symbol=XAU&windowHours=1"
+  )) as {
+    points?: { time?: number; price?: number }[];
+  };
+  const points = Array.isArray(cafe.points) ? cafe.points : [];
+  const latest = points[points.length - 1];
+  const latestPrice = Number(latest?.price);
+  if (!Number.isFinite(latestPrice) || latestPrice <= 0) {
+    throw new Error("Could not fetch gold ounce price");
+  }
+  return latestPrice;
 }
 
 async function fetchUsdToEgp(): Promise<number> {

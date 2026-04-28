@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -25,8 +25,14 @@
     "project": "Project",
     "loadingAlt": "Loading…",
     "languageSwitch": "Switch to {to}",
-    "lang": { "en": "English", "ar": "العربية" },
-    "langShort": { "en": "EN", "ar": "ع" },
+    "lang": {
+      "en": "English",
+      "ar": "العربية"
+    },
+    "langShort": {
+      "en": "EN",
+      "ar": "ع"
+    },
     "deleteConfirm": "Are you sure?",
     "noResults": "No results.",
     "checkMongoEnv": "Check MongoDB and MONGODB_URI in {envFile}.",
@@ -150,7 +156,13 @@
     "cadDaily": "Daily",
     "cadWeekly": "Weekly"
   },
-  "navM": { "home": "Home", "income": "Income", "spend": "Spend", "work": "Work", "report": "Report" },
+  "navM": {
+    "home": "Home",
+    "income": "Income",
+    "spend": "Spend",
+    "work": "Work",
+    "report": "Report"
+  },
   "layout": {
     "appName": "Finance",
     "personal": "Personal",
@@ -188,9 +200,16 @@
       "typeBehavior": "Activity",
       "typeDigest": "Digest",
       "newAlert": "New alert"
-    }
+    },
+    "reportRange": "Report range",
+    "rangeMonthly": "Monthly",
+    "rangeYearly": "Yearly",
+    "rangeAll": "All-time"
   },
-  "month": { "prev": "Previous month", "next": "Next month" },
+  "month": {
+    "prev": "Previous month",
+    "next": "Next month"
+  },
   "home": {
     "title": "Dashboard",
     "description": "Overview for {month} — track income, spending, and net balance in one place.",
@@ -258,7 +277,10 @@
     "lineTitle": "Line items",
     "lineDesc": "Salary, freelance, savings circle, and ad-hoc income in this month.",
     "lineDescAll": "Salary, freelance, savings circle, and ad-hoc pay — all dates.",
-    "table": { "date": "Date", "type": "Type" },
+    "table": {
+      "date": "Date",
+      "type": "Type"
+    },
     "noRows": "No income this month yet.",
     "noRowsAll": "No income lines yet.",
     "editTitle": "Edit income",
@@ -306,11 +328,20 @@
     "lineItemsDesc": "Every logged line with a date (not the rules list below).",
     "thisMonthDesc": "Variable, one-time fixed, and the portion of recurring rules that apply in {month}.",
     "noRows": "No expenses in this month.",
-    "kinds": { "recurring": "Recurring", "fixed": "Fixed once", "variable": "Variable" },
+    "kinds": {
+      "recurring": "Recurring",
+      "fixed": "Fixed once",
+      "variable": "Variable"
+    },
     "recurring": "Recurring rules",
     "recurringDesc": "Your rule library: each row is the per-month amount while the date range is active. This list is not scoped to the selected month — use This month above for that month’s totals.",
     "noRecurring": "No recurring rules yet.",
-    "table": { "from": "From", "to": "To", "perMonth": "Per month", "kind": "Kind" },
+    "table": {
+      "from": "From",
+      "to": "To",
+      "perMonth": "Per month",
+      "kind": "Kind"
+    },
     "formAmountPerMonth": "Amount (per month)",
     "recurringWhen": "Month",
     "editTitle": "Edit expense",
@@ -366,7 +397,7 @@
   },
   "projects": {
     "title": "Projects",
-    "desc": "Record money received for each project name. Tag expenses to the same name to see received vs spent and net per project this month.",
+    "desc": "Descending",
     "plCardTitle": "Project balance (this month)",
     "plCardDesc": "Received = project payouts in {month}. Spent = expenses linked to the same project name.",
     "plReceived": "Received",
@@ -376,10 +407,13 @@
     "lineNotePh": "e.g. invoice #, milestone, reason",
     "phSearch": "Filter by project name…",
     "sortBy": "Sort by",
-    "sort": { "date": "Date", "name": "Name", "amount": "Amount" },
+    "sort": {
+      "date": "Date",
+      "name": "Name",
+      "amount": "Amount"
+    },
     "order": "Order",
     "asc": "Ascending",
-    "desc": "Descending",
     "excel": "Download Excel (current table)",
     "excelOk": "Excel file ready (filtered list)",
     "allTime": "All-time total by project name",
@@ -438,7 +472,9 @@
     "ideasTitle": "Ideas to go further",
     "ideas1": "Recurring bills (internet, Cursor, employees, gam3eya) — you already have them as recurring fixed expenses in Add expense → Recurring. They repeat every month automatically in reports.",
     "ideas2": "Reminders / calendar / email nudges need a scheduler (e.g. Vercel Cron, Windows Task, or a job server) to call a send-email API on a schedule. Next step: pick 1 “due date” per item or use iCal file export. Happy to add a simple “upcoming this week” list later.",
-    "table": { "type": "Type" },
+    "table": {
+      "type": "Type"
+    },
     "expenseProject": "Project",
     "budgetUsageTitle": "Budget usage",
     "budgetUsageDesc": "Spent vs monthly category limits",
@@ -453,7 +489,17 @@
     "forecastIn": "Expected income",
     "forecastOut": "Expected expenses",
     "forecastNet": "Expected net",
-    "forecastBreakdown": "Recurring expenses: {recExp} · Recurring income (templates): {recInc} — the rest is from your last 3 months of patterns."
+    "forecastBreakdown": "Recurring expenses: {recExp} · Recurring income (templates): {recInc} — the rest is from your last 3 months of patterns.",
+    "subtitleYearly": "Yearly totals for the current year.",
+    "subtitleAll": "All-time totals from the beginning.",
+    "allTimeSinceStart": "All-time means from the first day you started using the app.",
+    "filterMonthOnlyHint": "Category/source/project filters apply to monthly view only. Yearly and all-time show aggregate totals.",
+    "rangeSummaryTitle": "Range summary",
+    "rangeYearlyDesc": "Income, expense, and net for the current year.",
+    "rangeAllDesc": "Income, expense, and net from app start until now.",
+    "rangeIncome": "Total income",
+    "rangeExpense": "Total expense",
+    "rangeNet": "Net balance"
   },
   "gold": {
     "title": "Gold tracking",

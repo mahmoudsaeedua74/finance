@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 type PageHeaderProps = {
   title: string;
   description?: ReactNode;
+  meta?: ReactNode;
   icon?: ReactNode;
   className?: string;
   action?: ReactNode;
@@ -15,6 +16,7 @@ type PageHeaderProps = {
 export function PageHeader({
   title,
   description,
+  meta,
   icon,
   className,
   action,
@@ -42,6 +44,11 @@ export function PageHeader({
           {description != null && (
             <div className="mt-0.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {description}
+            </div>
+          )}
+          {meta != null && (
+            <div className="mt-1 text-xs font-medium text-muted-foreground/90">
+              {meta}
             </div>
           )}
         </div>
