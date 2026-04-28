@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import {
   getDefaultReportFilters,
-  getReportCategorySelectOptions,
   getUniqueExpenseCategories,
   isReportFilterDefault,
   type ReportFilterState,
@@ -33,6 +32,7 @@ import {
   labelExpenseCategory,
 } from "@/lib/expense-categories";
 import type { MonthlyReportDto } from "@/types/report";
+import { useCategories } from "@/hooks/use-categories";
 
 const filterLabelClass = "text-xs font-medium text-foreground/80";
 const filterLabelSlotClass = "flex min-h-9 flex-col justify-end";
@@ -60,14 +60,16 @@ export function ReportFiltersPanel({ raw, filter, setFilter }: ReportFiltersPane
     () => (raw ? getUniqueExpenseCategories(raw) : []),
     [raw]
   );
+  const expenseCatQ = useCategories("expense");
+  const categoryOptions = useMemo(() => {
+    const fromApi = (expenseCatQ.data?.data ?? []).map((c) => c.name);
+    const fromMonth = monthCategoryKeys;
+    const all = Array.from(new Set([...EXPENSE_CATEGORY_PRESETS, ...fromApi, ...fromMonth]));
+    return all.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [expenseCatQ.data?.data, monthCategoryKeys]);
   const extraCategoryKeys = useMemo(
-    () =>
-      raw
-        ? getReportCategorySelectOptions(monthCategoryKeys).filter(
-            (c) => !isPresetExpenseCategory(c)
-          )
-        : [],
-    [raw, monthCategoryKeys]
+    () => categoryOptions.filter((c) => !isPresetExpenseCategory(c)),
+    [categoryOptions]
   );
   const projectOptions = useMemo(() => (raw ? raw.projectLineItems : []), [raw]);
 

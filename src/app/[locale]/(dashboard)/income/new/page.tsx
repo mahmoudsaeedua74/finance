@@ -15,8 +15,8 @@ import { jsonFetch } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import { defaultFormDateYmd } from "@/lib/ymd";
-
-const values = ["salary", "freelance", "gam3eya", "other"] as const;
+import { CategorySelectField } from "@/components/categories/category-select-field";
+import { normalizeIncomeType } from "@/lib/income-types";
 
 export default function NewIncomePage() {
   const t = useTranslations("income");
@@ -26,7 +26,7 @@ export default function NewIncomePage() {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => defaultFormDateYmd());
-  const [incomeType, setIncomeType] = useState<string>("other");
+  const [incomeCategory, setIncomeCategory] = useState<string>("salary");
 
   const m = useMutation({
     mutationFn: () =>
@@ -36,7 +36,8 @@ export default function NewIncomePage() {
           title,
           amount: parseFloat(amount),
           date: new Date(date).toISOString(),
-          incomeType,
+          incomeType: normalizeIncomeType(incomeCategory),
+          category: incomeCategory,
         }),
       }),
     onMutate: () => {
@@ -114,21 +115,12 @@ export default function NewIncomePage() {
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="income-type">{tC("type")}</Label>
-            <select
-              id="income-type"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              value={incomeType}
-              onChange={(e) => setIncomeType(e.target.value)}
-            >
-              {values.map((v) => (
-                <option key={v} value={v}>
-                  {t(`types.${v}`)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CategorySelectField
+            type="income"
+            value={incomeCategory}
+            onChange={setIncomeCategory}
+            label={tC("category")}
+          />
           <div className="flex flex-col-reverse gap-2 min-[400px]:flex-row">
             <Button
               type="button"

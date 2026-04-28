@@ -14,6 +14,7 @@ import {
   Settings,
   Wallet,
   Bell,
+  Gem,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -43,6 +44,7 @@ const sideLinks = [
   { href: "/income", k: "income" as const, Icon: Banknote },
   { href: "/expense", k: "expenses" as const, Icon: Receipt },
   { href: "/projects", k: "projects" as const, Icon: FolderKanban },
+  { href: "/gold", k: "gold" as const, Icon: Gem },
   { href: "/report", k: "report" as const, Icon: FileBarChart2 },
   { href: "/settings", k: "settings" as const, Icon: Settings },
 ] as const;

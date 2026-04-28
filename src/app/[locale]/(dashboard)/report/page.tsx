@@ -30,6 +30,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
 import { ReportForecastCompare } from "@/components/report/report-forecast-compare";
+import { ReportsRangeSummary } from "@/components/report/reports-range-summary";
 
 export default function ReportPage() {
   const t = useTranslations("report");
@@ -88,6 +89,7 @@ export default function ReportPage() {
       <ReportFiltersPanel raw={raw} filter={filter} setFilter={setFilter} />
 
       <ReportForecastCompare />
+      <ReportsRangeSummary />
 
       <div className="flex flex-wrap gap-2">
         <Button

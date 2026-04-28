@@ -20,3 +20,5 @@ export {
   type INotificationPreference,
 } from "./NotificationPreference";
 export { EmailDigestState, type IEmailDigestState } from "./EmailDigestState";
+export { GoldHolding, type IGoldHolding, type GoldKarat } from "./GoldHolding";
+export { Category, type ICategory, type CategoryType } from "./Category";

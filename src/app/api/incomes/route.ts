@@ -41,6 +41,7 @@ export async function GET(req: Request) {
         amount: d.amount,
         date: d.date,
         incomeType: d.incomeType,
+        category: d.category || d.incomeType,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       }));
@@ -57,6 +58,7 @@ export async function GET(req: Request) {
       amount: d.amount,
       date: d.date,
       incomeType: d.incomeType,
+      category: d.category || d.incomeType,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
     }));
@@ -75,7 +77,7 @@ export async function POST(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
-    const { title, amount, date, incomeType } = body;
+    const { title, amount, date, incomeType, category } = body;
     if (!title || amount == null || !date) {
       return NextResponse.json(
         { error: "title, amount, and date are required" },
@@ -89,6 +91,7 @@ export async function POST(req: Request) {
       amount: Number(amount),
       date: new Date(date),
       incomeType: normalizeIncomeType(incomeType),
+      category: String(category ?? incomeType ?? "other").trim(),
     });
     const uid = String(user.id);
     const row = { title: String(title), amount: Number(amount) };

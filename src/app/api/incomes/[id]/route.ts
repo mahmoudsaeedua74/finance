@@ -37,7 +37,7 @@ export async function PUT(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     const body = await req.json();
-    const { title, amount, date, incomeType } = body;
+    const { title, amount, date, incomeType, category } = body;
     await connectDB();
     const doc = await Income.findOneAndUpdate(
       { _id: params.id, userId: user.id },
@@ -46,6 +46,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         ...(amount != null && { amount: Number(amount) }),
         ...(date != null && { date: new Date(date) }),
         ...(incomeType != null && { incomeType: normalizeIncomeType(incomeType) }),
+        ...(category != null && { category: String(category).trim() }),
       },
       { new: true }
     );

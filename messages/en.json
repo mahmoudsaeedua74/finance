@@ -104,6 +104,7 @@
     "income": "Income",
     "expenses": "Expenses",
     "projects": "Projects",
+    "gold": "Gold",
     "report": "Report",
     "settings": "Settings"
   },
@@ -453,5 +454,21 @@
     "forecastOut": "Expected expenses",
     "forecastNet": "Expected net",
     "forecastBreakdown": "Recurring expenses: {recExp} · Recurring income (templates): {recInc} — the rest is from your last 3 months of patterns."
+  },
+  "gold": {
+    "title": "Gold tracking",
+    "desc": "Track bars and estimate live value in EGP.",
+    "prices": "Gold prices",
+    "pricesDesc": "Live prices are fetched and cached for 1 hour.",
+    "manual24": "Manual 24K override (EGP/gram)",
+    "addHolding": "Add holding",
+    "weightPerBar": "Weight per bar (g)",
+    "bars": "Number of bars",
+    "karat": "Karat",
+    "portfolio": "Portfolio",
+    "totalGrams": "Total grams",
+    "totalValue": "Total value",
+    "empty": "No gold holdings yet.",
+    "saved": "Gold holding saved"
   }
 }
