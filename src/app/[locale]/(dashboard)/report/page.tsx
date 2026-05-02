@@ -23,7 +23,6 @@ import {
   isReportFilterDefault,
   type ReportFilterState,
 } from "@/lib/report-filters";
-import { Separator } from "@/components/ui/separator";
 import { labelExpenseCategory } from "@/lib/expense-categories";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
