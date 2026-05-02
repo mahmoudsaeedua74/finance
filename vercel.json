@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/jobs/daily",
-      "schedule": "5 9 * * *"
-    },
-    {
-      "path": "/api/jobs/monthly",
-      "schedule": "15 4 1 * *"
-    }
-  ]
-}
+{}

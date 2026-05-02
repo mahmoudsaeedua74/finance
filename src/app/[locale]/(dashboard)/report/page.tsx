@@ -10,7 +10,6 @@ import { monthLabel, formatMoney, formatDateLong } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MonthlyReportDto } from "@/types/report";
-import { Sparkles } from "lucide-react";
 import { exportMonthlyReportPdf } from "@/lib/export-pdf";
 import { exportMonthlyReportExcel } from "@/lib/export-excel";
 import { toast } from "sonner";
