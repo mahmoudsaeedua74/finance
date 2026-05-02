@@ -62,7 +62,11 @@ function expenseDocToExpenseRow(d: {
   const isTemplate = Boolean(d.isTemplate);
   const recurring = Boolean(d.recurring);
   const rowKind: ExpenseRow["rowKind"] =
-    isTemplate && recurring ? "recurring" : d.kind === "fixed" ? "fixed_once" : "variable";
+    isTemplate && recurring
+      ? "recurring"
+      : d.kind === "fixed"
+        ? "fixed_once"
+        : "variable";
   const dateIso =
     typeof d.date === "string" ? d.date : new Date(d.date).toISOString();
   return {
@@ -123,14 +127,14 @@ export function TransactionsEditDialogs({
   const expenseQ = useQuery({
     queryKey: ["txn-edit-expense", expenseId],
     queryFn: async () => {
-      const res = await jsonFetch<{ data: Parameters<typeof expenseDocToExpenseRow>[0] }>(
-        `/api/expenses/${expenseId}`,
-      );
+      const res = await jsonFetch<{
+        data: Parameters<typeof expenseDocToExpenseRow>[0];
+      }>(`/api/expenses/${expenseId}`);
       return expenseDocToExpenseRow(res.data);
     },
     enabled: !!expenseId,
   });
-
+  console.log("expenseQ", expenseQ.data);
   const [tx, setTx] = useState("");
   const [a, setA] = useState("");
   const [d, setD] = useState("");
@@ -166,7 +170,13 @@ export function TransactionsEditDialogs({
   }, [edit]);
 
   const updateIncome = useMutation({
-    mutationFn: (payload: { id: string; title: string; amount: number; date: string; incomeType: string }) =>
+    mutationFn: (payload: {
+      id: string;
+      title: string;
+      amount: number;
+      date: string;
+      incomeType: string;
+    }) =>
       jsonFetch(`/api/incomes/${payload.id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -212,7 +222,9 @@ export function TransactionsEditDialogs({
           incomeType: payload.incomeType,
           payDayOfMonth: payload.payDayOfMonth,
           startDate: new Date(payload.startDate).toISOString(),
-          endDate: payload.endDate ? new Date(payload.endDate).toISOString() : null,
+          endDate: payload.endDate
+            ? new Date(payload.endDate).toISOString()
+            : null,
         }),
       }),
     onMutate: () => {
@@ -247,13 +259,19 @@ export function TransactionsEditDialogs({
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
           ) : incomeQ.isError ? (
-            <p className="text-sm text-destructive">{(incomeQ.error as Error).message}</p>
+            <p className="text-sm text-destructive">
+              {(incomeQ.error as Error).message}
+            </p>
           ) : incomeId ? (
             <>
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
                   <Label>{tC("title")}</Label>
-                  <Input value={tx} onChange={(e) => setTx(e.target.value)} className="rounded-xl" />
+                  <Input
+                    value={tx}
+                    onChange={(e) => setTx(e.target.value)}
+                    className="rounded-xl"
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tC("amount")}</Label>
@@ -267,7 +285,12 @@ export function TransactionsEditDialogs({
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tC("date")}</Label>
-                  <Input type="date" value={d} onChange={(e) => setD(e.target.value)} className="rounded-xl" />
+                  <Input
+                    type="date"
+                    value={d}
+                    onChange={(e) => setD(e.target.value)}
+                    className="rounded-xl"
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tC("type")}</Label>
@@ -276,16 +299,29 @@ export function TransactionsEditDialogs({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="salary">{tInc("types.salary")}</SelectItem>
-                      <SelectItem value="freelance">{tInc("types.freelance")}</SelectItem>
-                      <SelectItem value="gam3eya">{tInc("types.gam3eya")}</SelectItem>
-                      <SelectItem value="other">{tInc("types.other")}</SelectItem>
+                      <SelectItem value="salary">
+                        {tInc("types.salary")}
+                      </SelectItem>
+                      <SelectItem value="freelance">
+                        {tInc("types.freelance")}
+                      </SelectItem>
+                      <SelectItem value="gam3eya">
+                        {tInc("types.gam3eya")}
+                      </SelectItem>
+                      <SelectItem value="other">
+                        {tInc("types.other")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" className="rounded-xl" onClick={onClose}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={onClose}
+                >
                   {tC("close")}
                 </Button>
                 <Button
@@ -327,9 +363,15 @@ export function TransactionsEditDialogs({
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
           ) : expenseQ.isError ? (
-            <p className="text-sm text-destructive">{(expenseQ.error as Error).message}</p>
+            <p className="text-sm text-destructive">
+              {(expenseQ.error as Error).message}
+            </p>
           ) : expenseQ.data ? (
-            <ExpenseEditForm key={expenseQ.data._id + String(expenseQ.data.isTemplate)} row={expenseQ.data} onDone={onClose} />
+            <ExpenseEditForm
+              key={expenseQ.data._id + String(expenseQ.data.isTemplate)}
+              row={expenseQ.data}
+              onDone={onClose}
+            />
           ) : null}
         </DialogContent>
       </Dialog>
@@ -344,7 +386,11 @@ export function TransactionsEditDialogs({
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
                   <Label>{tC("title")}</Label>
-                  <Input value={ert} onChange={(e) => setErt(e.target.value)} className="rounded-xl" />
+                  <Input
+                    value={ert}
+                    onChange={(e) => setErt(e.target.value)}
+                    className="rounded-xl"
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tC("amount")}</Label>
@@ -358,15 +404,26 @@ export function TransactionsEditDialogs({
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tInc("recurringType")}</Label>
-                  <Select value={eit} onValueChange={(v) => v != null && setEit(v)}>
+                  <Select
+                    value={eit}
+                    onValueChange={(v) => v != null && setEit(v)}
+                  >
                     <SelectTrigger className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="salary">{tInc("types.salary")}</SelectItem>
-                      <SelectItem value="freelance">{tInc("types.freelance")}</SelectItem>
-                      <SelectItem value="gam3eya">{tInc("types.gam3eya")}</SelectItem>
-                      <SelectItem value="other">{tInc("types.other")}</SelectItem>
+                      <SelectItem value="salary">
+                        {tInc("types.salary")}
+                      </SelectItem>
+                      <SelectItem value="freelance">
+                        {tInc("types.freelance")}
+                      </SelectItem>
+                      <SelectItem value="gam3eya">
+                        {tInc("types.gam3eya")}
+                      </SelectItem>
+                      <SelectItem value="other">
+                        {tInc("types.other")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -386,28 +443,50 @@ export function TransactionsEditDialogs({
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
                     <Label>{tInc("recurringFrom")}</Label>
-                    <Input type="date" value={es} onChange={(e) => setEs(e.target.value)} className="rounded-xl" />
+                    <Input
+                      type="date"
+                      value={es}
+                      onChange={(e) => setEs(e.target.value)}
+                      className="rounded-xl"
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label>{tInc("recurringEnd")}</Label>
-                    <Input type="date" value={ee} onChange={(e) => setEe(e.target.value)} className="rounded-xl" />
+                    <Input
+                      type="date"
+                      value={ee}
+                      onChange={(e) => setEe(e.target.value)}
+                      className="rounded-xl"
+                    />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tInc("recurringSchedule")}</Label>
-                  <Select value={ef} onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}>
+                  <Select
+                    value={ef}
+                    onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}
+                  >
                     <SelectTrigger className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="monthly">{tInc("freqMonthly")}</SelectItem>
-                      <SelectItem value="weekly">{tInc("freqWeekly")}</SelectItem>
+                      <SelectItem value="monthly">
+                        {tInc("freqMonthly")}
+                      </SelectItem>
+                      <SelectItem value="weekly">
+                        {tInc("freqWeekly")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" className="rounded-xl" onClick={onClose}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={onClose}
+                >
                   {tC("close")}
                 </Button>
                 <Button
@@ -423,7 +502,10 @@ export function TransactionsEditDialogs({
                       incomeType: eit,
                       payDayOfMonth:
                         ef === "monthly"
-                          ? Math.min(30, Math.max(1, Math.round(parseFloat(ePay)) || 5))
+                          ? Math.min(
+                              30,
+                              Math.max(1, Math.round(parseFloat(ePay)) || 5),
+                            )
                           : undefined,
                       startDate: es,
                       endDate: ee.trim() ? ee : null,
