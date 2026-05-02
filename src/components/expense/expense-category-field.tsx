@@ -10,17 +10,19 @@ type Props = {
 };
 
 export function ExpenseCategoryField({
-  id: _id,
+  id,
   value,
   onCategoryChange,
-  className: _className,
+  className,
 }: Props) {
   return (
-    <CategorySelectField
-      type="expense"
-      value={value}
-      onChange={onCategoryChange}
-      label="Category"
-    />
+    <div id={id} className={className}>
+      <CategorySelectField
+        type="expense"
+        value={value}
+        onChange={onCategoryChange}
+        label="Category"
+      />
+    </div>
   );
 }

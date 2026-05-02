@@ -7,14 +7,13 @@ import {
   PanelLeft,
   PanelRight,
   LayoutGrid,
-  Banknote,
-  Receipt,
   FolderKanban,
   FileBarChart2,
   Settings,
   Wallet,
   Bell,
   Gem,
+  ReceiptText,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -41,8 +40,7 @@ import { useNotificationSummary } from "@/hooks/use-notification-summary";
 
 const sideLinks = [
   { href: "/", k: "dashboard" as const, Icon: LayoutGrid },
-  { href: "/income", k: "income" as const, Icon: Banknote },
-  { href: "/expense", k: "expenses" as const, Icon: Receipt },
+  { href: "/transactions", k: "transactions" as const, Icon: ReceiptText },
   { href: "/projects", k: "projects" as const, Icon: FolderKanban },
   { href: "/gold", k: "gold" as const, Icon: Gem },
   { href: "/report", k: "report" as const, Icon: FileBarChart2 },
@@ -337,7 +335,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             mainBottomPad,
           )}
         >
-          <div className="mx-auto w-full min-w-0 max-w-6xl">
+          <div className="mx-auto w-full min-w-0 max-w-7xl">
             <DesktopMonthBar />
             <motion.div
               className="min-w-0"

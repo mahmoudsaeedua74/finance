@@ -60,11 +60,11 @@ export function NewExpenseForm() {
   const f = useNewExpenseForm();
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6">
+    <div className="mx-auto w-full max-w-3xl space-y-6">
       <PageHeader title={t("newTitle")} description={t("newDesc")} />
 
       <section
-        className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md"
+        className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
         aria-labelledby="expense-type-heading"
       >
         <div className="border-b border-border/60 bg-gradient-to-b from-muted/30 to-transparent px-4 py-4 sm:px-5">

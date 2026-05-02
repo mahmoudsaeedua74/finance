@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { exportProjectListExcel } from "@/lib/export-excel";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, ArrowUpDown, Search, Plus, Loader2 } from "lucide-react";
+import { FileSpreadsheet, ArrowUpDown, Search, Plus, Loader2, FolderKanban, TrendingUp, Wallet, Scale } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -281,15 +281,76 @@ export default function ProjectsPage() {
 
   const byName = sumAll?.data?.byName ?? [];
   const projectPlRows = plData?.data?.rows ?? [];
+  const monthTotal = monthView.reduce((s, r) => s + r.amount, 0);
+  const allTotal = allView.reduce((s, r) => s + r.amount, 0);
+  const monthNet = projectPlRows.reduce((s, r) => s + r.net, 0);
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="max-w-6xl space-y-5">
       <PageHeader
         title={t("title")}
         description={t("desc", { month: monthLabel(year, month, locale) })}
+        icon={<FolderKanban className="size-5" />}
+        action={
+          <Button type="button" className="h-11 min-w-[10rem]" onClick={openAddDialog}>
+            <Plus className="me-2 size-4 shrink-0" />
+            {t("addButton")}
+          </Button>
+        }
       />
 
       {error && <QueryErrorAlert error={error} />}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">
+              {t("inMonth", { month: monthLabel(year, month, locale) })}
+            </CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">
+              {formatMoney(monthTotal)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <TrendingUp className="size-3.5" />
+            {t("subtotal")}
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("allTotal")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">
+              {formatMoney(allTotal)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Wallet className="size-3.5" />
+            {t("allEntries")}
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("allTime")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">{byName.length}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <FolderKanban className="size-3.5" />
+            {tC("project")}
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("plNet")}</CardDescription>
+            <CardTitle className={cn("font-mono text-2xl tabular-nums", monthNet >= 0 ? "text-foreground" : "text-destructive")}>
+              {formatMoney(monthNet)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Scale className="size-3.5" />
+            {t("plCardTitle")}
+          </CardContent>
+        </Card>
+      </div>
 
       {projectPlRows.length > 0 && (
         <Card>
@@ -337,6 +398,12 @@ export default function ProjectsPage() {
         </Card>
       )}
 
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{t("sortBy")}</CardTitle>
+          <CardDescription>{t("allDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
       <div className="flex w-full flex-wrap items-end gap-3 sm:gap-4">
         <div className="min-w-0 flex-1 basis-full flex flex-col gap-2.5 lg:basis-[22rem]">
           <div className={controlLabelSlotClass}>
@@ -394,14 +461,6 @@ export default function ProjectsPage() {
           <div className="flex min-w-0 gap-2 sm:justify-end">
             <Button
               type="button"
-              className="h-11 min-w-0 flex-1 sm:flex-none"
-              onClick={openAddDialog}
-            >
-              <Plus className="me-2 size-4 shrink-0" />
-              {t("addButton")}
-            </Button>
-            <Button
-              type="button"
               variant="secondary"
               size="icon"
               title={t("excel")}
@@ -421,9 +480,11 @@ export default function ProjectsPage() {
           </div>
         </div>
       </div>
+        </CardContent>
+      </Card>
 
       {byName.length > 0 && (
-        <Card>
+        <Card className="border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">{t("allTime")}</CardTitle>
             <CardDescription>{t("allTimeDesc")}</CardDescription>
@@ -440,7 +501,7 @@ export default function ProjectsPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("inMonth", { month: monthLabel(year, month, locale) })}</CardTitle>
         </CardHeader>
@@ -515,7 +576,7 @@ export default function ProjectsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("allEntries")}</CardTitle>
           <CardDescription>{t("allDesc")}</CardDescription>

@@ -107,6 +107,7 @@
   },
   "nav": {
     "dashboard": "لوحة التحكم",
+    "transactions": "المعاملات",
     "income": "الدخل",
     "expenses": "المصروفات",
     "projects": "المشاريع",
@@ -158,10 +159,58 @@
   },
   "navM": {
     "home": "الرئيسية",
+    "transactions": "المعاملات",
+    "gold": "الذهب",
+    "settings": "الإعدادات",
     "income": "دخل",
     "spend": "صرف",
     "work": "عمل",
     "report": "تقرير"
+  },
+  "transactions": {
+    "title": "المعاملات",
+    "desc": "إدارة دخلك ومصروفاتك وتصنيفها.",
+    "addIncome": "إضافة دخل",
+    "addExpense": "إضافة مصروف",
+    "addTransaction": "إضافة معاملة",
+    "loadingMore": "جاري تحميل المزيد…",
+    "footerMore": "{shown} معروضة · مرّر لتحميل المزيد",
+    "footerEnd": "{shown} معروضة · نهاية القائمة",
+    "export": "تصدير",
+    "excelExport": "Excel",
+    "exportExcelLoading": "جاري إعداد الجدول…",
+    "exportExcelDone": "تم تنزيل الملف",
+    "exportExcelFail": "تعذّر التصدير. حاول مرة أخرى.",
+    "exportExcelEmpty": "لا يوجد ما يُصدَّر لهذه الفلاتر.",
+    "excelDirectionIncome": "دخل",
+    "excelDirectionExpense": "مصروف",
+    "filter": "تصفية",
+    "searchPh": "ابحث بالعنوان أو التصنيف",
+    "allCategories": "كل التصنيفات",
+    "type": "النوع",
+    "empty": "لا توجد معاملات مطابقة للفلاتر.",
+    "tabs": {
+      "all": "الكل",
+      "income": "الدخل",
+      "expense": "المصروفات",
+      "recurring": "متكرر"
+    },
+    "periodAria": "فلتر الفترة",
+    "period": {
+      "month": "هذا الشهر",
+      "lastMonth": "الشهر الماضي",
+      "year": "هذه السنة",
+      "all": "كل الوقت"
+    },
+    "kinds": {
+      "variable": "متغير",
+      "fixed": "ثابت",
+      "recurring": "متكرر"
+    },
+    "table": {
+      "title": "السجل",
+      "desc": "{count} صف في العرض الحالي"
+    }
   },
   "layout": {
     "appName": "مالية",
@@ -439,10 +488,15 @@
   },
   "report": {
     "title": "تقرير شهري",
+    "heroTitle": "التقارير والتحليلات",
+    "heroDesc": "نظرة شاملة على أداءك المالي.",
     "subtitle": "{month} — رشّح ثم نزّل PDF أو Excel (يُطابقان العرض الحالي).",
+    "exportMenu": "تصدير",
     "filters": "عوامل التصفية",
     "customView": "عرض مخصص",
     "filterDesc": "ابحث في العناوين والنصوص. اضيّق المصروفات حسب التصنيف، والدخل العام حسب المصدر (راتب، عمل حر، جمعية…)، ودفعات المشاريع بمشروع أو الكل.",
+    "filterDescShort": "بحث وتصفية حسب التصنيف والمشروع ومصدر الدخل.",
+    "yearLabel": "السنة",
     "filterCatSub": "كل التصنيفات الجاهزة + أي تسمية مخصّصة وردت في هذا الشهر.",
     "filterProjSub": "كل دفعات المشاريع في الشهر، أو اختيار مشروع بالاسم.",
     "incSource": "مصدر الدخل (عام)",

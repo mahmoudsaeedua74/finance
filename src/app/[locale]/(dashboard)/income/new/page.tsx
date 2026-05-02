@@ -17,6 +17,7 @@ import { Link } from "@/i18n/navigation";
 import { defaultFormDateYmd } from "@/lib/ymd";
 import { CategorySelectField } from "@/components/categories/category-select-field";
 import { normalizeIncomeType } from "@/lib/income-types";
+import { Wallet } from "lucide-react";
 
 export default function NewIncomePage() {
   const t = useTranslations("income");
@@ -63,7 +64,7 @@ export default function NewIncomePage() {
   });
 
   return (
-    <div className="max-w-lg space-y-4">
+    <div className="max-w-3xl space-y-5">
       <PageHeader
         title={t("newTitle")}
         description={
@@ -76,8 +77,11 @@ export default function NewIncomePage() {
           </>
         }
       />
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
+          <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Wallet className="size-5" />
+          </div>
           <CardTitle>{t("newCardT")}</CardTitle>
           <CardDescription>{t("newCardD")}</CardDescription>
         </CardHeader>

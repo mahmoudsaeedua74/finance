@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reports &amp; Analytics - FinTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e4e2e4",
+                        "on-surface": "#1b1b1d",
+                        "primary-container": "#131b2e",
+                        "on-primary-container": "#7c839b",
+                        "on-tertiary-fixed": "#271901",
+                        "surface-container": "#f0edef",
+                        "on-background": "#1b1b1d",
+                        "on-secondary-container": "#00714d",
+                        "surface-container-high": "#eae7e9",
+                        "secondary-container": "#6cf8bb",
+                        "surface-bright": "#fcf8fa",
+                        "on-secondary-fixed": "#002113",
+                        "primary": "#000000",
+                        "slate-500": "#64748B",
+                        "inverse-on-surface": "#f3f0f2",
+                        "on-primary-fixed": "#131b2e",
+                        "on-error-container": "#93000a",
+                        "slate-200": "#E2E8F0",
+                        "error": "#F43F5E",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f6f3f5",
+                        "surface-dim": "#dcd9db",
+                        "primary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#bec6e0",
+                        "secondary-fixed": "#6ffbbe",
+                        "secondary": "#006c49",
+                        "slate-50": "#F8FAFC",
+                        "success": "#10B981",
+                        "outline": "#76777d",
+                        "background": "#fcf8fa",
+                        "accent-rose": "#F43F5E",
+                        "on-secondary-fixed-variant": "#005236",
+                        "inverse-primary": "#bec6e0",
+                        "tertiary": "#000000",
+                        "slate-100": "#F1F5F9",
+                        "on-error": "#ffffff",
+                        "warning": "#F59E0B",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "outline-variant": "#c6c6cd",
+                        "on-tertiary-fixed-variant": "#574425",
+                        "surface": "#fcf8fa",
+                        "on-tertiary-container": "#98805d",
+                        "inverse-surface": "#303032",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "accent-amber": "#F59E0B",
+                        "on-surface-variant": "#45464d",
+                        "tertiary-fixed-dim": "#dec29a",
+                        "secondary-fixed-dim": "#4edea3",
+                        "slate-900": "#0F172A",
+                        "surface-variant": "#e4e2e4",
+                        "surface-tint": "#565e74",
+                        "tertiary-fixed": "#fcdeb5",
+                        "tertiary-container": "#271901",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "2xl": "48px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "caption-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "header-sm": ["Inter"],
+                        "caption-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "header-lg": ["Inter"],
+                        "display-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "caption-sm": ["12px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "header-sm": ["18px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "caption-lg": ["14px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "display-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "header-lg": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "display-md": ["24px", { "lineHeight": "1.2", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- SideNavBar -->
+<nav class="h-screen w-64 border-r border-slate-200 dark:border-slate-800 fixed left-0 top-0 rtl:left-auto rtl:right-0 bg-white dark:bg-slate-950 flex flex-col h-full p-4 space-y-2 z-50">
+<!-- Brand -->
+<div class="px-4 py-6 mb-4 flex items-center space-x-3 rtl:space-x-reverse">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">FinTrack</h1>
+<p class="font-caption-sm text-caption-sm text-slate-500">Wealth Management</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 space-y-2">
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-body-md text-body-md">Transactions</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined">savings</span>
+<span class="font-body-md text-body-md">Gold Portfolio</span>
+</a>
+<!-- Active State -->
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg bg-slate-900 text-white dark:bg-slate-50 dark:text-slate-900 font-semibold scale-[0.98] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-body-md text-body-md">Reports</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</div>
+<!-- CTA & Profile -->
+<div class="mt-auto space-y-4 pt-4 border-t border-slate-200">
+<button class="w-full bg-primary text-on-primary font-caption-lg text-caption-lg py-3 rounded-lg flex items-center justify-center space-x-2 rtl:space-x-reverse hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Add Transaction</span>
+</button>
+<div class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-2">
+<img alt="User profile" class="w-10 h-10 rounded-full border border-slate-200 data-alt='User profile avatar placeholder'" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAS4k4Qwibn3wFY-VQoD4IQYBKBXyzl9LWkWxEAdeNV_SLoUyUDdIluF_BVHk7gGIa_0sUs_UUrm0CZiGMCOGByaKtSvkDSaHL2UAnFD-V8DPdtbDUUH-KuaQ20D-2AGsM028letXJ-I3pUsoQrn5hTcASxVTje6tKMdWWtdh5iUuciVYVYv5DvfVLt-EI63fawqpmbAJ4QXOU_U5-LAoGTuSsmU4xPAyUjBRJwHzYnftZGym61fZzG2-PnLvkk9cIANbhHV55K36kW"/>
+<div>
+<p class="font-caption-lg text-caption-lg text-slate-900 font-semibold">User Name</p>
+<p class="font-caption-sm text-caption-sm text-slate-500">user@fintrack.com</p>
+</div>
+</div>
+</div>
+</nav>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 border-b border-slate-200 dark:border-slate-800 rtl:right-auto rtl:left-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md flex items-center justify-between h-16 px-8 max-w-full">
+<!-- Search (Left) -->
+<div class="flex items-center flex-1">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg font-caption-lg text-caption-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" placeholder="Search reports..." type="text"/>
+</div>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center space-x-4 rtl:space-x-reverse">
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-full hover:bg-slate-50">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-full hover:bg-slate-50">
+<span class="material-symbols-outlined">translate</span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-full hover:bg-slate-50">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<div class="h-6 w-px bg-slate-200 mx-2"></div>
+<button class="bg-secondary text-on-secondary px-4 py-2 rounded-lg font-caption-lg text-caption-lg flex items-center space-x-2 rtl:space-x-reverse hover:bg-opacity-90 transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Add Transaction</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 rtl:ml-0 rtl:mr-64 min-h-screen">
+<div class="p-lg max-w-7xl mx-auto space-y-lg">
+<!-- Page Header & Global Controls -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h2 class="font-display-md text-display-md text-slate-900">Reports &amp; Analytics</h2>
+<p class="font-body-md text-body-md text-slate-500 mt-1">Comprehensive view of your financial performance.</p>
+</div>
+<div class="flex items-center space-x-3 rtl:space-x-reverse">
+<!-- Range Selector -->
+<div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+<button class="px-4 py-1.5 rounded-md font-caption-lg text-caption-lg text-slate-500 hover:text-slate-900 transition-colors">Monthly</button>
+<button class="px-4 py-1.5 rounded-md font-caption-lg text-caption-lg bg-white shadow-sm border border-slate-200 text-slate-900">Yearly</button>
+<button class="px-4 py-1.5 rounded-md font-caption-lg text-caption-lg text-slate-500 hover:text-slate-900 transition-colors">All-time</button>
+</div>
+<!-- Export Actions -->
+<div class="relative group">
+<button class="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-caption-lg text-caption-lg hover:bg-slate-50 transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+<span>Export</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-md">
+<!-- Left Sidebar Filters (3 Columns) -->
+<aside class="col-span-12 lg:col-span-3 bg-white border border-slate-200 rounded-xl p-md h-fit space-y-6">
+<div>
+<h3 class="font-header-sm text-header-sm text-slate-900 mb-4 flex items-center space-x-2 rtl:space-x-reverse">
+<span class="material-symbols-outlined">tune</span>
+<span>Filters</span>
+</h3>
+<div class="space-y-4">
+<!-- Filter Category -->
+<div>
+<label class="block font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider mb-2">Category</label>
+<div class="space-y-2">
+<label class="flex items-center space-x-2 rtl:space-x-reverse">
+<input checked="" class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+<span class="font-caption-lg text-caption-lg text-slate-700">Income</span>
+</label>
+<label class="flex items-center space-x-2 rtl:space-x-reverse">
+<input checked="" class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+<span class="font-caption-lg text-caption-lg text-slate-700">Expenses</span>
+</label>
+<label class="flex items-center space-x-2 rtl:space-x-reverse">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox"/>
+<span class="font-caption-lg text-caption-lg text-slate-700">Investments</span>
+</label>
+</div>
+</div>
+<!-- Filter Project -->
+<div class="pt-4 border-t border-slate-100">
+<label class="block font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider mb-2">Projects</label>
+<select class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 font-caption-lg text-caption-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+<option>All Projects</option>
+<option>Tech Startup</option>
+<option>Real Estate</option>
+</select>
+</div>
+<!-- Filter Source -->
+<div class="pt-4 border-t border-slate-100">
+<label class="block font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider mb-2">Income Source</label>
+<select class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 font-caption-lg text-caption-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+<option>All Sources</option>
+<option>Salary</option>
+<option>Dividends</option>
+</select>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Data Area (9 Columns) -->
+<div class="col-span-12 lg:col-span-9 space-y-md">
+<!-- Top Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Card 1 -->
+<div class="bg-white border border-slate-200 rounded-xl p-md relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl text-success">trending_up</span>
+</div>
+<p class="font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider mb-1">Total Earned</p>
+<h3 class="font-display-lg text-display-lg text-slate-900">$124,500.00</h3>
+<div class="mt-4 flex items-center space-x-2 rtl:space-x-reverse">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+<span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>
+                                    12.5%
+                                </span>
+<span class="font-caption-sm text-caption-sm text-slate-500">vs last year</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white border border-slate-200 rounded-xl p-md relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl text-accent-rose">trending_down</span>
+</div>
+<p class="font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider mb-1">Total Spent</p>
+<h3 class="font-display-lg text-display-lg text-slate-900">$42,300.00</h3>
+<div class="mt-4 flex items-center space-x-2 rtl:space-x-reverse">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-800">
+<span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>
+                                    4.2%
+                                </span>
+<span class="font-caption-sm text-caption-sm text-slate-500">vs last year</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white border border-slate-200 rounded-xl p-md relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl text-accent-amber">category</span>
+</div>
+<p class="font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider mb-1">Top Category</p>
+<h3 class="font-display-lg text-display-lg text-slate-900">Software</h3>
+<div class="mt-4 flex items-center space-x-2 rtl:space-x-reverse">
+<span class="font-caption-sm text-caption-sm text-slate-500">24% of total expenses</span>
+</div>
+</div>
+</div>
+<!-- Main Chart Area -->
+<div class="bg-white border border-slate-200 rounded-xl p-md h-[400px] flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-header-sm text-header-sm text-slate-900">Cash Flow Overview</h3>
+<button class="text-slate-500 hover:text-slate-900">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<!-- Placeholder for Line Chart Skeletons/Visuals -->
+<div class="flex-1 w-full bg-slate-50 rounded-lg border border-dashed border-slate-200 flex items-center justify-center relative overflow-hidden">
+<!-- Faux Grid Lines -->
+<div class="absolute inset-0 flex flex-col justify-between py-8 px-4 opacity-50">
+<div class="border-b border-slate-200 w-full h-0"></div>
+<div class="border-b border-slate-200 w-full h-0"></div>
+<div class="border-b border-slate-200 w-full h-0"></div>
+<div class="border-b border-slate-200 w-full h-0"></div>
+</div>
+<span class="font-caption-lg text-caption-lg text-slate-400 z-10 flex items-center flex-col">
+<span class="material-symbols-outlined text-4xl mb-2 opacity-50">show_chart</span>
+                                Interactive Line Chart Area
+                            </span>
+</div>
+</div>
+<!-- Bottom Row: Pie Chart & Data Table -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-md">
+<!-- Pie Chart Container -->
+<div class="bg-white border border-slate-200 rounded-xl p-md h-[350px] flex flex-col">
+<h3 class="font-header-sm text-header-sm text-slate-900 mb-4">Expense Distribution</h3>
+<div class="flex-1 flex items-center justify-center bg-slate-50 rounded-lg border border-dashed border-slate-200 relative">
+<!-- Abstract Pie representation -->
+<div class="w-48 h-48 rounded-full border-8 border-slate-200 relative overflow-hidden">
+<div class="absolute inset-0 border-t-8 border-r-8 border-secondary rounded-full transform rotate-45"></div>
+<div class="absolute inset-0 border-b-8 border-l-8 border-accent-rose rounded-full transform -rotate-45 opacity-80"></div>
+</div>
+<div class="absolute bottom-4 left-0 w-full flex justify-center space-x-4 rtl:space-x-reverse font-caption-sm text-caption-sm text-slate-500">
+<span class="flex items-center"><span class="w-3 h-3 rounded-full bg-secondary mr-2"></span>Software</span>
+<span class="flex items-center"><span class="w-3 h-3 rounded-full bg-accent-rose mr-2"></span>Marketing</span>
+</div>
+</div>
+</div>
+<!-- Data Table Container -->
+<div class="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col h-[350px]">
+<div class="p-md border-b border-slate-200 flex items-center justify-between bg-slate-50">
+<h3 class="font-header-sm text-header-sm text-slate-900">Recent Line Items</h3>
+<button class="text-secondary hover:text-primary font-caption-sm text-caption-sm transition-colors">View All</button>
+</div>
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-white border-b border-slate-200">
+<th class="py-3 px-4 font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider">Date</th>
+<th class="py-3 px-4 font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider">Description</th>
+<th class="py-3 px-4 font-caption-sm text-caption-sm text-slate-500 uppercase tracking-wider text-right">Amount</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-500">Oct 24</td>
+<td class="py-3 px-4 font-body-md text-body-md text-slate-900 font-medium">AWS Hosting</td>
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-900 text-right">-$450.00</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-500">Oct 22</td>
+<td class="py-3 px-4 font-body-md text-body-md text-slate-900 font-medium">Client Retainer</td>
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-success text-right">+$5,000.00</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-500">Oct 18</td>
+<td class="py-3 px-4 font-body-md text-body-md text-slate-900 font-medium">Office Supplies</td>
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-900 text-right">-$120.50</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-500">Oct 15</td>
+<td class="py-3 px-4 font-body-md text-body-md text-slate-900 font-medium">Adobe Creative Cloud</td>
+<td class="py-3 px-4 font-caption-lg text-caption-lg text-slate-900 text-right">-$82.99</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

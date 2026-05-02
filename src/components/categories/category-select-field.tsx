@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCategories, useCreateCategory, type CategoryType } from "@/hooks/use-categories";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 type Props = {
   type: CategoryType;
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function CategorySelectField({ type, value, onChange, label }: Props) {
+  const tC = useTranslations("common");
   const { data, isLoading } = useCategories(type);
   const add = useCreateCategory(type);
   const [open, setOpen] = useState(false);
@@ -30,11 +32,11 @@ export function CategorySelectField({ type, value, onChange, label }: Props) {
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <div className="flex gap-2">
         <Select value={value} onValueChange={(v) => v && onChange(v)}>
-          <SelectTrigger className="h-11">
-            <SelectValue placeholder={isLoading ? "Loading…" : label} />
+          <SelectTrigger className="h-11 rounded-xl border-border/80 bg-background shadow-sm">
+            <SelectValue placeholder={isLoading ? tC("loading") : label} />
           </SelectTrigger>
           <SelectContent>
             {names.map((n) => (
@@ -47,7 +49,7 @@ export function CategorySelectField({ type, value, onChange, label }: Props) {
         <Button
           type="button"
           variant="outline"
-          className="h-11 shrink-0"
+          className="h-11 shrink-0 rounded-xl border-border/80"
           onClick={() => setOpen(true)}
         >
           <Plus className="size-4" />
@@ -57,19 +59,21 @@ export function CategorySelectField({ type, value, onChange, label }: Props) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add category</DialogTitle>
+            <DialogTitle>
+              {tC("add")} {label}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{tC("title")}</Label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Investments"
+              placeholder={label}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {tC("cancel")}
             </Button>
             <Button
               onClick={() =>
@@ -78,14 +82,14 @@ export function CategorySelectField({ type, value, onChange, label }: Props) {
                     onChange(res.data.name);
                     setNewName("");
                     setOpen(false);
-                    toast.success("Category added");
+                    toast.success(tC("save"));
                   },
                   onError: (e: Error) => toast.error(e.message),
                 })
               }
               disabled={add.isPending || !newName.trim()}
             >
-              Save
+              {tC("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FinTrack - Gold Portfolio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e4e2e4",
+                        "on-surface": "#1b1b1d",
+                        "primary-container": "#131b2e",
+                        "on-primary-container": "#7c839b",
+                        "on-tertiary-fixed": "#271901",
+                        "surface-container": "#f0edef",
+                        "on-background": "#1b1b1d",
+                        "on-secondary-container": "#00714d",
+                        "surface-container-high": "#eae7e9",
+                        "secondary-container": "#6cf8bb",
+                        "surface-bright": "#fcf8fa",
+                        "on-secondary-fixed": "#002113",
+                        "primary": "#000000",
+                        "slate-500": "#64748B",
+                        "inverse-on-surface": "#f3f0f2",
+                        "on-primary-fixed": "#131b2e",
+                        "on-error-container": "#93000a",
+                        "slate-200": "#E2E8F0",
+                        "error": "#F43F5E",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f6f3f5",
+                        "surface-dim": "#dcd9db",
+                        "primary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#bec6e0",
+                        "secondary-fixed": "#6ffbbe",
+                        "secondary": "#006c49",
+                        "slate-50": "#F8FAFC",
+                        "success": "#10B981",
+                        "outline": "#76777d",
+                        "background": "#fcf8fa",
+                        "accent-rose": "#F43F5E",
+                        "on-secondary-fixed-variant": "#005236",
+                        "inverse-primary": "#bec6e0",
+                        "tertiary": "#000000",
+                        "slate-100": "#F1F5F9",
+                        "on-error": "#ffffff",
+                        "warning": "#F59E0B",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "outline-variant": "#c6c6cd",
+                        "on-tertiary-fixed-variant": "#574425",
+                        "surface": "#fcf8fa",
+                        "on-tertiary-container": "#98805d",
+                        "inverse-surface": "#303032",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "accent-amber": "#F59E0B",
+                        "on-surface-variant": "#45464d",
+                        "tertiary-fixed-dim": "#dec29a",
+                        "secondary-fixed-dim": "#4edea3",
+                        "slate-900": "#0F172A",
+                        "surface-variant": "#e4e2e4",
+                        "surface-tint": "#565e74",
+                        "tertiary-fixed": "#fcdeb5",
+                        "tertiary-container": "#271901",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "2xl": "48px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "caption-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "header-sm": ["Inter"],
+                        "caption-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "header-lg": ["Inter"],
+                        "display-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "caption-sm": ["12px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "header-sm": ["18px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "caption-lg": ["14px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "display-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "header-lg": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "display-md": ["24px", { "lineHeight": "1.2", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-body-md text-body-md antialiased min-h-screen">
+<!-- TopAppBar -->
+<nav class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 border-b border-slate-200 rtl:right-auto rtl:left-0 bg-white/80 backdrop-blur-md flat no-shadow flex items-center justify-between h-16 px-8 max-w-full">
+<div class="flex items-center space-x-4 rtl:space-x-reverse">
+<!-- Search bar location conceptualized on left -->
+</div>
+<div class="flex items-center space-x-6 rtl:space-x-reverse text-slate-900 font-['Inter'] text-sm">
+<div class="flex space-x-4 rtl:space-x-reverse">
+<button aria-label="notifications" class="text-slate-500 hover:text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all rounded-full p-1">
+<span aria-hidden="true" class="material-symbols-outlined">notifications</span>
+</button>
+<button aria-label="translate" class="text-slate-500 hover:text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all rounded-full p-1">
+<span aria-hidden="true" class="material-symbols-outlined">translate</span>
+</button>
+<button aria-label="account_circle" class="text-slate-500 hover:text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all rounded-full p-1">
+<span aria-hidden="true" class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+<button class="bg-primary text-on-primary font-caption-lg px-4 py-2 rounded-lg hover:bg-slate-800 focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm">
+                Add Transaction
+            </button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="h-screen w-64 border-r border-slate-200 fixed left-0 top-0 rtl:left-auto rtl:right-0 bg-white flat no shadows flex flex-col h-full p-4 space-y-2 z-50">
+<div class="px-4 py-6 mb-4">
+<h1 class="text-xl font-bold tracking-tight text-slate-900">FinTrack</h1>
+<p class="font-caption-sm text-slate-500">Wealth Management</p>
+</div>
+<nav class="flex-1 space-y-2 font-['Inter'] text-sm antialiased text-slate-900">
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors Active: scale-[0.98] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors Active: scale-[0.98] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span>Transactions</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg bg-slate-900 text-white font-semibold Active: scale-[0.98] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">savings</span>
+<span>Gold Portfolio</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors Active: scale-[0.98] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center space-x-3 rtl:space-x-reverse px-4 py-3 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors Active: scale-[0.98] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="p-4 mt-auto">
+<button class="w-full bg-slate-900 text-white font-caption-lg px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center space-x-2 rtl:space-x-reverse">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Add Transaction</span>
+</button>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 rtl:ml-0 rtl:mr-64 pt-16 min-h-screen p-lg lg:p-xl">
+<div class="max-w-7xl mx-auto space-y-lg">
+<!-- Page Header -->
+<header class="flex justify-between items-end pb-sm">
+<div>
+<h2 class="font-display-md text-display-md text-slate-900">Gold Portfolio</h2>
+<p class="font-body-md text-body-md text-slate-500 mt-1">Manage your physical holdings and track live market value.</p>
+</div>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-md lg:gap-lg">
+<!-- Portfolio Summary Widget (Spans 8 cols) -->
+<section class="col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-xl p-lg flex flex-col justify-between shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+<div class="flex justify-between items-start mb-lg">
+<div>
+<p class="font-caption-lg text-caption-lg text-slate-500 mb-xs">Total Portfolio Value</p>
+<h3 class="font-display-lg text-display-lg text-slate-900">$142,850.00</h3>
+<div class="flex items-center space-x-2 rtl:space-x-reverse mt-2">
+<span class="bg-success/10 text-success font-caption-sm text-caption-sm px-2 py-0.5 rounded-full flex items-center">
+<span class="material-symbols-outlined text-[14px] mr-1 rtl:mr-0 rtl:ml-1">trending_up</span> +2.4%
+                                </span>
+<span class="font-caption-sm text-caption-sm text-slate-500">Past 30 days</span>
+</div>
+</div>
+<div class="text-right rtl:text-left">
+<p class="font-caption-lg text-caption-lg text-slate-500 mb-xs">Total Weight</p>
+<h4 class="font-header-lg text-header-lg text-slate-900">2,150g</h4>
+</div>
+</div>
+<!-- Skeletons for Chart area -->
+<div class="h-48 w-full bg-slate-50 rounded-lg border border-slate-100 flex items-end justify-between px-4 pb-4 pt-8 relative overflow-hidden">
+<!-- Simulated chart lines -->
+<div class="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-emerald-50/50 to-transparent"></div>
+<svg class="w-full h-full absolute bottom-0 left-0" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M0,100 L0,70 Q20,80 40,50 T80,30 T100,10 L100,100 Z" fill="rgba(16, 185, 129, 0.05)"></path>
+<path d="M0,70 Q20,80 40,50 T80,30 T100,10" fill="none" stroke="#10B981" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+</svg>
+<!-- X-axis labels -->
+<span class="font-caption-sm text-caption-sm text-slate-400 z-10 relative">Jan</span>
+<span class="font-caption-sm text-caption-sm text-slate-400 z-10 relative">Feb</span>
+<span class="font-caption-sm text-caption-sm text-slate-400 z-10 relative">Mar</span>
+<span class="font-caption-sm text-caption-sm text-slate-400 z-10 relative">Apr</span>
+<span class="font-caption-sm text-caption-sm text-slate-400 z-10 relative">May</span>
+<span class="font-caption-sm text-caption-sm text-slate-400 z-10 relative">Jun</span>
+</div>
+</section>
+<!-- Price Management Widget (Spans 4 cols) -->
+<section class="col-span-12 lg:col-span-4 bg-white border border-slate-200 rounded-xl p-lg flex flex-col shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+<h3 class="font-header-sm text-header-sm text-slate-900 mb-md">Market Data</h3>
+<div class="flex-1 flex flex-col space-y-md">
+<!-- Live Price Status -->
+<div class="bg-slate-50 rounded-lg p-md border border-slate-100">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-caption-lg text-caption-lg text-slate-500">Spot Price (1g / 24K)</span>
+<div class="flex items-center space-x-1 rtl:space-x-reverse">
+<span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+<span class="font-caption-sm text-caption-sm text-success font-semibold">LIVE</span>
+</div>
+</div>
+<h4 class="font-display-md text-display-md text-slate-900">$66.44</h4>
+</div>
+<!-- Override Toggle -->
+<div class="flex items-center justify-between py-2 border-t border-slate-100">
+<div>
+<p class="font-caption-lg text-caption-lg text-slate-900 font-medium">Manual Override</p>
+<p class="font-caption-sm text-caption-sm text-slate-500">Fix price for calculations</p>
+</div>
+<button class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
+<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 rtl:-translate-x-1 shadow-sm"></span>
+</button>
+</div>
+<!-- Input (Disabled state shown) -->
+<div class="mt-auto relative">
+<label class="block font-caption-sm text-caption-sm text-slate-500 mb-1">Override Price / Gram (USD)</label>
+<div class="relative rounded-lg shadow-sm">
+<div class="pointer-events-none absolute inset-y-0 left-0 rtl:left-auto rtl:right-0 flex items-center pl-3 rtl:pl-0 rtl:pr-3">
+<span class="text-slate-400 font-body-md">$</span>
+</div>
+<input class="block w-full rounded-lg border-slate-200 pl-7 rtl:pl-3 rtl:pr-7 py-2 bg-slate-50 text-slate-500 font-body-md text-body-md focus:border-emerald-500 focus:ring-emerald-500 disabled:opacity-50 sm:text-sm" disabled="" placeholder="0.00" type="text"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Holdings List (Spans 12 cols) -->
+<section class="col-span-12 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+<div class="p-md border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+<h3 class="font-header-sm text-header-sm text-slate-900">Physical Holdings</h3>
+<button class="text-slate-500 hover:text-slate-900 focus:outline-none flex items-center space-x-1 rtl:space-x-reverse font-caption-sm text-caption-sm bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 transition-colors">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+<span>Filter</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left rtl:text-right border-collapse">
+<thead>
+<tr class="bg-white border-b border-slate-200 font-caption-lg text-caption-lg text-slate-500">
+<th class="py-3 px-md font-medium">Asset Name</th>
+<th class="py-3 px-md font-medium">Type</th>
+<th class="py-3 px-md font-medium">Purity (Karat)</th>
+<th class="py-3 px-md font-medium text-right rtl:text-left">Weight (g)</th>
+<th class="py-3 px-md font-medium text-right rtl:text-left">Est. Value</th>
+<th class="py-3 px-md font-medium w-10"></th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-slate-900 divide-y divide-slate-100">
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-md">
+<div class="flex items-center space-x-3 rtl:space-x-reverse">
+<div class="w-8 h-8 rounded bg-amber-100 text-accent-amber flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">widgets</span>
+</div>
+<span class="font-medium">PAMP Suisse Lady Fortuna</span>
+</div>
+</td>
+<td class="py-3 px-md text-slate-500">Bar</td>
+<td class="py-3 px-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                            24K
+                                        </span>
+</td>
+<td class="py-3 px-md text-right rtl:text-left font-medium">1,000</td>
+<td class="py-3 px-md text-right rtl:text-left">$66,440.00</td>
+<td class="py-3 px-md text-center">
+<button class="text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus:opacity-100 rounded p-1">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-md">
+<div class="flex items-center space-x-3 rtl:space-x-reverse">
+<div class="w-8 h-8 rounded bg-amber-50 text-accent-amber/80 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">monetization_on</span>
+</div>
+<span class="font-medium">South African Krugerrand</span>
+</div>
+</td>
+<td class="py-3 px-md text-slate-500">Coin</td>
+<td class="py-3 px-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                            22K
+                                        </span>
+</td>
+<td class="py-3 px-md text-right rtl:text-left font-medium">33.93</td>
+<td class="py-3 px-md text-right rtl:text-left">$2,065.15</td>
+<td class="py-3 px-md text-center">
+<button class="text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus:opacity-100 rounded p-1">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="py-3 px-md">
+<div class="flex items-center space-x-3 rtl:space-x-reverse">
+<div class="w-8 h-8 rounded bg-amber-100 text-accent-amber flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">widgets</span>
+</div>
+<span class="font-medium">Valcambi CombiBar</span>
+</div>
+</td>
+<td class="py-3 px-md text-slate-500">Bar</td>
+<td class="py-3 px-md">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                            24K
+                                        </span>
+</td>
+<td class="py-3 px-md text-right rtl:text-left font-medium">50</td>
+<td class="py-3 px-md text-right rtl:text-left">$3,322.00</td>
+<td class="py-3 px-md text-center">
+<button class="text-slate-400 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus:opacity-100 rounded p-1">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</div>
+</main>
+</body></html>

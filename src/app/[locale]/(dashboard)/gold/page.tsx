@@ -13,6 +13,7 @@ import { jsonFetch } from "@/lib/fetcher";
 import { formatMoney } from "@/lib/format";
 import { useGoldPrices } from "@/hooks/use-gold-prices";
 import { toast } from "sonner";
+import { TrendingUp, ShieldCheck, Scale } from "lucide-react";
 
 type GoldHoldingDto = {
   id: string;
@@ -57,7 +58,7 @@ export default function GoldPage() {
   const live24 = Number(manual24) > 0 ? Number(manual24) : prices?.karat24 ?? 0;
   const live21 = live24 * 0.875;
   const live18 = live24 * 0.75;
-  const priceByKarat = { 24: live24, 21: live21, 18: live18 } as const;
+  const priceByKarat = useMemo(() => ({ 24: live24, 21: live21, 18: live18 } as const), [live24, live21, live18]);
 
   const totals = useMemo(() => {
     const rows = holdingsQ.data?.data ?? [];
@@ -70,10 +71,43 @@ export default function GoldPage() {
   }, [holdingsQ.data?.data, priceByKarat]);
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="max-w-6xl space-y-5">
       <PageHeader title={t("title")} description={t("desc")} icon={<Gem className="size-5" />} />
 
-      <Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("totalGrams")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">{totals.grams.toFixed(2)}g</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Scale className="size-3.5" />
+            {t("portfolio")}
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("totalValue")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">{formatMoney(totals.value)}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <TrendingUp className="size-3.5" />
+            Live valuation
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm sm:col-span-2">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("prices")}</CardDescription>
+            <CardTitle className="text-base">24K: {formatMoney(live24)} · 21K: {formatMoney(live21)} · 18K: {formatMoney(live18)}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <ShieldCheck className="size-3.5" />
+            Source: live APIs with hourly cache and optional manual override
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("prices")}</CardTitle>
           <CardDescription>{t("pricesDesc")}</CardDescription>
@@ -98,7 +132,7 @@ export default function GoldPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("addHolding")}</CardTitle>
         </CardHeader>
@@ -142,7 +176,7 @@ export default function GoldPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("portfolio")}</CardTitle>
           <CardDescription>

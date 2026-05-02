@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - FinTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e4e2e4",
+                        "on-surface": "#1b1b1d",
+                        "primary-container": "#131b2e",
+                        "on-primary-container": "#7c839b",
+                        "on-tertiary-fixed": "#271901",
+                        "surface-container": "#f0edef",
+                        "on-background": "#1b1b1d",
+                        "on-secondary-container": "#00714d",
+                        "surface-container-high": "#eae7e9",
+                        "secondary-container": "#6cf8bb",
+                        "surface-bright": "#fcf8fa",
+                        "on-secondary-fixed": "#002113",
+                        "primary": "#000000",
+                        "slate-500": "#64748B",
+                        "inverse-on-surface": "#f3f0f2",
+                        "on-primary-fixed": "#131b2e",
+                        "on-error-container": "#93000a",
+                        "slate-200": "#E2E8F0",
+                        "error": "#F43F5E",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f6f3f5",
+                        "surface-dim": "#dcd9db",
+                        "primary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#bec6e0",
+                        "secondary-fixed": "#6ffbbe",
+                        "secondary": "#006c49",
+                        "slate-50": "#F8FAFC",
+                        "success": "#10B981",
+                        "outline": "#76777d",
+                        "background": "#fcf8fa",
+                        "accent-rose": "#F43F5E",
+                        "on-secondary-fixed-variant": "#005236",
+                        "inverse-primary": "#bec6e0",
+                        "tertiary": "#000000",
+                        "slate-100": "#F1F5F9",
+                        "on-error": "#ffffff",
+                        "warning": "#F59E0B",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "outline-variant": "#c6c6cd",
+                        "on-tertiary-fixed-variant": "#574425",
+                        "surface": "#fcf8fa",
+                        "on-tertiary-container": "#98805d",
+                        "inverse-surface": "#303032",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "accent-amber": "#F59E0B",
+                        "on-surface-variant": "#45464d",
+                        "tertiary-fixed-dim": "#dec29a",
+                        "secondary-fixed-dim": "#4edea3",
+                        "slate-900": "#0F172A",
+                        "surface-variant": "#e4e2e4",
+                        "surface-tint": "#565e74",
+                        "tertiary-fixed": "#fcdeb5",
+                        "tertiary-container": "#271901",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "2xl": "48px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "caption-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "header-sm": ["Inter"],
+                        "caption-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "header-lg": ["Inter"],
+                        "display-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "caption-sm": ["12px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "header-sm": ["18px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "caption-lg": ["14px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "display-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "header-lg": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "display-md": ["24px", { "lineHeight": "1.2", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+</head>
+<body class="bg-surface-container-low text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col items-center justify-center p-4 sm:p-8">
+<main class="w-full max-w-[440px] bg-surface-container-lowest border border-slate-200 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden flex flex-col">
+<div class="absolute top-0 left-0 w-full h-1 bg-primary-container"></div>
+<div class="p-8 sm:p-10 flex-grow flex flex-col justify-center">
+<div class="flex items-center justify-center mb-8 gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-white text-[22px]" style="font-variation-settings: 'FILL' 1;">account_balance</span>
+</div>
+<span class="font-display-md text-display-md text-slate-900 tracking-tight">FinTrack</span>
+</div>
+<div class="text-center mb-8 space-y-2">
+<h1 class="font-header-lg text-header-lg text-slate-900">Welcome Back</h1>
+<p class="font-caption-lg text-caption-lg text-slate-500">Securely manage your wealth portfolio.</p>
+</div>
+<form action="#" class="space-y-5" method="POST">
+<div class="space-y-2 text-left rtl:text-right">
+<label class="block font-caption-sm text-caption-sm text-slate-900" for="email">Email Address</label>
+<div class="relative">
+<span class="absolute left-3.5 rtl:left-auto rtl:right-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">mail</span>
+<input class="w-full pl-10 pr-4 rtl:pr-10 rtl:pl-4 py-3 bg-surface border border-slate-200 rounded-lg font-body-md text-body-md text-slate-900 focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary-container transition-all placeholder:text-slate-400" id="email" name="email" placeholder="name@company.com" required="" type="email"/>
+</div>
+</div>
+<div class="space-y-2 text-left rtl:text-right">
+<div class="flex justify-between items-center">
+<label class="block font-caption-sm text-caption-sm text-slate-900" for="password">Password</label>
+<a class="font-caption-sm text-caption-sm text-primary-container hover:text-secondary font-semibold transition-colors" href="#">Forgot Password?</a>
+</div>
+<div class="relative">
+<span class="absolute left-3.5 rtl:left-auto rtl:right-3.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">lock</span>
+<input class="w-full pl-10 pr-10 rtl:pr-10 rtl:pl-10 py-3 bg-surface border border-slate-200 rounded-lg font-body-md text-body-md text-slate-900 focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary-container transition-all placeholder:text-slate-400" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 focus:outline-none transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+</button>
+</div>
+</div>
+<div class="pt-2">
+<button class="w-full bg-primary-container text-white font-caption-lg text-caption-lg py-3 rounded-lg hover:bg-slate-900 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-container flex justify-center items-center gap-2 group" type="submit">
+                        Sign In
+                        <span class="material-symbols-outlined text-[18px] rtl:rotate-180 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</div>
+</form>
+<div class="mt-8 text-center border-t border-slate-100 pt-6">
+<p class="font-caption-lg text-caption-lg text-slate-500">
+                    Don't have an account? 
+                    <a class="text-primary-container font-semibold hover:text-secondary transition-colors ml-1 rtl:ml-0 rtl:mr-1" href="#">Create Account</a>
+</p>
+</div>
+</div>
+</main>
+<div class="mt-8 flex gap-4 text-slate-400 font-caption-sm text-caption-sm">
+<a class="hover:text-slate-900 transition-colors" href="#">Privacy Policy</a>
+<span>•</span>
+<a class="hover:text-slate-900 transition-colors" href="#">Terms of Service</a>
+</div>
+</body></html>

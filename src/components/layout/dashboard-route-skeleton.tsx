@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function DashboardRouteSkeleton() {
   return (
     <div
-      className="min-w-0 space-y-4 sm:space-y-6"
+      className="min-w-0 max-w-6xl space-y-4 sm:space-y-6"
       role="status"
       aria-label="Loading page"
     >

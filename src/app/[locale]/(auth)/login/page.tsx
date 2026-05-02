@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { toastNextAuthLoginFailure } from "@/lib/auth-failure-toast";
 import { safePathAfterAuth } from "@/lib/safe-callback-url";
+import { Wallet } from "lucide-react";
 
 function LoginForm() {
   const t = useTranslations("auth");
@@ -46,8 +47,11 @@ function LoginForm() {
   );
 
   return (
-    <Card className="w-full max-w-md border-border/80 shadow-lg">
+    <Card className="w-full max-w-md border-border/80 bg-card/95 shadow-xl backdrop-blur-sm">
       <CardHeader>
+        <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Wallet className="size-5" />
+        </div>
         <CardTitle className="text-xl">{t("signIn")}</CardTitle>
         <CardDescription>{t("signInDesc")}</CardDescription>
       </CardHeader>
@@ -136,7 +140,35 @@ export default function LoginPage() {
         <div className="h-32 w-full max-w-md animate-pulse rounded-2xl border border-border/60 bg-muted/30" />
       }
     >
-      <LoginForm />
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-5xl items-center justify-center px-4 py-10">
+        <div className="grid w-full items-center gap-6 lg:grid-cols-[1.2fr_1fr]">
+          <div className="hidden rounded-3xl border border-border/70 bg-gradient-to-br from-background via-muted/30 to-background p-8 lg:block">
+            <h2 className="text-3xl font-bold tracking-tight">Personal Finance</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Track income, expenses, projects, and gold portfolio from one place.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-border/70 bg-card p-3">
+                <p className="text-xs text-muted-foreground">Reports</p>
+                <p className="font-semibold">Monthly · Yearly · All-time</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card p-3">
+                <p className="text-xs text-muted-foreground">Alerts</p>
+                <p className="font-semibold">Smart monthly closing</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card p-3">
+                <p className="text-xs text-muted-foreground">Gold</p>
+                <p className="font-semibold">Live + manual override</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card p-3">
+                <p className="text-xs text-muted-foreground">Locale</p>
+                <p className="font-semibold">EN + AR / RTL</p>
+              </div>
+            </div>
+          </div>
+          <LoginForm />
+        </div>
+      </div>
     </Suspense>
   );
 }

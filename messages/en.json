@@ -107,6 +107,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "transactions": "Transactions",
     "income": "Income",
     "expenses": "Expenses",
     "projects": "Projects",
@@ -158,10 +159,58 @@
   },
   "navM": {
     "home": "Home",
+    "transactions": "Transactions",
+    "gold": "Gold",
+    "settings": "Settings",
     "income": "Income",
     "spend": "Spend",
     "work": "Work",
     "report": "Report"
+  },
+  "transactions": {
+    "title": "Transactions",
+    "desc": "Manage and categorize your income and expenses.",
+    "addIncome": "Add Income",
+    "addExpense": "Add Expense",
+    "addTransaction": "Add transaction",
+    "loadingMore": "Loading more…",
+    "footerMore": "{shown} shown · scroll for more",
+    "footerEnd": "{shown} shown · end of list",
+    "export": "Export",
+    "excelExport": "Excel",
+    "exportExcelLoading": "Preparing spreadsheet…",
+    "exportExcelDone": "Spreadsheet downloaded",
+    "exportExcelFail": "Could not export. Try again.",
+    "exportExcelEmpty": "Nothing to export for the current filters.",
+    "excelDirectionIncome": "Income",
+    "excelDirectionExpense": "Expense",
+    "filter": "Filter",
+    "searchPh": "Search by title or category",
+    "allCategories": "All categories",
+    "type": "Type",
+    "empty": "No transactions match these filters.",
+    "tabs": {
+      "all": "All",
+      "income": "Income",
+      "expense": "Expenses",
+      "recurring": "Recurring"
+    },
+    "periodAria": "Period filter",
+    "period": {
+      "month": "This month",
+      "lastMonth": "Last month",
+      "year": "This year",
+      "all": "All time"
+    },
+    "kinds": {
+      "variable": "Variable",
+      "fixed": "Fixed",
+      "recurring": "Recurring"
+    },
+    "table": {
+      "title": "History",
+      "desc": "{count} rows in current view"
+    }
   },
   "layout": {
     "appName": "Finance",
@@ -439,10 +488,15 @@
   },
   "report": {
     "title": "Monthly report",
+    "heroTitle": "Reports & Analytics",
+    "heroDesc": "Comprehensive view of your financial performance.",
     "subtitle": "{month} — filter, then download PDF or Excel (exports match the current view).",
+    "exportMenu": "Export",
     "filters": "Filters",
     "customView": "Custom view",
     "filterDesc": "Search across titles and text. Use the menus to narrow expenses by category, general income by source (salary, freelance, savings circle, etc.), and project payouts by one project or all.",
+    "filterDescShort": "Search and narrow by category, project, and income source.",
+    "yearLabel": "Year",
     "filterCatSub": "Every preset category plus any custom labels used this month.",
     "filterProjSub": "All payouts in the month, or one project by name.",
     "incSource": "Income source (general)",

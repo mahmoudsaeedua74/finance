@@ -3,27 +3,27 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
-  Banknote,
   FileBarChart2,
-  FolderKanban,
   LayoutGrid,
   Minus,
   Plus,
-  Receipt,
+  ReceiptText,
+  Gem,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const TABS: {
   href: string;
-  k: "home" | "income" | "spend" | "work" | "report";
+  k: "home" | "transactions" | "gold" | "report" | "settings";
   Icon: typeof LayoutGrid;
 }[] = [
   { href: "/", k: "home", Icon: LayoutGrid },
-  { href: "/income", k: "income", Icon: Banknote },
-  { href: "/expense", k: "spend", Icon: Receipt },
-  { href: "/projects", k: "work", Icon: FolderKanban },
+  { href: "/transactions", k: "transactions", Icon: ReceiptText },
+  { href: "/gold", k: "gold", Icon: Gem },
   { href: "/report", k: "report", Icon: FileBarChart2 },
+  { href: "/settings", k: "settings", Icon: Settings },
 ];
 
 const HIDE_ADD_ON = ["/income/new", "/expense/new"];

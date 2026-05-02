@@ -103,3 +103,32 @@ export function exportProjectListExcel(
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Projects");
   XLSX.writeFile(wb, filename);
 }
+
+export type TransactionExportRow = {
+  date: string;
+  title: string;
+  categoryLabel: string;
+  kindLabel: string;
+  directionLabel: string;
+  amount: number;
+};
+
+/**
+ * Single-sheet export of the current transactions view (filtered list).
+ */
+export function exportTransactionsExcel(rows: TransactionExportRow[], filename = "transactions.xlsx") {
+  const aoa = [
+    ["Date", "Title", "Category", "Type", "Direction", "Amount"],
+    ...rows.map((r) => [
+      new Date(r.date).toISOString().slice(0, 10),
+      r.title,
+      r.categoryLabel,
+      r.kindLabel,
+      r.directionLabel,
+      r.amount,
+    ]),
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Transactions");
+  XLSX.writeFile(wb, filename);
+}

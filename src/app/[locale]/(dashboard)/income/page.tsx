@@ -29,6 +29,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
 import { Loader2 } from "lucide-react";
+import { Wallet, TrendingUp, Scale, BanknoteArrowDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -251,7 +252,7 @@ export default function IncomeListPage() {
     v === "salary" || v === "freelance" || v === "gam3eya" || v === "other" ? t(`types.${v}`) : v;
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="max-w-6xl space-y-5">
       <PageHeader
         title={t("pageTitle")}
         description={t("pageDescAll")}
@@ -264,7 +265,59 @@ export default function IncomeListPage() {
 
       {error && <QueryErrorAlert error={error} />}
 
-      <Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("totalIncome")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">{formatMoney(S?.totalIncome ?? 0)}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Wallet className="size-3.5" />
+            All-time inflow
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("totalSalary")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums">{formatMoney(sat)}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <TrendingUp className="size-3.5" />
+            Salary only
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("totalExpenses")}</CardDescription>
+            <CardTitle className="font-mono text-2xl tabular-nums text-rose-600 dark:text-rose-400">
+              {formatMoney(S?.totalExpenses ?? 0)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <BanknoteArrowDown className="size-3.5" />
+            All-time spending
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">{t("netAll")}</CardDescription>
+            <CardTitle
+              className={cn(
+                "font-mono text-2xl tabular-nums",
+                (S?.netBalance ?? 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+              )}
+            >
+              {formatMoney(S?.netBalance ?? 0)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
+            <Scale className="size-3.5" />
+            Balance from start
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("lifetimeTitle")}</CardTitle>
           <CardDescription>{t("lifetimeDesc")}</CardDescription>
@@ -324,7 +377,7 @@ export default function IncomeListPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("lineTitle")}</CardTitle>
           <CardDescription>{t("lineDescAll")}</CardDescription>
@@ -405,7 +458,7 @@ export default function IncomeListPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
           <CardTitle>{t("recurringSectionTitle")}</CardTitle>
           <CardDescription>{t("recurringSectionDesc")}</CardDescription>

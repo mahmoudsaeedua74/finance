@@ -3,12 +3,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function AuthRouteSkeleton() {
   return (
     <div
-      className="w-full max-w-sm space-y-5"
+      className="w-full max-w-md space-y-5"
       role="status"
       aria-label="Loading page"
     >
       <span className="sr-only">Loading</span>
       <div className="space-y-2 text-center">
+        <Skeleton className="mx-auto h-10 w-10 rounded-xl" />
         <Skeleton className="mx-auto h-7 w-36 rounded-lg" />
         <Skeleton className="mx-auto h-4 w-52" />
       </div>

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { jsonFetch } from "@/lib/fetcher";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { Settings } from "lucide-react";
+import { Settings, Bell, Mail, Shield } from "lucide-react";
 
 type Pref = {
   /** @deprecated no UI — kept for API compatibility */
@@ -74,16 +74,19 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <PageHeader
         title={t("title")}
         description={t("description")}
         icon={<Settings className="size-5" />}
       />
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">{t("inAppSection")}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bell className="size-4 text-primary" />
+            {t("inAppSection")}
+          </CardTitle>
           <CardDescription>{t("inAppSectionDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -113,9 +116,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">{t("emailSection")}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Mail className="size-4 text-primary" />
+            {t("emailSection")}
+          </CardTitle>
           <CardDescription>{t("emailSectionDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -129,9 +135,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/70 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">{t("rulesSection")}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="size-4 text-primary" />
+            {t("rulesSection")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 sm:max-w-xs">
