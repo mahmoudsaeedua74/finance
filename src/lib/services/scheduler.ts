@@ -8,8 +8,8 @@ export function startSchedulers() {
   if (started || process.env.NODE_ENV === "test") return;
   started = true;
 
-  /** Hourly UTC 08–21 → aligns with Cairo +2 «10–23» login-reminder window (see LOGIN_REMINDER_* env). */
-  cron.schedule("5 8-21 * * *", async () => {
+  /** Once daily UTC ~09:05 (aligns with Cairo «10–23» reminder window). Vercel Hobby allows only daily crons; production uses vercel.json. */
+  cron.schedule("5 9 * * *", async () => {
     await connectDB();
     await runDailyJobs();
   });

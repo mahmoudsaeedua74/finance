@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/jobs/daily",
-      "schedule": "0 8-21 * * *"
+      "schedule": "5 9 * * *"
     },
     {
       "path": "/api/jobs/monthly",
