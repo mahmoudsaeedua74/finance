@@ -117,7 +117,6 @@ function IncomeFormBody({
   setAmount,
   date,
   setDate,
-  incomeType,
   setIncomeType,
   paymentMethod,
   setPaymentMethod,
@@ -130,7 +129,6 @@ function IncomeFormBody({
   setAmount: (v: string) => void;
   date: string;
   setDate: (v: string) => void;
-  incomeType: string;
   setIncomeType: (v: string) => void;
   paymentMethod: PaymentMethod;
   setPaymentMethod: (v: PaymentMethod) => void;
@@ -361,7 +359,6 @@ export function TransactionsEditDialogs({
                 setAmount={setA}
                 date={d}
                 setDate={setD}
-                incomeType={ty}
                 setIncomeType={setTy}
                 paymentMethod={paymentMethod}
                 setPaymentMethod={setPaymentMethod}
