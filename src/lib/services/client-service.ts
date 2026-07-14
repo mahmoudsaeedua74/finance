@@ -91,7 +91,12 @@ export async function listClientSummaries(userId: string): Promise<ClientSummary
     byClient.set(cn, row);
   }
 
-  const summaries = Array.from(byClient.values()).map(({ lastAt: _lastAt, ...rest }) => rest);
+  const values = Array.from(byClient.values());
+  const summaries = values.map((item) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { lastAt, ...rest } = item;
+    return rest;
+  });
   return mergeProfileOnlyClients(uid, summaries);
 }
 
