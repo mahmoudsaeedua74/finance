@@ -1,5 +1,6 @@
 import type mongoose from "mongoose";
 import { Expense, Income, Project } from "@/lib/models";
+import { projectCollectedFilter } from "@/lib/db-month-filters";
 import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
 import { sumRecurringThroughDate } from "@/lib/lifetime-ledger";
@@ -16,7 +17,7 @@ export async function buildLedgerReport(userId: ObjId) {
   const asOf = new Date();
   const [incomeRows, projectRows, expNon, templates] = await Promise.all([
     Income.find({ userId }).lean(),
-    Project.find({ userId }).lean(),
+    Project.find(projectCollectedFilter(String(userId))).lean(),
     Expense.find({ userId, isTemplate: false }).lean(),
     Expense.find({ userId, isTemplate: true, recurring: true }).lean(),
   ]);

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { ProjectSpendField } from "@/components/expense/project-spend-field";
+import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { Receipt, CalendarClock, Repeat } from "lucide-react";
 import { useNewExpenseForm } from "@/features/expenses/hooks/use-new-expense-form";
 
@@ -54,40 +55,24 @@ function FieldLabel({
   );
 }
 
-export function NewExpenseForm() {
+export function NewExpenseFormFields({
+  onCancel,
+  onSuccess,
+}: {
+  onCancel: () => void;
+  onSuccess?: () => void;
+}) {
   const t = useTranslations("expense");
   const tC = useTranslations("common");
-  const f = useNewExpenseForm();
+  const f = useNewExpenseForm({ onDone: onSuccess ?? onCancel });
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6">
-      <PageHeader title={t("newTitle")} description={t("newDesc")} />
-
-      <section
-        className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
-        aria-labelledby="expense-type-heading"
-      >
-        <div className="border-b border-border/60 bg-gradient-to-b from-muted/30 to-transparent px-4 py-4 sm:px-5">
-          <h2
-            id="expense-type-heading"
-            className="text-sm font-semibold sm:text-base"
-          >
-            {t("typeCardT")}
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-            {t("typeCardD")}
-          </p>
-          <p className="mt-2 border-t border-border/50 pt-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-            {t("categoryHint")}
-          </p>
-        </div>
-
-        <Tabs defaultValue="variable" className="w-full">
-          <div className="p-4 sm:p-5 sm:pt-4">
-            <TabsList
-              className="!h-auto !w-full min-w-0  flex flex-col gap-3 rounded-xl border border-border/50 bg-muted/50 p-1.5"
-              aria-label={t("typeCardT")}
-            >
+    <Tabs defaultValue="variable" className="w-full">
+      <div className="pb-3">
+        <TabsList
+          className="!h-auto !w-full min-w-0 flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/50 p-1.5 sm:flex-row"
+          aria-label={t("typeCardT")}
+        >
               <TabsTrigger
                 value="variable"
                 className="min-h-11 flex-1 flex-col gap-0.5 rounded-lg px-1.5 py-1.5 text-center text-[10px] font-medium leading-tight data-active:shadow sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs"
@@ -112,7 +97,7 @@ export function NewExpenseForm() {
             </TabsList>
           </div>
 
-          <div className="p-4 sm:p-5 sm:pt-4">
+          <div>
             <TabsContent value="variable" className="mt-0">
               <p className="mb-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                 {t("varDayIntro")}
@@ -167,12 +152,18 @@ export function NewExpenseForm() {
                   value={f.variable.projectName}
                   onChange={f.variable.setProjectName}
                 />
+                <FieldCol className="sm:col-span-2">
+                  <PaymentMethodField
+                    value={f.variable.paymentMethod}
+                    onChange={f.variable.setPaymentMethod}
+                  />
+                </FieldCol>
                 <div className={actionRowClass}>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-11 w-full touch-manipulation min-[420px]:w-auto"
-                    onClick={() => f.router.back()}
+                    onClick={onCancel}
                   >
                     {tC("cancel")}
                   </Button>
@@ -236,12 +227,18 @@ export function NewExpenseForm() {
                   value={f.fixed.projectName}
                   onChange={f.fixed.setProjectName}
                 />
+                <FieldCol className="sm:col-span-2">
+                  <PaymentMethodField
+                    value={f.fixed.paymentMethod}
+                    onChange={f.fixed.setPaymentMethod}
+                  />
+                </FieldCol>
                 <div className={actionRowClass}>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-11 w-full touch-manipulation min-[420px]:w-auto"
-                    onClick={() => f.router.back()}
+                    onClick={onCancel}
                   >
                     {tC("cancel")}
                   </Button>
@@ -334,12 +331,18 @@ export function NewExpenseForm() {
                   value={f.recurring.projectName}
                   onChange={f.recurring.setProjectName}
                 />
+                <FieldCol className="sm:col-span-2">
+                  <PaymentMethodField
+                    value={f.recurring.paymentMethod}
+                    onChange={f.recurring.setPaymentMethod}
+                  />
+                </FieldCol>
                 <div className={actionRowClass}>
                   <Button
                     type="button"
                     variant="outline"
                     className="h-11 w-full touch-manipulation min-[420px]:w-auto"
-                    onClick={() => f.router.back()}
+                    onClick={onCancel}
                   >
                     {tC("cancel")}
                   </Button>
@@ -356,6 +359,36 @@ export function NewExpenseForm() {
             </TabsContent>
           </div>
         </Tabs>
+  );
+}
+
+export function NewExpenseForm() {
+  const t = useTranslations("expense");
+  const f = useNewExpenseForm();
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <PageHeader title={t("newTitle")} description={t("newDesc")} />
+
+      <section
+        className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
+        aria-labelledby="expense-type-heading"
+      >
+        <div className="border-b border-border/60 bg-gradient-to-b from-muted/30 to-transparent px-4 py-4 sm:px-5">
+          <h2 id="expense-type-heading" className="text-sm font-semibold sm:text-base">
+            {t("typeCardT")}
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            {t("typeCardD")}
+          </p>
+          <p className="mt-2 border-t border-border/50 pt-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            {t("categoryHint")}
+          </p>
+        </div>
+
+        <div className="p-4 sm:p-5">
+          <NewExpenseFormFields onCancel={() => f.router.back()} />
+        </div>
       </section>
     </div>
   );

@@ -8,6 +8,13 @@
   .text-balance {
     text-wrap: balance;
   }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .text-gradient-brand {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(
@@ -124,5 +131,59 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Stepped max-width shell — 1450px on large screens */
+  .store-shell {
+    --store-gutter: 15px;
+    width: 100%;
+    padding-right: var(--store-gutter);
+    padding-left: var(--store-gutter);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  @media (min-width: 576px) {
+    .store-shell {
+      max-width: 540px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .store-shell {
+      max-width: 720px;
+    }
+  }
+
+  @media (min-width: 992px) {
+    .store-shell {
+      max-width: 960px;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .store-shell {
+      max-width: 1140px;
+    }
+  }
+
+  @media (min-width: 1520px) {
+    .store-shell {
+      width: 1450px;
+      max-width: 1450px;
+    }
+  }
+
+  .store-section {
+    padding-top: 0.5rem;
+    padding-bottom: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .store-section {
+      padding-bottom: 3rem;
+    }
   }
 }

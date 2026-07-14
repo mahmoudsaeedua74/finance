@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
+import type { PaymentMethod } from "@/lib/payment-method";
 
 /** variable = daily/one-off; fixed = rent, salaries, etc. */
 export type ExpenseKind = "variable" | "fixed";
@@ -8,6 +9,7 @@ export interface IExpense {
   userId: mongoose.Types.ObjectId;
   title: string;
   amount: number;
+  paymentMethod: PaymentMethod;
   /** For non-templates: the date of the expense. For templates, set to validFrom. */
   date: Date;
   category: string;
@@ -28,6 +30,7 @@ export interface IExpense {
   dueDayOfMonth: number;
   /** Spend attributed to a project (same text as `Project.name` for P&L). */
   projectName?: string;
+  freelanceProjectId?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +49,17 @@ const ExpenseSchema = new Schema<IExpense>(
     validTo: { type: Date, default: null },
     dueDayOfMonth: { type: Number, min: 1, max: 30, default: 1 },
     projectName: { type: String, trim: true, default: "" },
+    freelanceProjectId: {
+      type: Schema.Types.ObjectId,
+      ref: "FreelanceProject",
+      default: null,
+      index: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "card", "unspecified"],
+      default: "unspecified",
+    },
   },
   { timestamps: true }
 );

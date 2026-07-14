@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
+import { FreelanceKpiStrip } from "@/components/dashboard/freelance-kpi-strip";
 import { ReportChartsLazy } from "@/components/dashboard/report-charts-lazy";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { AlertsWidget } from "@/components/dashboard/alerts-widget";
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { BarChart3 } from "lucide-react";
 import { MonthCompareSection } from "@/components/dashboard/month-compare-section";
+import { WalletAccountPanel } from "@/components/wallet/wallet-account-panel";
 
 export default function DashboardPage() {
   const t = useTranslations("home");
@@ -67,6 +69,8 @@ export default function DashboardPage() {
       )}
 
       <SummaryCards report={!isLoading ? report : undefined} allTime />
+      <FreelanceKpiStrip />
+      <WalletAccountPanel variant="strip" />
       <MonthCompareSection />
       <AlertsWidget />
       <SmartInsightsWidget report={!isLoading ? report : undefined} />

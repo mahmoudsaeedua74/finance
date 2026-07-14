@@ -3,12 +3,19 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { Gem, Loader2 } from "lucide-react";
+import { Gem, Loader2, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatMoney } from "@/lib/format";
 import { useGoldPrices } from "@/hooks/use-gold-prices";
@@ -23,6 +30,29 @@ type GoldHoldingDto = {
   createdAt: string;
 };
 
+function KaratSelect({
+  value,
+  onChange,
+  id,
+}: {
+  value: 18 | 21 | 24;
+  onChange: (v: 18 | 21 | 24) => void;
+  id?: string;
+}) {
+  return (
+    <select
+      id={id}
+      className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+      value={String(value)}
+      onChange={(e) => onChange(Number(e.target.value) as 18 | 21 | 24)}
+    >
+      <option value="24">24K</option>
+      <option value="21">21K</option>
+      <option value="18">18K</option>
+    </select>
+  );
+}
+
 export default function GoldPage() {
   const t = useTranslations("gold");
   const tC = useTranslations("common");
@@ -31,6 +61,10 @@ export default function GoldPage() {
   const [numberOfBars, setNumberOfBars] = useState("1");
   const [karat, setKarat] = useState<18 | 21 | 24>(24);
   const [manual24, setManual24] = useState("");
+  const [edit, setEdit] = useState<GoldHoldingDto | null>(null);
+  const [editWeight, setEditWeight] = useState("");
+  const [editBars, setEditBars] = useState("");
+  const [editKarat, setEditKarat] = useState<18 | 21 | 24>(24);
   const pricesQ = useGoldPrices();
   const holdingsQ = useQuery({
     queryKey: ["gold-holdings"],
@@ -53,6 +87,43 @@ export default function GoldPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const updateHolding = useMutation({
+    mutationFn: (payload: { id: string; weightPerBar: number; numberOfBars: number; karat: 18 | 21 | 24 }) =>
+      jsonFetch(`/api/gold/${payload.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          weightPerBar: payload.weightPerBar,
+          numberOfBars: payload.numberOfBars,
+          karat: payload.karat,
+        }),
+      }),
+    onSuccess: () => {
+      toast.success(tC("updated"));
+      setEdit(null);
+      void qc.invalidateQueries({ queryKey: ["gold-holdings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteHolding = useMutation({
+    mutationFn: (id: string) =>
+      jsonFetch(`/api/gold/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      toast.success(tC("deleted"));
+      void qc.invalidateQueries({ queryKey: ["gold-holdings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openEdit = (row: GoldHoldingDto) => {
+    setEdit(row);
+    setEditWeight(String(row.weightPerBar));
+    setEditBars(String(row.numberOfBars));
+    setEditKarat(row.karat);
+  };
 
   const prices = pricesQ.data?.data;
   const live24 = Number(manual24) > 0 ? Number(manual24) : prices?.karat24 ?? 0;
@@ -146,16 +217,8 @@ export default function GoldPage() {
             <Input type="number" value={numberOfBars} onChange={(e) => setNumberOfBars(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>{t("karat")}</Label>
-            <select
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={String(karat)}
-              onChange={(e) => setKarat(Number(e.target.value) as 18 | 21 | 24)}
-            >
-              <option value="24">24K</option>
-              <option value="21">21K</option>
-              <option value="18">18K</option>
-            </select>
+            <Label htmlFor="gold-karat">{t("karat")}</Label>
+            <KaratSelect id="gold-karat" value={karat} onChange={setKarat} />
           </div>
           <div className="flex items-end">
             <Button
@@ -196,14 +259,39 @@ export default function GoldPage() {
                 const grams = r.weightPerBar * r.numberOfBars;
                 const value = grams * priceByKarat[r.karat];
                 return (
-                  <div key={r.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-                    <div>
+                  <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium">
                         {r.numberOfBars} × {r.weightPerBar}g · {r.karat}K
                       </p>
                       <p className="text-muted-foreground">{grams.toFixed(2)}g</p>
                     </div>
-                    <p className="font-semibold tabular-nums">{formatMoney(value)}</p>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <p className="me-1 font-semibold tabular-nums">{formatMoney(value)}</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-9 shrink-0"
+                        aria-label={tC("edit")}
+                        onClick={() => openEdit(r)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-9 shrink-0 text-destructive hover:text-destructive"
+                        aria-label={tC("delete")}
+                        disabled={deleteHolding.isPending}
+                        onClick={() => {
+                          if (confirm(t("deleteHoldingQ"))) deleteHolding.mutate(r.id);
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -211,6 +299,65 @@ export default function GoldPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!edit} onOpenChange={(open) => !open && setEdit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("editHolding")}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-gold-weight">{t("weightPerBar")}</Label>
+              <Input
+                id="edit-gold-weight"
+                type="number"
+                value={editWeight}
+                onChange={(e) => setEditWeight(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-gold-bars">{t("bars")}</Label>
+              <Input
+                id="edit-gold-bars"
+                type="number"
+                value={editBars}
+                onChange={(e) => setEditBars(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="edit-gold-karat">{t("karat")}</Label>
+              <KaratSelect id="edit-gold-karat" value={editKarat} onChange={setEditKarat} />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setEdit(null)}>
+              {tC("cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={updateHolding.isPending || !edit}
+              onClick={() => {
+                if (!edit) return;
+                updateHolding.mutate({
+                  id: edit.id,
+                  weightPerBar: Number(editWeight),
+                  numberOfBars: Number(editBars),
+                  karat: editKarat,
+                });
+              }}
+            >
+              {updateHolding.isPending ? (
+                <>
+                  <Loader2 className="me-2 size-4 animate-spin" />
+                  {tC("saving")}
+                </>
+              ) : (
+                tC("save")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

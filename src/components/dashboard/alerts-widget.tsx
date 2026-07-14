@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { queryKeys } from "@/features/_lib/query-keys";
+import { Link } from "@/i18n/navigation";
+import { Settings2 } from "lucide-react";
 import { type NotifRow, notificationRowClassName } from "@/lib/notification-ui-styles";
 
 export function AlertsWidget() {
@@ -32,8 +34,15 @@ export function AlertsWidget() {
   const rows = notifRows;
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <CardTitle className="text-base">{t("alertsTitle")}</CardTitle>
+        <Link
+          href="/settings"
+          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <Settings2 className="size-3.5" />
+          {t("alertsSettings")}
+        </Link>
       </CardHeader>
       <CardContent className="space-y-2">
         {rows.length === 0 ? (

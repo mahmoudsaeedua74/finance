@@ -1,16 +1,18 @@
 export function renderDigestEmail(input: {
   appName?: string;
+  cadence?: "daily" | "weekly";
   totalSpent: number;
   remainingBalance: number;
   warnings: string[];
   insights: string[];
 }) {
   const appName = input.appName || "Personal Finance";
+  const cadenceLabel = input.cadence === "daily" ? "Daily digest" : "Weekly digest";
   const warningHtml = input.warnings.map((w) => `<li>${w}</li>`).join("");
   const insightHtml = input.insights.map((i) => `<li>${i}</li>`).join("");
   const html = `
     <div style="font-family: Arial, sans-serif; line-height:1.5">
-      <h2>${appName} - Weekly digest</h2>
+      <h2>${appName} - ${cadenceLabel}</h2>
       <p>Total spent: ${input.totalSpent.toFixed(2)}</p>
       <p>Remaining balance: ${input.remainingBalance.toFixed(2)}</p>
       <h3>Warnings</h3>

@@ -1,3 +1,5 @@
+import type { PaymentMethod } from "@/lib/payment-method";
+
 export type ExpenseRow = {
   _id: string;
   title: string;
@@ -23,6 +25,7 @@ export type CreateVariableExpenseInput = {
   category: string;
   date: string;
   projectName?: string;
+  paymentMethod?: PaymentMethod;
 };
 
 export type CreateRecurringTemplateInput = {
@@ -36,6 +39,7 @@ export type CreateRecurringTemplateInput = {
   /** 1–30; omit to derive from `validFrom` on the server. */
   dueDayOfMonth?: number;
   projectName?: string;
+  paymentMethod?: PaymentMethod;
 };
 
 export type UpdateExpenseInput =

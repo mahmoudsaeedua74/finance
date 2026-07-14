@@ -14,6 +14,7 @@ import {
   Bell,
   Gem,
   ReceiptText,
+  Users,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -37,11 +38,13 @@ import { LogOut } from "lucide-react";
 import { NotificationInboxPanel, NotificationBellButton } from "@/components/notifications/notification-inbox-panel";
 import { NotificationAudioWatcher } from "@/components/notifications/notification-audio-watcher";
 import { useNotificationSummary } from "@/hooks/use-notification-summary";
+import { WalletAccountPanel } from "@/components/wallet/wallet-account-panel";
 
 const sideLinks = [
   { href: "/", k: "dashboard" as const, Icon: LayoutGrid },
   { href: "/transactions", k: "transactions" as const, Icon: ReceiptText },
   { href: "/projects", k: "projects" as const, Icon: FolderKanban },
+  { href: "/clients", k: "clients" as const, Icon: Users },
   { href: "/gold", k: "gold" as const, Icon: Gem },
   { href: "/report", k: "report" as const, Icon: FileBarChart2 },
   { href: "/settings", k: "settings" as const, Icon: Settings },
@@ -127,6 +130,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mainBottomPad = shortBottomChrome
     ? "max-md:pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))]"
     : "max-md:pb-[calc(10.5rem+env(safe-area-inset-bottom,0px))]";
+  const isWideShell =
+    pathname === "/projects" || pathname.startsWith("/projects/");
 
   return (
     <div
@@ -178,6 +183,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LanguageSwitcher className="w-full justify-center" />
           </div>
           <NavList className="px-0.5" />
+          <div className="px-0.5">
+            <WalletAccountPanel variant="compact" />
+          </div>
           <div className="space-y-2 border-t border-border/50 pt-3">
             <p className="px-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
               {tLayout("notif.inbox")}
@@ -335,7 +343,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             mainBottomPad,
           )}
         >
-          <div className="mx-auto w-full min-w-0 max-w-7xl">
+          <div
+            className={cn(
+              "mx-auto w-full min-w-0",
+              isWideShell ? "store-shell !px-0" : "max-w-7xl"
+            )}
+          >
             <DesktopMonthBar />
             <motion.div
               className="min-w-0"

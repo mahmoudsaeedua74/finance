@@ -15,7 +15,7 @@ export async function GET() {
       data: {
         nearBudgetThresholdPct: 80,
         inactivityDays: 5,
-        digestCadence: "weekly" as const,
+        digestCadence: "daily" as const,
         criticalEmailEnabled: true,
         digestEmailEnabled: true,
         mirrorInAppToEmail: true,
@@ -24,6 +24,7 @@ export async function GET() {
         inactivityNudgeEmail: true,
         activityNotificationsEnabled: true,
         recurringDueRemindersEnabled: true,
+        projectPaymentRemindersEnabled: true,
         lowBalanceThreshold: null,
       },
     });
@@ -41,6 +42,7 @@ export async function GET() {
       inactivityNudgeEmail: p.inactivityNudgeEmail,
       activityNotificationsEnabled: p.activityNotificationsEnabled !== false,
       recurringDueRemindersEnabled: p.recurringDueRemindersEnabled !== false,
+      projectPaymentRemindersEnabled: p.projectPaymentRemindersEnabled !== false,
       lowBalanceThreshold:
         p.lowBalanceThreshold != null && p.lowBalanceThreshold > 0
           ? p.lowBalanceThreshold
@@ -61,6 +63,7 @@ type Body = {
   inactivityNudgeEmail?: boolean;
   activityNotificationsEnabled?: boolean;
   recurringDueRemindersEnabled?: boolean;
+  projectPaymentRemindersEnabled?: boolean;
   lowBalanceThreshold?: number | null;
 };
 
@@ -90,6 +93,7 @@ export async function PUT(req: Request) {
     "inactivityNudgeEmail",
     "activityNotificationsEnabled",
     "recurringDueRemindersEnabled",
+    "projectPaymentRemindersEnabled",
   ] as const) {
     if (typeof body[k] === "boolean") update[k] = body[k];
   }

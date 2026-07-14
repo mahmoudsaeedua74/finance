@@ -112,6 +112,7 @@ export async function POST(req: Request) {
         validTo: p.validTo,
         dueDayOfMonth: due,
         projectName: p.projectName,
+        paymentMethod: p.paymentMethod,
       });
       const uid = String(user.id);
       queueAfterExpense(uid, "created", { title: p.title, amount: p.amount });
@@ -133,6 +134,7 @@ export async function POST(req: Request) {
       validFrom: p.date,
       validTo: null,
       projectName: p.projectName,
+      paymentMethod: p.paymentMethod,
     });
     const uid = String(user.id);
     queueAfterExpense(uid, "created", { title: p.title, amount: p.amount });

@@ -52,5 +52,14 @@ export function projectPayoutInMonth(userId: string, mStart: Date, mEnd: Date) {
   return {
     userId,
     date: { $gte: mStart, $lte: mEnd },
+    $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+  };
+}
+
+/** All collected payouts (any month) for ledger / wallet. */
+export function projectCollectedFilter(userId: string) {
+  return {
+    userId,
+    $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
   };
 }

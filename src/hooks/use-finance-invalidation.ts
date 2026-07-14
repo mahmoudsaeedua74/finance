@@ -27,6 +27,7 @@ export function useFinanceInvalidation() {
         void qc.invalidateQueries({ queryKey: ["report"] });
         void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
+        void qc.invalidateQueries({ queryKey: ["wallet"] });
       },
       /**
        * @param options.includeAllList — also refresh template-only list keys.
@@ -39,12 +40,17 @@ export function useFinanceInvalidation() {
         void qc.invalidateQueries({ queryKey: ["report"] });
         void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
+        void qc.invalidateQueries({ queryKey: ["wallet"] });
       },
       invalidateProjects: () => {
         void qc.invalidateQueries({ queryKey: ["projects"] });
+        void qc.invalidateQueries({ queryKey: ["project-jobs"] });
+        void qc.invalidateQueries({ queryKey: ["project-attention"] });
+        void qc.invalidateQueries({ queryKey: ["normal-projects-summary"] });
         void qc.invalidateQueries({ queryKey: queryKeys.ledgerReport() });
         void qc.invalidateQueries({ queryKey: ["report"] });
         void qc.invalidateQueries({ queryKey: queryKeys.notifications.root() });
+        void qc.invalidateQueries({ queryKey: ["wallet"] });
       },
     }),
     [qc]

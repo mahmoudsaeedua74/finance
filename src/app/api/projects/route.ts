@@ -5,6 +5,7 @@ import { Project } from "@/lib/models";
 import { monthDateBoundsUTC, projectPayoutInMonth } from "@/lib/db-month-filters";
 import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 import { queueAfterProject } from "@/lib/services/activity-notifications";
+import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,13 @@ export async function GET(req: Request) {
       .lean();
     const list = raw.map((d) => ({
       _id: String(d._id),
+      freelanceProjectId: d.freelanceProjectId ? String(d.freelanceProjectId) : null,
       name: d.name,
       amount: d.amount,
       date: d.date,
+      isCollected: d.isCollected !== false,
+      collectedAt: d.collectedAt ?? null,
+      paymentMethod: d.paymentMethod ?? "unspecified",
       note: d.note?.trim() || "",
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
@@ -74,13 +79,14 @@ export async function POST(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
-    const { name, amount, date, note } = body;
+    const { name, amount, date, note, isCollected, paymentMethod, freelanceProjectId } = body;
     if (!name || amount == null || !date) {
       return NextResponse.json(
         { error: "name, amount, and date are required" },
         { status: 400 }
       );
     }
+    const collected = isCollected !== false;
     await connectDB();
     const doc = await Project.create({
       userId: user.id,
@@ -88,6 +94,15 @@ export async function POST(req: Request) {
       amount: Number(amount),
       date: new Date(date),
       note: typeof note === "string" ? note.trim().slice(0, 500) : "",
+      isCollected: collected,
+      collectedAt: collected ? new Date(date) : null,
+      paymentMethod:
+        typeof paymentMethod === "string" && (paymentMethod === "cash" || paymentMethod === "card")
+          ? paymentMethod
+          : "unspecified",
+      ...(freelanceProjectId && mongoose.isValidObjectId(freelanceProjectId)
+        ? { freelanceProjectId }
+        : {}),
     });
     const uid = String(user.id);
     queueAfterProject(uid, "created", {

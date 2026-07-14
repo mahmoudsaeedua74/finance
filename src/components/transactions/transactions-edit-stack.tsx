@@ -5,11 +5,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { jsonFetch } from "@/lib/fetcher";
-import { toLocalYmd } from "@/lib/ymd";
+import { toLocalYmd, defaultFormDateYmd } from "@/lib/ymd";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -24,8 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ExpenseEditForm } from "@/components/expense/expense-edit-form";
+import { CategorySelectField } from "@/components/categories/category-select-field";
+import { PaymentMethodField } from "@/components/forms/payment-method-field";
+import {
+  TransactionExpenseCreateForm,
+  TransactionIncomeCreateForm,
+} from "@/components/transactions/transaction-create-form";
 import type { ExpenseRow } from "@/features/expenses/types";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
+import { normalizeIncomeType } from "@/lib/income-types";
+import type { PaymentMethod } from "@/lib/payment-method";
 import { Loader2 } from "lucide-react";
 
 export type RecIncomeFull = {
@@ -40,9 +49,11 @@ export type RecIncomeFull = {
 };
 
 export type TxEditOpen =
-  | { kind: "income"; mongoId: string }
-  | { kind: "expense"; mongoId: string }
-  | { kind: "recIncome"; raw: RecIncomeFull }
+  | { kind: "income"; mode: "create" }
+  | { kind: "income"; mode?: "edit"; mongoId: string }
+  | { kind: "expense"; mode: "create" }
+  | { kind: "expense"; mode?: "edit"; mongoId: string }
+  | { kind: "recIncome"; mode?: "edit"; raw: RecIncomeFull }
   | null;
 
 function expenseDocToExpenseRow(d: {
@@ -62,13 +73,8 @@ function expenseDocToExpenseRow(d: {
   const isTemplate = Boolean(d.isTemplate);
   const recurring = Boolean(d.recurring);
   const rowKind: ExpenseRow["rowKind"] =
-    isTemplate && recurring
-      ? "recurring"
-      : d.kind === "fixed"
-        ? "fixed_once"
-        : "variable";
-  const dateIso =
-    typeof d.date === "string" ? d.date : new Date(d.date).toISOString();
+    isTemplate && recurring ? "recurring" : d.kind === "fixed" ? "fixed_once" : "variable";
+  const dateIso = typeof d.date === "string" ? d.date : new Date(d.date).toISOString();
   return {
     _id: String(d._id),
     title: d.title,
@@ -104,6 +110,86 @@ type IncomeDoc = {
   incomeType: string;
 };
 
+function IncomeFormBody({
+  title,
+  setTitle,
+  amount,
+  setAmount,
+  date,
+  setDate,
+  incomeType,
+  setIncomeType,
+  paymentMethod,
+  setPaymentMethod,
+  incomeCategory,
+  setIncomeCategory,
+}: {
+  title: string;
+  setTitle: (v: string) => void;
+  amount: string;
+  setAmount: (v: string) => void;
+  date: string;
+  setDate: (v: string) => void;
+  incomeType: string;
+  setIncomeType: (v: string) => void;
+  paymentMethod: PaymentMethod;
+  setPaymentMethod: (v: PaymentMethod) => void;
+  incomeCategory: string;
+  setIncomeCategory: (v: string) => void;
+}) {
+  const tInc = useTranslations("income");
+  const tC = useTranslations("common");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="txn-income-title">{tC("title")}</Label>
+        <Input
+          id="txn-income-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={tInc("phTitle")}
+          className="h-11 rounded-xl"
+        />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="txn-income-amount">{tC("amount")}</Label>
+          <Input
+            id="txn-income-amount"
+            type="number"
+            step="0.01"
+            min="0"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="h-11 rounded-xl font-mono tabular-nums"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="txn-income-date">{tC("date")}</Label>
+          <Input
+            id="txn-income-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-11 rounded-xl"
+          />
+        </div>
+      </div>
+      <CategorySelectField
+        type="income"
+        value={incomeCategory}
+        onChange={(v) => {
+          setIncomeCategory(v);
+          setIncomeType(normalizeIncomeType(v));
+        }}
+        label={tC("category")}
+      />
+      <PaymentMethodField value={paymentMethod} onChange={setPaymentMethod} size="compact" />
+    </div>
+  );
+}
+
 export function TransactionsEditDialogs({
   edit,
   onClose,
@@ -113,41 +199,79 @@ export function TransactionsEditDialogs({
 }) {
   const tInc = useTranslations("income");
   const tExp = useTranslations("expense");
+  const tTx = useTranslations("transactions");
   const tC = useTranslations("common");
-  const { invalidateIncomes } = useFinanceInvalidation();
+  const { invalidateIncomes, invalidateExpenses } = useFinanceInvalidation();
 
-  const incomeId = edit?.kind === "income" ? edit.mongoId : null;
+  const isIncomeCreate = edit?.kind === "income" && edit.mode === "create";
+  const isIncomeEdit = edit?.kind === "income" && edit.mode !== "create";
+  const incomeId = isIncomeEdit ? edit.mongoId : null;
+
+  const isExpenseCreate = edit?.kind === "expense" && edit.mode === "create";
+  const isExpenseEdit = edit?.kind === "expense" && edit.mode !== "create";
+  const expenseId = isExpenseEdit ? edit.mongoId : null;
+
   const incomeQ = useQuery({
     queryKey: ["txn-edit-income", incomeId],
     queryFn: () => jsonFetch<{ data: IncomeDoc }>(`/api/incomes/${incomeId}`),
     enabled: !!incomeId,
   });
 
-  const expenseId = edit?.kind === "expense" ? edit.mongoId : null;
   const expenseQ = useQuery({
     queryKey: ["txn-edit-expense", expenseId],
     queryFn: async () => {
-      const res = await jsonFetch<{
-        data: Parameters<typeof expenseDocToExpenseRow>[0];
-      }>(`/api/expenses/${expenseId}`);
+      const res = await jsonFetch<{ data: Parameters<typeof expenseDocToExpenseRow>[0] }>(
+        `/api/expenses/${expenseId}`
+      );
       return expenseDocToExpenseRow(res.data);
     },
     enabled: !!expenseId,
   });
-  console.log("expenseQ", expenseQ.data);
+
   const [tx, setTx] = useState("");
   const [a, setA] = useState("");
-  const [d, setD] = useState("");
+  const [d, setD] = useState(() => defaultFormDateYmd());
   const [ty, setTy] = useState("other");
+  const [incomeCategory, setIncomeCategory] = useState("salary");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("unspecified");
 
   useEffect(() => {
     const doc = incomeQ.data?.data;
-    if (!doc || edit?.kind !== "income") return;
+    if (!doc || !isIncomeEdit) return;
     setTx(doc.title);
     setA(String(doc.amount));
     setD(toLocalYmd(new Date(doc.date)));
     setTy(doc.incomeType || "other");
-  }, [incomeQ.data?.data, edit?.kind]);
+    setIncomeCategory(doc.incomeType || "other");
+  }, [incomeQ.data?.data, isIncomeEdit]);
+
+  const updateIncome = useMutation({
+    mutationFn: (payload: {
+      id: string;
+      title: string;
+      amount: number;
+      date: string;
+      incomeType: string;
+    }) =>
+      jsonFetch(`/api/incomes/${payload.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: payload.title,
+          amount: payload.amount,
+          date: new Date(payload.date).toISOString(),
+          incomeType: payload.incomeType,
+        }),
+      }),
+    onMutate: () => ({ toastId: toast.loading(tC("savingChanges")) }),
+    onSuccess: (_d, _v, ctx) => {
+      toast.success(tC("updated"), { id: ctx?.toastId });
+      invalidateIncomes();
+      onClose();
+    },
+    onError: (e: Error, _v, ctx) => {
+      toast.error(e.message, { id: ctx?.toastId });
+    },
+  });
 
   const [ert, setErt] = useState("");
   const [era, setEra] = useState("");
@@ -169,39 +293,6 @@ export function TransactionsEditDialogs({
     setEe(r.endDate ? toLocalYmd(new Date(r.endDate)) : "");
   }, [edit]);
 
-  const updateIncome = useMutation({
-    mutationFn: (payload: {
-      id: string;
-      title: string;
-      amount: number;
-      date: string;
-      incomeType: string;
-    }) =>
-      jsonFetch(`/api/incomes/${payload.id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          title: payload.title,
-          amount: payload.amount,
-          date: new Date(payload.date).toISOString(),
-          incomeType: payload.incomeType,
-        }),
-      }),
-    onMutate: () => {
-      const toastId = toast.loading(tC("savingChanges"));
-      return { toastId };
-    },
-    onSuccess: (_d, _v, ctx) => {
-      if (ctx?.toastId) toast.success(tC("updated"), { id: ctx.toastId });
-      else toast.success(tC("updated"));
-      invalidateIncomes();
-      onClose();
-    },
-    onError: (e: Error, _v, ctx) => {
-      if (ctx?.toastId) toast.error(e.message, { id: ctx.toastId });
-      else toast.error(e.message);
-    },
-  });
-
   const updateRecurringIncome = useMutation({
     mutationFn: (payload: {
       id: string;
@@ -222,121 +313,84 @@ export function TransactionsEditDialogs({
           incomeType: payload.incomeType,
           payDayOfMonth: payload.payDayOfMonth,
           startDate: new Date(payload.startDate).toISOString(),
-          endDate: payload.endDate
-            ? new Date(payload.endDate).toISOString()
-            : null,
+          endDate: payload.endDate ? new Date(payload.endDate).toISOString() : null,
         }),
       }),
-    onMutate: () => {
-      const toastId = toast.loading(tC("savingChanges"));
-      return { toastId };
-    },
+    onMutate: () => ({ toastId: toast.loading(tC("savingChanges")) }),
     onSuccess: (_d, _v, ctx) => {
-      if (ctx?.toastId) toast.success(tC("updated"), { id: ctx.toastId });
-      else toast.success(tC("updated"));
+      toast.success(tC("updated"), { id: ctx?.toastId });
       invalidateIncomes();
       onClose();
     },
     onError: (e: Error, _v, ctx) => {
-      if (ctx?.toastId) toast.error(e.message, { id: ctx.toastId });
-      else toast.error(e.message);
+      toast.error(e.message, { id: ctx?.toastId });
     },
   });
 
-  const openIncome = edit?.kind === "income";
-  const openExpense = edit?.kind === "expense";
   const openRec = edit?.kind === "recIncome";
+
+  const handleExpenseDone = () => {
+    invalidateExpenses({ includeAllList: true });
+    onClose();
+  };
 
   return (
     <>
-      <Dialog open={openIncome} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-md rounded-2xl sm:max-w-lg">
+      <Dialog open={isIncomeCreate || isIncomeEdit} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{tInc("editTitle")}</DialogTitle>
+            <DialogTitle>{isIncomeCreate ? tTx("addIncome") : tInc("editTitle")}</DialogTitle>
+            {isIncomeCreate ? (
+              <DialogDescription>{tTx("createIncomeDesc")}</DialogDescription>
+            ) : null}
           </DialogHeader>
-          {incomeQ.isLoading ? (
+          {isIncomeCreate ? (
+            <TransactionIncomeCreateForm onSuccess={onClose} onCancel={onClose} />
+          ) : isIncomeEdit && incomeQ.isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
-          ) : incomeQ.isError ? (
-            <p className="text-sm text-destructive">
-              {(incomeQ.error as Error).message}
-            </p>
-          ) : incomeId ? (
+          ) : isIncomeEdit && incomeQ.isError ? (
+            <p className="text-sm text-destructive">{(incomeQ.error as Error).message}</p>
+          ) : isIncomeEdit && incomeId ? (
             <>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-2">
-                  <Label>{tC("title")}</Label>
-                  <Input
-                    value={tx}
-                    onChange={(e) => setTx(e.target.value)}
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>{tC("amount")}</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={a}
-                    onChange={(e) => setA(e.target.value)}
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>{tC("date")}</Label>
-                  <Input
-                    type="date"
-                    value={d}
-                    onChange={(e) => setD(e.target.value)}
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>{tC("type")}</Label>
-                  <Select value={ty} onValueChange={(v) => v && setTy(v)}>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="salary">
-                        {tInc("types.salary")}
-                      </SelectItem>
-                      <SelectItem value="freelance">
-                        {tInc("types.freelance")}
-                      </SelectItem>
-                      <SelectItem value="gam3eya">
-                        {tInc("types.gam3eya")}
-                      </SelectItem>
-                      <SelectItem value="other">
-                        {tInc("types.other")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <IncomeFormBody
+                title={tx}
+                setTitle={setTx}
+                amount={a}
+                setAmount={setA}
+                date={d}
+                setDate={setD}
+                incomeType={ty}
+                setIncomeType={setTy}
+                paymentMethod={paymentMethod}
+                setPaymentMethod={setPaymentMethod}
+                incomeCategory={incomeCategory}
+                setIncomeCategory={setIncomeCategory}
+              />
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={onClose}
-                >
-                  {tC("close")}
+                <Button type="button" variant="outline" className="rounded-xl" onClick={onClose}>
+                  {tC("cancel")}
                 </Button>
                 <Button
                   type="button"
                   className="rounded-xl"
-                  disabled={updateIncome.isPending || !tx.trim()}
-                  onClick={() =>
+                  disabled={
+                    updateIncome.isPending ||
+                    !tx.trim() ||
+                    !a ||
+                    Number.isNaN(parseFloat(a))
+                  }
+                  onClick={() => {
+                    if (!incomeId) return;
                     updateIncome.mutate({
                       id: incomeId,
                       title: tx.trim(),
                       amount: parseFloat(a),
                       date: d,
                       incomeType: ty,
-                    })
-                  }
+                    });
+                  }}
                 >
                   {updateIncome.isPending ? (
                     <>
@@ -353,24 +407,27 @@ export function TransactionsEditDialogs({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openExpense} onOpenChange={(o) => !o && onClose()}>
+      <Dialog open={isExpenseCreate || isExpenseEdit} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle>{tExp("editTitle")}</DialogTitle>
+            <DialogTitle>{isExpenseCreate ? tTx("addExpense") : tExp("editTitle")}</DialogTitle>
+            {isExpenseCreate ? (
+              <DialogDescription>{tTx("createExpenseDesc")}</DialogDescription>
+            ) : null}
           </DialogHeader>
-          {expenseQ.isLoading ? (
+          {isExpenseCreate ? (
+            <TransactionExpenseCreateForm onSuccess={handleExpenseDone} onCancel={onClose} />
+          ) : expenseQ.isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
           ) : expenseQ.isError ? (
-            <p className="text-sm text-destructive">
-              {(expenseQ.error as Error).message}
-            </p>
+            <p className="text-sm text-destructive">{(expenseQ.error as Error).message}</p>
           ) : expenseQ.data ? (
             <ExpenseEditForm
               key={expenseQ.data._id + String(expenseQ.data.isTemplate)}
               row={expenseQ.data}
-              onDone={onClose}
+              onDone={handleExpenseDone}
             />
           ) : null}
         </DialogContent>
@@ -386,11 +443,7 @@ export function TransactionsEditDialogs({
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
                   <Label>{tC("title")}</Label>
-                  <Input
-                    value={ert}
-                    onChange={(e) => setErt(e.target.value)}
-                    className="rounded-xl"
-                  />
+                  <Input value={ert} onChange={(e) => setErt(e.target.value)} className="rounded-xl" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tC("amount")}</Label>
@@ -404,26 +457,15 @@ export function TransactionsEditDialogs({
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tInc("recurringType")}</Label>
-                  <Select
-                    value={eit}
-                    onValueChange={(v) => v != null && setEit(v)}
-                  >
+                  <Select value={eit} onValueChange={(v) => v != null && setEit(v)}>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="salary">
-                        {tInc("types.salary")}
-                      </SelectItem>
-                      <SelectItem value="freelance">
-                        {tInc("types.freelance")}
-                      </SelectItem>
-                      <SelectItem value="gam3eya">
-                        {tInc("types.gam3eya")}
-                      </SelectItem>
-                      <SelectItem value="other">
-                        {tInc("types.other")}
-                      </SelectItem>
+                      <SelectItem value="salary">{tInc("types.salary")}</SelectItem>
+                      <SelectItem value="freelance">{tInc("types.freelance")}</SelectItem>
+                      <SelectItem value="gam3eya">{tInc("types.gam3eya")}</SelectItem>
+                      <SelectItem value="other">{tInc("types.other")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -462,31 +504,19 @@ export function TransactionsEditDialogs({
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tInc("recurringSchedule")}</Label>
-                  <Select
-                    value={ef}
-                    onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}
-                  >
+                  <Select value={ef} onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="monthly">
-                        {tInc("freqMonthly")}
-                      </SelectItem>
-                      <SelectItem value="weekly">
-                        {tInc("freqWeekly")}
-                      </SelectItem>
+                      <SelectItem value="monthly">{tInc("freqMonthly")}</SelectItem>
+                      <SelectItem value="weekly">{tInc("freqWeekly")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={onClose}
-                >
+                <Button type="button" variant="outline" className="rounded-xl" onClick={onClose}>
                   {tC("close")}
                 </Button>
                 <Button
@@ -502,10 +532,7 @@ export function TransactionsEditDialogs({
                       incomeType: eit,
                       payDayOfMonth:
                         ef === "monthly"
-                          ? Math.min(
-                              30,
-                              Math.max(1, Math.round(parseFloat(ePay)) || 5),
-                            )
+                          ? Math.min(30, Math.max(1, Math.round(parseFloat(ePay)) || 5))
                           : undefined,
                       startDate: es,
                       endDate: ee.trim() ? ee : null,

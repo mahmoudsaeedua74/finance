@@ -16,10 +16,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "@/i18n/navigation";
+import { cn } from "@/lib/utils";
 import { formatDateMedium, formatMoney } from "@/lib/format";
 import { exportTransactionsExcel } from "@/lib/export-excel";
-import { cn } from "@/lib/utils";
+import { labelExpenseCategory } from "@/lib/expense-categories";
 import {
   Briefcase,
   Car,
@@ -35,7 +35,6 @@ import {
   ShoppingCart,
   Trash2,
 } from "lucide-react";
-import { labelExpenseCategory } from "@/lib/expense-categories";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
 import { queryKeys } from "@/features/_lib/query-keys";
@@ -116,8 +115,7 @@ export default function TransactionsPage() {
   const tExp = useTranslations("expense");
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
-  const router = useRouter();
-  const { invalidateIncomes } = useFinanceInvalidation();
+  const { invalidateIncomes, invalidateExpenses } = useFinanceInvalidation();
   const deleteExpenseMut = useDeleteExpense();
 
   const [tab, setTab] = useState<"all" | "income" | "expense" | "recurring">("all");
@@ -402,8 +400,12 @@ export default function TransactionsPage() {
               <ChevronDown className="size-4 opacity-80" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[11rem] rounded-xl">
-              <DropdownMenuItem onClick={() => router.push("/income/new")}>{t("addIncome")}</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/expense/new")}>{t("addExpense")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTxEdit({ kind: "income", mode: "create" })}>
+                {t("addIncome")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTxEdit({ kind: "expense", mode: "create" })}>
+                {t("addExpense")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -412,10 +414,9 @@ export default function TransactionsPage() {
       {error ? <QueryErrorAlert error={error as Error} /> : null}
 
       <Card className="border-border/70 shadow-md shadow-black/[0.04] ring-1 ring-border/40 dark:shadow-black/30">
-        <CardContent className="p-3 sm:p-4">
-          {/* Mobile: vertical list · Desktop / lg: single aligned row */}
-          <div className="flex flex-col gap-3 lg:flex-row lg:flex-nowrap lg:items-center lg:gap-3">
-            <div className="flex shrink-0 flex-wrap gap-1 rounded-xl border border-border/60 bg-muted/35 p-1 shadow-inner shadow-black/[0.03] dark:bg-muted/25">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:flex-nowrap lg:items-center lg:gap-4">
+            <div className="flex shrink-0 flex-wrap gap-1.5 rounded-xl border border-border/60 bg-muted/35 p-1.5 shadow-inner shadow-black/[0.03] dark:bg-muted/25">
               {(["all", "income", "expense", "recurring"] as const).map((k) => (
                 <Button
                   key={k}
@@ -435,12 +436,12 @@ export default function TransactionsPage() {
 
             <div
               className={cn(
-                "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border/80 bg-background px-3 shadow-sm transition-[box-shadow,border-color]",
+                "flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl border border-border/80 bg-background px-4 py-2.5 shadow-sm transition-[box-shadow,border-color]",
                 "focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/35 dark:bg-input/30",
-                "lg:h-10 lg:max-w-[min(100%,280px)]",
+                "lg:h-10 lg:max-w-[min(100%,300px)]",
               )}
             >
-              <Search className="pointer-events-none size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <Search className="size-4 shrink-0 text-muted-foreground/80" aria-hidden />
               <Input
                 type="search"
                 value={query}
@@ -449,7 +450,7 @@ export default function TransactionsPage() {
                 dir="auto"
                 autoComplete="off"
                 className={cn(
-                  "min-h-0 flex-1 border-0 bg-transparent px-0 py-1 shadow-none outline-none",
+                  "min-h-0 min-w-0 flex-1 border-0 bg-transparent px-0 py-0 shadow-none outline-none",
                   "text-base md:text-sm",
                   "placeholder:text-muted-foreground",
                   "focus-visible:ring-0 focus-visible:ring-offset-0",

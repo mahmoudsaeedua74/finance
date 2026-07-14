@@ -17,6 +17,8 @@ import { Link } from "@/i18n/navigation";
 import { defaultFormDateYmd } from "@/lib/ymd";
 import { CategorySelectField } from "@/components/categories/category-select-field";
 import { normalizeIncomeType } from "@/lib/income-types";
+import { PaymentMethodField } from "@/components/forms/payment-method-field";
+import type { PaymentMethod } from "@/lib/payment-method";
 import { Wallet } from "lucide-react";
 
 export default function NewIncomePage() {
@@ -28,6 +30,7 @@ export default function NewIncomePage() {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => defaultFormDateYmd());
   const [incomeCategory, setIncomeCategory] = useState<string>("salary");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("unspecified");
 
   const m = useMutation({
     mutationFn: () =>
@@ -39,6 +42,7 @@ export default function NewIncomePage() {
           date: new Date(date).toISOString(),
           incomeType: normalizeIncomeType(incomeCategory),
           category: incomeCategory,
+          paymentMethod,
         }),
       }),
     onMutate: () => {
@@ -125,6 +129,7 @@ export default function NewIncomePage() {
             onChange={setIncomeCategory}
             label={tC("category")}
           />
+          <PaymentMethodField value={paymentMethod} onChange={setPaymentMethod} />
           <div className="flex flex-col-reverse gap-2 min-[400px]:flex-row">
             <Button
               type="button"

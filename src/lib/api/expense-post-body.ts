@@ -4,6 +4,7 @@ export type RecurringCreateInput = {
   amount: number;
   category: string;
   projectName: string;
+  paymentMethod: string;
   validFrom: Date;
   validTo: Date | null;
   /** 1–30. If omitted, derived from `validFrom` in the API. */
@@ -17,6 +18,7 @@ export type OneOffCreateInput = {
   category: string;
   kind: "variable" | "fixed";
   projectName: string;
+  paymentMethod: string;
   date: Date;
 };
 
@@ -41,6 +43,8 @@ export function parseExpensePostBody(body: unknown):
   const projectNameRaw = b.projectName;
   const projectName =
     typeof projectNameRaw === "string" ? projectNameRaw.trim().slice(0, 200) : "";
+  const paymentMethod =
+    b.paymentMethod === "cash" || b.paymentMethod === "card" ? b.paymentMethod : "unspecified";
   const cat = String(b.category ?? "general");
   const kind = b.kind === "fixed" ? "fixed" : "variable";
   const isTpl = Boolean(b.isTemplate) && Boolean(b.recurring);
@@ -77,6 +81,7 @@ export function parseExpensePostBody(body: unknown):
         amount,
         category: cat,
         projectName,
+        paymentMethod,
         validFrom: vf,
         validTo: vt,
         dueDayOfMonth: due,
@@ -100,6 +105,7 @@ export function parseExpensePostBody(body: unknown):
       category: cat,
       kind: kind as "variable" | "fixed",
       projectName,
+      paymentMethod,
       date: dt,
     },
   };

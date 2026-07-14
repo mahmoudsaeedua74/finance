@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
+import type { PaymentMethod } from "@/lib/payment-method";
 
 export type IncomeType = "salary" | "freelance" | "gam3eya" | "other";
 
@@ -10,6 +11,7 @@ export interface IIncome {
   date: Date;
   incomeType: IncomeType;
   category?: string;
+  paymentMethod: PaymentMethod;
   /** If set, this row was materialized from a {@link RecurringIncomeTemplate} (dedup key). */
   recurringSourceId?: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -28,6 +30,11 @@ const IncomeSchema = new Schema<IIncome>(
       default: "other",
     },
     category: { type: String, trim: true, default: "" },
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "card", "unspecified"],
+      default: "unspecified",
+    },
     recurringSourceId: {
       type: Schema.Types.ObjectId,
       ref: "RecurringIncomeTemplate",

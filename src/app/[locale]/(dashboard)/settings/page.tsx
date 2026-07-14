@@ -1,77 +1,13 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { jsonFetch } from "@/lib/fetcher";
-import { toast } from "sonner";
-import { useEffect, useState } from "react";
-import { Settings, Bell, Mail, Shield } from "lucide-react";
-
-type Pref = {
-  /** @deprecated no UI — kept for API compatibility */
-  nearBudgetThresholdPct?: number;
-  inactivityDays: number;
-  digestCadence: "daily" | "weekly";
-  criticalEmailEnabled: boolean;
-  digestEmailEnabled: boolean;
-  mirrorInAppToEmail: boolean;
-  noLoginReminderEmail: boolean;
-  netDecreaseEmail: boolean;
-  inactivityNudgeEmail: boolean;
-  activityNotificationsEnabled: boolean;
-  recurringDueRemindersEnabled: boolean;
-  lowBalanceThreshold: number | null;
-};
+import { Settings } from "lucide-react";
+import { WalletAccountPanel } from "@/components/wallet/wallet-account-panel";
+import { NotificationSettingsPanel } from "@/components/settings/notification-settings-panel";
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
-  const tC = useTranslations("common");
-  const qc = useQueryClient();
-  const { data, isLoading } = useQuery({
-    queryKey: ["notification-preferences"],
-    queryFn: () => jsonFetch<{ data: Pref }>("/api/notification-preferences"),
-  });
-  const [form, setForm] = useState<Pref | null>(null);
-
-  useEffect(() => {
-    if (data?.data) setForm(data.data);
-  }, [data]);
-
-  const save = useMutation({
-    mutationFn: (body: Partial<Pref>) =>
-      jsonFetch("/api/notification-preferences", { method: "PUT", body: JSON.stringify(body) }),
-    onSuccess: () => {
-      toast.success(tC("save"));
-      void qc.invalidateQueries({ queryKey: ["notification-preferences"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  if (isLoading || !form) {
-    return (
-      <div className="h-64 max-w-2xl animate-pulse rounded-xl border border-border/60 bg-muted/20" />
-    );
-  }
-
-  const boolRow = (key: keyof Pref, label: string, hint?: string) => (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div>
-        <Label className="text-sm font-medium">{label}</Label>
-        {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
-      </div>
-      <input
-        type="checkbox"
-        className="h-4 w-4 accent-primary"
-        checked={Boolean(form[key])}
-        onChange={(e) => setForm((f) => (f ? { ...f, [key]: e.target.checked } : f))}
-      />
-    </div>
-  );
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -81,114 +17,8 @@ export default function SettingsPage() {
         icon={<Settings className="size-5" />}
       />
 
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Bell className="size-4 text-primary" />
-            {t("inAppSection")}
-          </CardTitle>
-          <CardDescription>{t("inAppSectionDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {boolRow("activityNotificationsEnabled", t("activityNotif"), t("activityNotifDesc"))}
-          <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor="low-net">{t("lowNet")}</Label>
-            <p className="text-xs text-muted-foreground">{t("lowNetDesc")}</p>
-            <Input
-              id="low-net"
-              type="number"
-              min={0}
-              step="0.01"
-              className="h-11"
-              placeholder={t("lowNetPh")}
-              value={form.lowBalanceThreshold ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setForm((f) => {
-                  if (!f) return f;
-                  if (v === "") return { ...f, lowBalanceThreshold: null };
-                  const n = parseFloat(v);
-                  return { ...f, lowBalanceThreshold: Number.isFinite(n) && n > 0 ? n : null };
-                });
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="size-4 text-primary" />
-            {t("emailSection")}
-          </CardTitle>
-          <CardDescription>{t("emailSectionDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {boolRow("mirrorInAppToEmail", t("mirrorInApp"), t("mirrorInAppDesc"))}
-          {boolRow("recurringDueRemindersEnabled", t("recurringDue"), t("recurringDueDesc"))}
-          {boolRow("digestEmailEnabled", t("digestEmail"), t("digestEmailDesc"))}
-          {boolRow("criticalEmailEnabled", t("criticalEmail"), t("criticalEmailDesc"))}
-          {boolRow("noLoginReminderEmail", t("noLogin"), t("noLoginDesc"))}
-          {boolRow("netDecreaseEmail", t("netDrop"), t("netDropDesc"))}
-          {boolRow("inactivityNudgeEmail", t("inactivityNudge"), t("inactivityNudgeDesc"))}
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="size-4 text-primary" />
-            {t("rulesSection")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor="inact">{t("inactivityDays")}</Label>
-            <Input
-              id="inact"
-              type="number"
-              min={1}
-              max={90}
-              className="h-11"
-              value={form.inactivityDays}
-              onChange={(e) =>
-                setForm((f) => (f ? { ...f, inactivityDays: Number(e.target.value) || 5 } : f))
-              }
-            />
-          </div>
-          <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor="cad">{t("digestCadence")}</Label>
-            <select
-              id="cad"
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-              value={form.digestCadence}
-              onChange={(e) =>
-                setForm((f) =>
-                  f
-                    ? {
-                        ...f,
-                        digestCadence: e.target.value === "daily" ? "daily" : "weekly",
-                      }
-                    : f
-                )
-              }
-            >
-              <option value="daily">{t("cadDaily")}</option>
-              <option value="weekly">{t("cadWeekly")}</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Button
-        type="button"
-        className="min-h-11 w-full min-[400px]:w-auto"
-        onClick={() => save.mutate(form)}
-        disabled={save.isPending}
-      >
-        {tC("save")}
-      </Button>
+      <WalletAccountPanel variant="card" />
+      <NotificationSettingsPanel />
     </div>
   );
 }

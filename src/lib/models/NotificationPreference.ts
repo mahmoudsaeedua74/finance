@@ -17,6 +17,8 @@ export interface INotificationPreference {
   activityNotificationsEnabled: boolean;
   /** Daily check: remind on the chosen calendar day for each active recurring expense template. Default true. */
   recurringDueRemindersEnabled: boolean;
+  /** Daily check: project installments & expected payment dates. Default true. */
+  projectPaymentRemindersEnabled: boolean;
   /** When set (e.g. 2000), warn in-app if this month’s net is below this value. Null = off. */
   lowBalanceThreshold: number | null;
   createdAt: Date;
@@ -28,7 +30,7 @@ const NotificationPreferenceSchema = new Schema<INotificationPreference>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
     nearBudgetThresholdPct: { type: Number, default: 80, min: 1, max: 100 },
     inactivityDays: { type: Number, default: 5, min: 1, max: 90 },
-    digestCadence: { type: String, enum: ["daily", "weekly"], default: "weekly" },
+    digestCadence: { type: String, enum: ["daily", "weekly"], default: "daily" },
     criticalEmailEnabled: { type: Boolean, default: true },
     digestEmailEnabled: { type: Boolean, default: true },
     mirrorInAppToEmail: { type: Boolean, default: true },
@@ -37,6 +39,7 @@ const NotificationPreferenceSchema = new Schema<INotificationPreference>(
     inactivityNudgeEmail: { type: Boolean, default: true },
     activityNotificationsEnabled: { type: Boolean, default: true },
     recurringDueRemindersEnabled: { type: Boolean, default: true },
+    projectPaymentRemindersEnabled: { type: Boolean, default: true },
     lowBalanceThreshold: { type: Number, default: null, min: 0 },
   },
   { timestamps: true }

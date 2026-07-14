@@ -6,6 +6,8 @@ export type NotifRow = {
   severity: "info" | "warning" | "critical" | "success";
   readAt?: string | null;
   createdAt?: string;
+  dedupKey?: string;
+  meta?: Record<string, unknown>;
 };
 
 export function notificationRowClassName(r: NotifRow) {
@@ -46,6 +48,7 @@ export function notifTypeLabel(
   if (type.startsWith("income.")) return t("notif.typeIncome");
   if (type.startsWith("auth.")) return t("notif.typeAuth");
   if (type.startsWith("behavior.")) return t("notif.typeBehavior");
+  if (type.startsWith("project.")) return t("notif.typeProject");
   if (type.startsWith("digest") || type.includes("digest")) return t("notif.typeDigest");
   return type.replace(/\./g, " · ");
 }

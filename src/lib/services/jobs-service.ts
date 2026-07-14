@@ -2,9 +2,11 @@ import { subDays, subMonths } from "date-fns";
 import {
   EmailDigestState,
   Expense,
+  FreelanceProject,
   Income,
   Notification,
   NotificationPreference,
+  Project,
   User,
 } from "@/lib/models";
 import { buildMonthlyReport } from "@/lib/build-monthly-report";
@@ -24,7 +26,7 @@ import { renderDigestEmail } from "@/lib/email/templates/digest";
 import { renderLoginReminderEmail } from "@/lib/email/templates/login-reminder-email";
 import { renderMonthlyClosingEmail } from "@/lib/email/templates/monthly-closing";
 import { renderMirrorNotificationEmail } from "@/lib/email/templates/mirror-notification";
-import { sendEmail, isSmtpConfigured } from "@/lib/services/email-service";
+import { sendEmail, isEmailConfigured } from "@/lib/services/email-service";
 import { getHourAndDateKeyInZone } from "@/lib/timezone-utils";
 import { monthlyReportPdfToBuffer } from "@/lib/monthly-report-pdf";
 import type { MonthlyReportDto } from "@/types/report";
@@ -86,7 +88,7 @@ async function maybeNotifyDailyLoginReminder(
   const createdMs = row.createdAt ? new Date(row.createdAt).getTime() : now.getTime();
   if (now.getTime() - createdMs > 120_000) return;
 
-  if (!isSmtpConfigured()) return;
+  if (!isEmailConfigured()) return;
 
   const tpl = renderLoginReminderEmail({
     appName: appName(),
@@ -112,6 +114,8 @@ type Prefs = {
   criticalEmailEnabled: boolean;
   /** Monthly recurring “due day” in-app (and email if mirror on). */
   recurringDueRemindersEnabled: boolean;
+  /** Project installments & expected payment date reminders. */
+  projectPaymentRemindersEnabled: boolean;
 };
 
 async function loadPrefs(userId: string): Promise<Prefs> {
@@ -123,9 +127,10 @@ async function loadPrefs(userId: string): Promise<Prefs> {
     inactivityNudgeEmail: p?.inactivityNudgeEmail !== false,
     netDecreaseEmail: p?.netDecreaseEmail !== false,
     digestEnabled: p?.digestEmailEnabled !== false,
-    digestCadence: p?.digestCadence || "weekly",
+    digestCadence: p?.digestCadence || "daily",
     criticalEmailEnabled: p?.criticalEmailEnabled !== false,
     recurringDueRemindersEnabled: p?.recurringDueRemindersEnabled !== false,
+    projectPaymentRemindersEnabled: p?.projectPaymentRemindersEnabled !== false,
   };
 }
 
@@ -141,6 +146,7 @@ async function notifyMirrorEmail(
     dedupKey: string;
     dedupWindowHours?: number;
     skipEmail?: boolean;
+    meta?: Record<string, unknown>;
   }
 ) {
   const row = await notifyOnce({
@@ -151,10 +157,11 @@ async function notifyMirrorEmail(
     body: input.body,
     dedupKey: input.dedupKey,
     dedupWindowHours: input.dedupWindowHours,
+    meta: input.meta,
   });
   if (input.skipEmail) return row;
   if (!prefs.mirrorInAppToEmail) return row;
-  if (!isSmtpConfigured()) return row;
+  if (!isEmailConfigured()) return row;
   const tpl = renderMirrorNotificationEmail({
     appName: appName(),
     title: input.title,
@@ -229,6 +236,150 @@ async function notifyRecurringDueDays(
   }
 }
 
+function startOfUtcDay(d: Date) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+function sameUtcDay(a: Date, b: Date) {
+  return startOfUtcDay(a).getTime() === startOfUtcDay(b).getTime();
+}
+
+function formatYmd(d: Date) {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Remind on expectedPaymentDate and pending installment due dates (today + tomorrow).
+ */
+async function notifyProjectPaymentReminders(
+  userId: string,
+  u: { _id: unknown; email: string },
+  prefs: Prefs,
+  now: Date
+) {
+  if (prefs.projectPaymentRemindersEnabled === false) return;
+
+  const today = startOfUtcDay(now);
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  const [jobs, installments] = await Promise.all([
+    FreelanceProject.find({
+      userId,
+      status: { $in: ["pending", "partial"] },
+      expectedPaymentDate: { $ne: null },
+    })
+      .select({ name: 1, clientName: 1, agreedAmount: 1, expectedPaymentDate: 1 })
+      .lean(),
+    Project.find({
+      userId,
+      isCollected: false,
+      freelanceProjectId: { $ne: null },
+    })
+      .select({ name: 1, amount: 1, date: 1, freelanceProjectId: 1, note: 1 })
+      .lean(),
+  ]);
+
+  for (const job of jobs) {
+    const due = job.expectedPaymentDate ? new Date(job.expectedPaymentDate) : null;
+    if (!due) continue;
+    const label = job.clientName?.trim()
+      ? `${job.name} (${job.clientName.trim()})`
+      : job.name;
+    const amountStr = Number(job.agreedAmount).toFixed(2);
+
+    if (sameUtcDay(due, tomorrow)) {
+      await notifyMirrorEmail(
+        { _id: u._id, email: u.email },
+        prefs,
+        {
+          type: "project.payment_due_soon",
+          severity: "info",
+          title: `غدًا موعد تحصيل: ${label}`,
+          body: `المبلغ المتوقع ${amountStr} — ${formatYmd(tomorrow)}. · Payment expected tomorrow: ${amountStr}.`,
+          dedupKey: `project-due-soon-${String(job._id)}-${formatYmd(tomorrow)}`,
+          dedupWindowHours: 36,
+          meta: { jobId: String(job._id) },
+        }
+      );
+    }
+
+    if (sameUtcDay(due, today)) {
+      await notifyMirrorEmail(
+        { _id: u._id, email: u.email },
+        prefs,
+        {
+          type: "project.payment_due",
+          severity: "warning",
+          title: `اليوم موعد تحصيل: ${label}`,
+          body: `المبلغ المتوقع ${amountStr} — ${formatYmd(today)}. · Payment due today: ${amountStr}.`,
+          dedupKey: `project-due-${String(job._id)}-${formatYmd(today)}`,
+          dedupWindowHours: 36,
+          meta: { jobId: String(job._id) },
+        }
+      );
+    }
+
+    if (due < today) {
+      await notifyMirrorEmail(
+        { _id: u._id, email: u.email },
+        prefs,
+        {
+          type: "project.payment_overdue",
+          severity: "warning",
+          title: `متأخر: ${label}`,
+          body: `كان المفروض التحصيل ${formatYmd(due)} — ${amountStr} لسه معلّق. · Overdue since ${formatYmd(due)}: ${amountStr} still pending.`,
+          dedupKey: `project-overdue-${String(job._id)}-${formatYmd(today)}`,
+          dedupWindowHours: 24,
+          meta: { jobId: String(job._id) },
+        }
+      );
+    }
+  }
+
+  for (const inst of installments) {
+    const due = new Date(inst.date);
+    const label = inst.name?.trim() || "قسط مشروع";
+    const amountStr = Number(inst.amount).toFixed(2);
+
+    if (sameUtcDay(due, tomorrow)) {
+      await notifyMirrorEmail(
+        { _id: u._id, email: u.email },
+        prefs,
+        {
+          type: "project.installment_due_soon",
+          severity: "info",
+          title: `غدًا قسط: ${label}`,
+          body: `${amountStr} — ${formatYmd(tomorrow)}${inst.note ? ` · ${inst.note}` : ""}. · Installment due tomorrow.`,
+          dedupKey: `inst-due-soon-${String(inst._id)}-${formatYmd(tomorrow)}`,
+          dedupWindowHours: 36,
+          meta: {
+            jobId: inst.freelanceProjectId ? String(inst.freelanceProjectId) : undefined,
+          },
+        }
+      );
+    }
+
+    if (sameUtcDay(due, today)) {
+      await notifyMirrorEmail(
+        { _id: u._id, email: u.email },
+        prefs,
+        {
+          type: "project.installment_due",
+          severity: "warning",
+          title: `اليوم قسط: ${label}`,
+          body: `${amountStr} — ${formatYmd(today)}${inst.note ? ` · ${inst.note}` : ""}. · Installment due today.`,
+          dedupKey: `inst-due-${String(inst._id)}-${formatYmd(today)}`,
+          dedupWindowHours: 36,
+          meta: {
+            jobId: inst.freelanceProjectId ? String(inst.freelanceProjectId) : undefined,
+          },
+        }
+      );
+    }
+  }
+}
+
 export async function runDailyJobs() {
   const now = new Date();
   const y = now.getFullYear();
@@ -242,6 +393,7 @@ export async function runDailyJobs() {
     const prefs = await loadPrefs(uid);
 
     await notifyRecurringDueDays(uid, u, prefs, now);
+    await notifyProjectPaymentReminders(uid, u, prefs, now);
 
     const firstThisMonth = new Date(y, m - 1, 1);
     const firstLastMonth = subMonths(firstThisMonth, 1);
@@ -316,6 +468,7 @@ export async function runDailyJobs() {
       const remaining = monthIncTotal - totalSpent;
       const digest = renderDigestEmail({
         appName: appName(),
+        cadence: prefs.digestCadence,
         totalSpent,
         remainingBalance: remaining,
         warnings: [],
@@ -323,7 +476,7 @@ export async function runDailyJobs() {
           `Calendar month: ${y}-${String(m).padStart(2, "0")} · Cadence: ${prefs.digestCadence}`,
         ],
       });
-      if (isSmtpConfigured()) {
+      if (isEmailConfigured()) {
         const sent = await sendEmail({
           to: email,
           subject: `${appName()} — ${prefs.digestCadence} digest`,
@@ -404,7 +557,7 @@ export async function runMonthlyJobs() {
       },
     });
 
-    if (isSmtpConfigured()) {
+    if (isEmailConfigured()) {
       const tpl = renderMonthlyClosingEmail({
         appName: appName(),
         periodLabel,

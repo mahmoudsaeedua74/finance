@@ -1,40 +1,56 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useInfiniteOffsetQuery } from "@/hooks/use-infinite-offset-query";
-import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
-import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
-import { DataTableSkeleton } from "@/components/ui/data-table-skeleton";
+import { WalletAccountPanel } from "@/components/wallet/wallet-account-panel";
+import { ProjectJobsFilterBar } from "@/components/projects/project-jobs-filter-bar";
+import { ProjectCollectionsBanner } from "@/components/projects/project-collections-banner";
+import { ProjectNormalBanner } from "@/components/projects/project-normal-banner";
 import {
-  filterRowsByNameQuery,
-  sortRowsByNameAmountDate,
-} from "@/lib/sort-filter";
-import { useTodayYearMonth } from "@/hooks/use-today-year-month";
-import { defaultFormDateYmd, toLocalYmd } from "@/lib/ymd";
+  ProjectJobsKanbanSkeleton,
+  ProjectJobsListSkeleton,
+  ProjectJobsTotalsSkeleton,
+} from "@/components/projects/project-jobs-list-skeleton";
+import { ProjectJobsKanban } from "@/components/projects/project-jobs-kanban";
+import { ProjectJobCard } from "@/components/projects/project-job-card";
+import { ProjectBulkActionBar } from "@/components/projects/project-bulk-action-bar";
+import { ProjectScopeEditor } from "@/components/projects/project-scope-editor";
+import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
+import { PaymentMethodField } from "@/components/forms/payment-method-field";
+import { ProjectTypeField, projectTypeLabel } from "@/components/forms/project-type-field";
+import { ClientField } from "@/components/forms/client-field";
+import { type ProjectType } from "@/lib/project-type";
+import { WORK_PHASES, type WorkPhase } from "@/lib/project-work-phase";
+import type { ProjectTemplateDto } from "@/lib/project-templates-builtin";
+import {
+  hasActiveProjectJobFilters,
+} from "@/lib/project-job-filters";
+import { useProjectJobsList } from "@/hooks/use-project-jobs-list";
+import { isDetailedProjectType, type ProjectScopeItem } from "@/lib/project-scope";
+import {
+  canBulkCollect,
+  canBulkStatement,
+  downloadProposalPdf,
+  downloadStatementPdf,
+} from "@/lib/project-document-actions";
+import { canDeleteProjectJob } from "@/lib/project-job-rules";
 import { jsonFetch } from "@/lib/fetcher";
-import { formatDateLong, monthLabel, formatMoney } from "@/lib/format";
+import { formatDateLong, formatMoney } from "@/lib/format";
+import { defaultFormDateYmd, toLocalYmd } from "@/lib/ymd";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { exportProjectListExcel } from "@/lib/export-excel";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, ArrowUpDown, Search, Plus, Loader2, FolderKanban, TrendingUp, Wallet, Scale } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import type { PaymentMethod } from "@/lib/payment-method";
+import type { ProjectJobDto } from "@/types/project-job";
+import type { ClientOption } from "@/lib/services/client-service";
 import {
   Dialog,
   DialogContent,
@@ -43,692 +59,1568 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  FolderKanban,
+  FileText,
+  Loader2,
+  Plus,
+  Banknote,
+  Receipt,
+  CheckCircle2,
+  Clock,
+  Pencil,
+  ChevronDown,
+} from "lucide-react";
+import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
+import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 
-const controlLabelClass = "text-xs text-foreground/80";
-const controlLabelSlotClass = "flex min-h-5 items-center";
+function statusBadge(status: ProjectJobDto["status"], t: (k: string) => string) {
+  const map = {
+    pending: { label: t("statusPending"), variant: "secondary" as const },
+    partial: { label: t("statusPartial"), variant: "outline" as const },
+    collected: { label: t("statusCollected"), variant: "default" as const },
+    cancelled: { label: t("statusCancelled"), variant: "destructive" as const },
+  };
+  const s = map[status] ?? map.pending;
+  return <Badge variant={s.variant}>{s.label}</Badge>;
+}
 
-type Row = {
-  _id: string;
-  name: string;
-  amount: number;
-  date: string;
-  note?: string;
-};
+function workPhaseBadge(phase: WorkPhase, t: (k: string) => string) {
+  const map = {
+    quote: { label: t("workPhase_quote"), variant: "outline" as const },
+    in_progress: { label: t("workPhase_in_progress"), variant: "secondary" as const },
+    delivered: { label: t("workPhase_delivered"), variant: "default" as const },
+  };
+  const s = map[phase] ?? map.in_progress;
+  return <Badge variant={s.variant}>{s.label}</Badge>;
+}
 
-function EditP({
-  row,
-  onDone,
-}: {
-  row: Row;
-  onDone: () => void;
-}) {
-  const t = useTranslations("projects");
-  const tC = useTranslations("common");
-  const { invalidateProjects } = useFinanceInvalidation();
-  const [name, setName] = useState(row.name);
-  const [amount, setAmount] = useState(String(row.amount));
-  const [date, setDate] = useState(toLocalYmd(new Date(row.date)));
-  const [note, setNote] = useState(row.note?.trim() ?? "");
-  const save = useMutation({
-    mutationFn: () =>
-      jsonFetch(`/api/projects/${row._id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          name,
-          amount: parseFloat(amount),
-          date: new Date(date).toISOString(),
-          note,
-        }),
-      }),
-    onMutate: () => {
-      const toastId = toast.loading(tC("savingChanges"));
-      return { toastId };
-    },
-    onSuccess: (_d, _v, ctx) => {
-      if (ctx?.toastId) {
-        toast.success(t("done"), { id: ctx.toastId });
-      } else {
-        toast.success(t("done"));
-      }
-      invalidateProjects();
-      onDone();
-    },
-    onError: (e: Error, _v, ctx) => {
-      if (ctx?.toastId) {
-        toast.error(e.message, { id: ctx.toastId });
-      } else {
-        toast.error(e.message);
-      }
-    },
-  });
-  return (
-    <>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2.5">
-          <Label htmlFor={`edit-proj-name-${row._id}`}>{tC("name")}</Label>
-          <Input
-            id={`edit-proj-name-${row._id}`}
-            className="h-11"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-2.5">
-          <Label htmlFor={`edit-proj-amt-${row._id}`}>{t("incomeAmt")}</Label>
-          <Input
-            id={`edit-proj-amt-${row._id}`}
-            className="h-11"
-            type="number"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-2.5">
-          <Label htmlFor={`edit-proj-date-${row._id}`}>{tC("date")}</Label>
-          <Input
-            id={`edit-proj-date-${row._id}`}
-            className="h-11"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-2.5">
-          <Label htmlFor={`edit-proj-note-${row._id}`}>{t("lineNote")}</Label>
-          <Textarea
-            id={`edit-proj-note-${row._id}`}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={t("lineNotePh")}
-            rows={2}
-            className="min-h-14"
-          />
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0 sm:pt-0">
-          <Button type="button" variant="outline" onClick={onDone} disabled={save.isPending}>
-            {tC("close")}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => save.mutate()}
-            disabled={!name.trim() || !amount || save.isPending}
-          >
-            {save.isPending ? (
-              <>
-                <Loader2 className="me-2 size-4 animate-spin" />
-                {tC("saving")}
-              </>
-            ) : (
-              tC("save")
-            )}
-          </Button>
-        </DialogFooter>
-      </div>
-    </>
-  );
+function newClientPhonePayload(
+  name: string,
+  phone: string,
+  clients: ClientOption[]
+): string | undefined {
+  const trimmed = name.trim();
+  const p = phone.trim();
+  if (!trimmed || !p) return undefined;
+  if (clients.some((c) => c.clientName === trimmed)) return undefined;
+  return p;
 }
 
 export default function ProjectsPage() {
   const t = useTranslations("projects");
   const tC = useTranslations("common");
+  const tW = useTranslations("wallet");
   const locale = useLocale();
-  const { year, month } = useTodayYearMonth();
-  const { invalidateProjects } = useFinanceInvalidation();
+  const qc = useQueryClient();
+  const { invalidateProjects, invalidateExpenses } = useFinanceInvalidation();
+
   const {
-    flatData: monthRowsRaw,
-    isLoading,
+    filters,
+    jobs,
+    meta,
+    totals,
+    setCollected,
+    setProjectType: setFilterProjectType,
+    setSort,
+    setClient,
+    setWorkPhase: setFilterWorkPhase,
+    setSearch,
+    setArchive,
+    setView,
+    clearFilters,
+    isListLoading,
     error,
-    fetchNextPage: fetchNextMonth,
-    hasNextPage: hasNextMonth,
-    isFetchingNextPage: isFetchingMonth,
-  } = useInfiniteOffsetQuery<Row>({
-    queryKey: ["projects", year, month, "paged"],
-    getUrl: (off, lim) =>
-      `/api/projects?year=${year}&month=${month}&offset=${off}&limit=${lim}`,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProjectJobsList();
+
+  const listMeta = meta ?? { total: jobs.length, shown: jobs.length, loaded: jobs.length };
+
+  const { data: clientOptionsData } = useQuery({
+    queryKey: ["client-options"],
+    queryFn: () => jsonFetch<{ data: ClientOption[] }>("/api/clients?options=1"),
+    staleTime: 60_000,
   });
-  const {
-    flatData: allRows,
-    fetchNextPage: fetchNextAll,
-    hasNextPage: hasNextAll,
-    isFetchingNextPage: isFetchingAll,
-  } = useInfiniteOffsetQuery<Row>({
-    queryKey: ["projects", "all", "paged"],
-    getUrl: (off, lim) => `/api/projects?offset=${off}&limit=${lim}`,
+  const clientOptions = clientOptionsData?.data ?? [];
+  const clientNames = useMemo(
+    () => clientOptions.map((c) => c.clientName),
+    [clientOptions]
+  );
+
+  const { data: templatesData } = useQuery({
+    queryKey: ["project-templates"],
+    queryFn: () => jsonFetch<{ data: ProjectTemplateDto[] }>("/api/project-templates"),
+    staleTime: 120_000,
   });
-  const { data: plData } = useQuery({
-    queryKey: ["projects", "monthPl", year, month],
-    queryFn: () =>
-      jsonFetch<{
-        data: {
-          rows: {
-            key: string;
-            label: string;
-            received: number;
-            spent: number;
-            net: number;
-          }[];
-        };
-      }>(`/api/projects/month-pl?year=${year}&month=${month}`),
-  });
-  const { data: sumAll } = useQuery({
-    queryKey: ["projects", "summary", "all"],
-    queryFn: () =>
-      jsonFetch<{
-        data: { byName: { name: string; total: number }[]; totalAmount: number };
-      }>("/api/projects/summary"),
-  });
+  const templates = templatesData?.data ?? [];
+
+  const viewMode = filters.view ?? "list";
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [editJob, setEditJob] = useState<ProjectJobDto | null>(null);
+  const [detailJob, setDetailJob] = useState<ProjectJobDto | null>(null);
+  const [collectJob, setCollectJob] = useState<ProjectJobDto | null>(null);
+  const [collectPayoutId, setCollectPayoutId] = useState<string | undefined>();
+  const [installmentJob, setInstallmentJob] = useState<ProjectJobDto | null>(null);
+  const [instAmount, setInstAmount] = useState("");
+  const [instDue, setInstDue] = useState(() => defaultFormDateYmd());
+  const [instNote, setInstNote] = useState("");
+  const [installmentRows, setInstallmentRows] = useState<
+    { amount: string; dueDate: string; note: string }[]
+  >([]);
+  const [costJob, setCostJob] = useState<ProjectJobDto | null>(null);
 
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => defaultFormDateYmd());
-  const [payoutNote, setPayoutNote] = useState("");
-  const [edit, setEdit] = useState<Row | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [sortBy, setSortBy] = useState<"date" | "name" | "amount">("date");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [agreedAmount, setAgreedAmount] = useState("");
+  const [notes, setNotes] = useState("");
+  const [startDate, setStartDate] = useState(() => defaultFormDateYmd());
+  const [expectedDate, setExpectedDate] = useState("");
+  const [isCollected, setIsCollected] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [projectType, setProjectType] = useState<ProjectType>("normal");
+  const [workPhase, setWorkPhase] = useState<WorkPhase>("quote");
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [createScopeItems, setCreateScopeItems] = useState<ProjectScopeItem[]>([]);
 
-  const openAddDialog = useCallback(() => {
+  const [editName, setEditName] = useState("");
+  const [editClientName, setEditClientName] = useState("");
+  const [editClientPhone, setEditClientPhone] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editExpectedDate, setEditExpectedDate] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState<PaymentMethod>("cash");
+  const [editProjectType, setEditProjectType] = useState<ProjectType>("normal");
+  const [editWorkPhase, setEditWorkPhase] = useState<WorkPhase>("in_progress");
+
+  const [collectAmount, setCollectAmount] = useState("");
+  const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
+  const [collectMethod, setCollectMethod] = useState<PaymentMethod>("cash");
+
+  const [costTitle, setCostTitle] = useState("");
+  const [costAmount, setCostAmount] = useState("");
+  const [costMethod, setCostMethod] = useState<PaymentMethod>("unspecified");
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCollectOpen, setBulkCollectOpen] = useState(false);
+  const [bulkCollectDate, setBulkCollectDate] = useState(() => defaultFormDateYmd());
+  const [bulkCollectMethod, setBulkCollectMethod] = useState<PaymentMethod>("cash");
+  const [detailScopeItems, setDetailScopeItems] = useState<ProjectScopeItem[]>([]);
+  const [detailClientName, setDetailClientName] = useState("");
+  const [detailClientPhone, setDetailClientPhone] = useState("");
+  const [cancelJob, setCancelJob] = useState<ProjectJobDto | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cloneSource, setCloneSource] = useState<ProjectJobDto | null>(null);
+  const [cloneName, setCloneName] = useState("");
+  const [cloneAmount, setCloneAmount] = useState("");
+
+  const selectedJobs = useMemo(
+    () => jobs.filter((j) => selectedIds.has(j.id)),
+    [jobs, selectedIds]
+  );
+
+  const canCollectSelected = useMemo(() => canBulkCollect(selectedJobs), [selectedJobs]);
+  const canStatementSelected = useMemo(() => canBulkStatement(selectedJobs), [selectedJobs]);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const runPdfDownload = useCallback(
+    async (task: () => Promise<string>) => {
+      if (pdfBusy) return;
+      setPdfBusy(true);
+      const toastId = toast.loading(t("pdfBuilding"));
+      try {
+        const filename = await task();
+        toast.success(t("pdfDownloadOk", { name: filename }), { id: toastId });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e), { id: toastId });
+      } finally {
+        setPdfBusy(false);
+      }
+    },
+    [pdfBusy, t]
+  );
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const scopeLabels = useMemo(
+    () => ({
+      title: t("scopeTitle"),
+      itemTitle: t("scopeItemTitle"),
+      description: t("scopeItemDesc"),
+      amount: t("scopeItemAmount"),
+      tech: t("scopeItemTech"),
+      complexity: t("scopeItemComplexity"),
+      add: t("scopeAddItem"),
+      complexityLow: t("scopeComplexity_low"),
+      complexityMid: t("scopeComplexity_mid"),
+      complexityHigh: t("scopeComplexity_high"),
+    }),
+    [t]
+  );
+
+  const resetAddForm = useCallback(() => {
     setName("");
-    setAmount("");
-    setPayoutNote("");
-    setDate(defaultFormDateYmd());
-    setAddOpen(true);
+    setAgreedAmount("");
+    setNotes("");
+    setStartDate(defaultFormDateYmd());
+    setExpectedDate("");
+    setIsCollected(false);
+    setPaymentMethod("cash");
+    setProjectType("normal");
+    setWorkPhase("quote");
+    setClientName("");
+    setClientPhone("");
+    setCreateScopeItems([]);
+    setInstallmentRows([]);
+    setShowMoreOptions(false);
   }, []);
 
-  const m = useMutation({
+  const openEdit = useCallback((job: ProjectJobDto) => {
+    setEditJob(job);
+    setEditName(job.name);
+    setEditAmount(String(job.agreedAmount));
+    setEditNotes(job.notes ?? "");
+    setEditStartDate(toLocalYmd(new Date(job.startDate)));
+    setEditExpectedDate(job.expectedPaymentDate ? toLocalYmd(new Date(job.expectedPaymentDate)) : "");
+    setEditPaymentMethod(job.expectedPaymentMethod === "card" ? "card" : "cash");
+    setEditProjectType(job.projectType ?? "normal");
+    setEditWorkPhase(job.workPhase ?? "in_progress");
+    setEditClientName(job.clientName ?? "");
+    setEditClientPhone("");
+  }, []);
+
+  const openDetail = useCallback((job: ProjectJobDto) => {
+    setDetailJob(job);
+    setDetailScopeItems(job.scopeItems ?? []);
+    setDetailClientName(job.clientName ?? "");
+    setDetailClientPhone("");
+  }, []);
+
+  const createJob = useMutation({
     mutationFn: () =>
-      jsonFetch("/api/projects", {
+      jsonFetch("/api/project-jobs", {
         method: "POST",
         body: JSON.stringify({
           name,
-          amount: parseFloat(amount),
-          date: new Date(date).toISOString(),
-          note: payoutNote,
+          agreedAmount: Number(agreedAmount),
+          notes,
+          startDate: new Date(startDate).toISOString(),
+          expectedPaymentDate: expectedDate ? new Date(expectedDate).toISOString() : null,
+          isCollected,
+          paymentMethod,
+          projectType,
+          workPhase,
+          clientName,
+          clientPhone: newClientPhonePayload(clientName, clientPhone, clientOptions),
+          scopeItems: isDetailedProjectType(projectType) ? createScopeItems : [],
+          installments:
+            !isCollected && installmentRows.length
+              ? installmentRows
+                  .filter((r) => r.amount && Number(r.amount) > 0)
+                  .map((r) => ({
+                    amount: Number(r.amount),
+                    dueDate: new Date(r.dueDate || startDate).toISOString(),
+                    note: r.note,
+                  }))
+              : undefined,
         }),
       }),
-    onSuccess: () => {
-      toast.success(t("saveOk"));
-      setName("");
-      setAmount("");
-      setPayoutNote("");
-      setAddOpen(false);
-      invalidateProjects();
-    },
-    onError: (e: Error) => toast.error(e.message),
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("jobCreated") },
+      {
+        onSuccess: () => {
+          setAddOpen(false);
+          resetAddForm();
+          invalidateProjects();
+          invalidateExpenses();
+          void qc.invalidateQueries({ queryKey: ["client-options"] });
+          void qc.invalidateQueries({ queryKey: ["clients"] });
+        },
+      }
+    ),
   });
 
-  const del = useMutation({
-    mutationFn: (id: string) => jsonFetch(`/api/projects/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      toast.success(t("removed"));
-      invalidateProjects();
+  const updateJob = useMutation({
+    mutationFn: () => {
+      if (!editJob) return Promise.reject(new Error("No job"));
+      return jsonFetch(`/api/project-jobs/${editJob.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: editName,
+          agreedAmount: Number(editAmount),
+          notes: editNotes,
+          startDate: new Date(editStartDate).toISOString(),
+          expectedPaymentDate: editExpectedDate ? new Date(editExpectedDate).toISOString() : null,
+          paymentMethod: editPaymentMethod,
+          projectType: editProjectType,
+          workPhase: editWorkPhase,
+          clientName: editClientName,
+          clientPhone: newClientPhonePayload(editClientName, editClientPhone, clientOptions),
+        }),
+      });
     },
-    onError: (e: Error) => toast.error(e.message),
+    ...mergeMutationToasts(
+      { loading: tC("savingChanges"), success: t("jobUpdated") },
+      {
+        onSuccess: () => {
+          setEditJob(null);
+          invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["client-options"] });
+          void qc.invalidateQueries({ queryKey: ["clients"] });
+        },
+      }
+    ),
   });
 
-  const monthView = useMemo(
-    () =>
-      sortRowsByNameAmountDate(filterRowsByNameQuery(monthRowsRaw, q), sortBy, sortDir),
-    [monthRowsRaw, q, sortBy, sortDir]
+  const collectMutation = useMutation({
+    mutationFn: ({ job, payoutId }: { job: ProjectJobDto; payoutId?: string }) =>
+      jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "collect",
+          payoutId,
+          amount: payoutId ? undefined : Number(collectAmount) || job.pendingAmount,
+          date: new Date(collectDate).toISOString(),
+          paymentMethod: collectMethod,
+        }),
+      }),
+    ...mergeMutationToasts(
+      { loading: t("loadingCollect"), success: t("collectedOk") },
+      {
+        onSuccess: () => {
+          setCollectJob(null);
+          setCollectPayoutId(undefined);
+          invalidateProjects();
+        },
+      }
+    ),
+  });
+
+  const addInstallmentMutation = useMutation({
+    mutationFn: (job: ProjectJobDto) =>
+      jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "add_installment",
+          amount: Number(instAmount),
+          dueDate: new Date(instDue).toISOString(),
+          note: instNote,
+        }),
+      }),
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("installmentAdded") },
+      {
+        onSuccess: () => {
+          setInstallmentJob(null);
+          setInstAmount("");
+          setInstNote("");
+          invalidateProjects();
+        },
+      }
+    ),
+  });
+
+  const addCostMutation = useMutation({
+    mutationFn: (job: ProjectJobDto) =>
+      jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "add_cost",
+          title: costTitle,
+          amount: Number(costAmount),
+          paymentMethod: costMethod,
+          date: new Date().toISOString(),
+        }),
+      }),
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("costAdded") },
+      {
+        onSuccess: () => {
+          setCostTitle("");
+          setCostAmount("");
+          setCostJob(null);
+          invalidateProjects();
+          invalidateExpenses();
+        },
+      }
+    ),
+  });
+
+  const saveScope = useMutation({
+    mutationFn: () => {
+      if (!detailJob) return Promise.reject(new Error("No job"));
+      return jsonFetch(`/api/project-jobs/${detailJob.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          clientName: detailClientName,
+          clientPhone: newClientPhonePayload(detailClientName, detailClientPhone, clientOptions),
+          scopeItems: detailScopeItems.filter((i) => i.title.trim()),
+        }),
+      });
+    },
+    ...mergeMutationToasts(
+      { loading: tC("savingChanges"), success: t("scopeSaved") },
+      {
+        onSuccess: () => {
+          invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["client-options"] });
+          void qc.invalidateQueries({ queryKey: ["clients"] });
+        },
+      }
+    ),
+  });
+
+  const bulkCollect = useMutation({
+    mutationFn: () =>
+      jsonFetch<{ data: { okCount: number; failed: number } }>("/api/project-jobs/bulk-collect", {
+        method: "POST",
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          date: new Date(bulkCollectDate).toISOString(),
+          paymentMethod: bulkCollectMethod,
+        }),
+      }),
+    onMutate: () => ({ toastId: toast.loading(t("loadingBulkCollect")) }),
+    onSuccess: (res, _v, ctx) => {
+      const msg = t("bulkCollectOk", { ok: res.data.okCount, failed: res.data.failed });
+      if (ctx?.toastId != null) toast.success(msg, { id: ctx.toastId });
+      else toast.success(msg);
+      setBulkCollectOpen(false);
+      setSelectedIds(new Set());
+      invalidateProjects();
+    },
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.toastId != null) toast.error(e.message, { id: ctx.toastId });
+      else toast.error(e.message);
+    },
+  });
+
+  const deleteJob = useMutation({
+    mutationFn: (id: string) => jsonFetch(`/api/project-jobs/${id}`, { method: "DELETE" }),
+    ...mergeMutationToasts(
+      { loading: t("loadingDelete"), success: t("jobRemoved") },
+      {
+        onSuccess: () => {
+          setDetailJob(null);
+          setEditJob(null);
+          invalidateProjects();
+        },
+      }
+    ),
+  });
+
+  const cancelJobMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      jsonFetch(`/api/project-jobs/${id}`, {
+        method: "POST",
+        body: JSON.stringify({ action: "cancel", cancellationReason: reason }),
+      }),
+    ...mergeMutationToasts(
+      { loading: t("loadingCancel"), success: t("jobCancelled") },
+      {
+        onSuccess: () => {
+          setCancelJob(null);
+          setCancelReason("");
+          setDetailJob(null);
+          invalidateProjects();
+        },
+      }
+    ),
+  });
+
+  const cloneMutation = useMutation({
+    mutationFn: ({ id, name, agreedAmount }: { id: string; name: string; agreedAmount: number }) =>
+      jsonFetch(`/api/project-jobs/${id}`, {
+        method: "POST",
+        body: JSON.stringify({ action: "clone", name, agreedAmount }),
+      }),
+    ...mergeMutationToasts(
+      { loading: t("loadingClone"), success: t("clonedOk") },
+      {
+        onSuccess: () => {
+          setCloneSource(null);
+          invalidateProjects();
+        },
+      }
+    ),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, archive }: { id: string; archive: boolean }) =>
+      jsonFetch(`/api/project-jobs/${id}`, {
+        method: "POST",
+        body: JSON.stringify({ action: archive ? "archive" : "unarchive" }),
+      }),
+    ...mergeMutationToasts(
+      { loading: t("loadingArchive"), success: t("archivedOk") },
+      { onSuccess: () => invalidateProjects() }
+    ),
+  });
+
+  const saveTemplateMutation = useMutation({
+    mutationFn: () =>
+      jsonFetch("/api/project-templates", {
+        method: "POST",
+        body: JSON.stringify({
+          name: `${projectTypeLabel(projectType, t)} ${new Date().toLocaleDateString(locale)}`,
+          projectType,
+          expectedPaymentMethod: paymentMethod,
+          workPhase,
+          notes,
+          scopeItems: createScopeItems,
+        }),
+      }),
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("templateSaved") },
+      { onSuccess: () => {} }
+    ),
+  });
+
+  const hasActiveFilters = hasActiveProjectJobFilters(filters);
+
+  const applyTemplate = useCallback((tpl: ProjectTemplateDto) => {
+    setProjectType(tpl.projectType);
+    setPaymentMethod(tpl.expectedPaymentMethod === "card" ? "card" : "cash");
+    setWorkPhase(tpl.workPhase);
+    setNotes(tpl.notes);
+    setCreateScopeItems(tpl.scopeItems ?? []);
+  }, []);
+
+  const startClone = useCallback((job: ProjectJobDto) => {
+    setCloneSource(job);
+    setCloneName(`${job.name} (2)`);
+    setCloneAmount(String(job.agreedAmount));
+  }, []);
+
+  const handleArchive = useCallback(
+    (job: ProjectJobDto) => {
+      if (window.confirm(t("archiveConfirm"))) {
+        archiveMutation.mutate({ id: job.id, archive: !job.isArchived });
+      }
+    },
+    [archiveMutation, t]
   );
 
-  const allView = useMemo(
-    () => sortRowsByNameAmountDate(filterRowsByNameQuery(allRows, q), sortBy, sortDir),
-    [allRows, q, sortBy, sortDir]
+  const handleDelete = useCallback(
+    (job: ProjectJobDto) => {
+      if (!canDeleteProjectJob(job)) {
+        toast.error(t("deleteJobBlocked"));
+        return;
+      }
+      if (window.confirm(t("deleteJobQ"))) {
+        deleteJob.mutate(job.id);
+      }
+    },
+    [deleteJob, t]
   );
 
-  const byName = sumAll?.data?.byName ?? [];
-  const projectPlRows = plData?.data?.rows ?? [];
-  const monthTotal = monthView.reduce((s, r) => s + r.amount, 0);
-  const allTotal = allView.reduce((s, r) => s + r.amount, 0);
-  const monthNet = projectPlRows.reduce((s, r) => s + r.net, 0);
+  const handlePdfClient = useCallback(
+    (job: ProjectJobDto) => {
+      void runPdfDownload(() => downloadProposalPdf(job, "client", locale, t));
+    },
+    [runPdfDownload, locale, t]
+  );
+
+  const handlePdfInternal = useCallback(
+    (job: ProjectJobDto) => {
+      void runPdfDownload(() => downloadProposalPdf(job, "internal", locale, t));
+    },
+    [runPdfDownload, locale, t]
+  );
+
+  const openDetailById = useCallback(
+    (id: string) => {
+      const job = jobs.find((j) => j.id === id);
+      if (job) openDetail(job);
+    },
+    [jobs, openDetail]
+  );
+
+  const openCollect = useCallback(
+    (job: ProjectJobDto, payout?: ProjectJobDto["payouts"][number]) => {
+      setCollectPayoutId(payout?.id);
+      setCollectAmount(
+        String(payout?.amount ?? (job.pendingAmount > 0 ? job.pendingAmount : job.agreedAmount))
+      );
+      setCollectDate(defaultFormDateYmd());
+      setCollectMethod(
+        job.expectedPaymentMethod === "card"
+          ? "card"
+          : job.expectedPaymentMethod === "cash"
+            ? "cash"
+            : "cash"
+      );
+      setCollectJob(job);
+    },
+    []
+  );
+
+  const jobCardHandlers = {
+    onToggleSelected: toggleSelected,
+    onOpenDetail: openDetail,
+    onCollect: openCollect,
+    onClone: startClone,
+    onEdit: openEdit,
+    onArchive: handleArchive,
+    onDelete: handleDelete,
+    onPdfClient: handlePdfClient,
+    onPdfInternal: handlePdfInternal,
+  };
 
   return (
-    <div className="max-w-6xl space-y-5">
+    <div className="store-section w-full space-y-4">
       <PageHeader
         title={t("title")}
-        description={t("desc", { month: monthLabel(year, month, locale) })}
+        description={t("descFreelance")}
         icon={<FolderKanban className="size-5" />}
         action={
-          <Button type="button" className="h-11 min-w-[10rem]" onClick={openAddDialog}>
-            <Plus className="me-2 size-4 shrink-0" />
-            {t("addButton")}
+          <Button type="button" className="h-11" onClick={() => { resetAddForm(); setAddOpen(true); }}>
+            <Plus className="me-2 size-4" />
+            {t("addJob")}
           </Button>
         }
       />
 
       {error && <QueryErrorAlert error={error} />}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">
-              {t("inMonth", { month: monthLabel(year, month, locale) })}
-            </CardDescription>
-            <CardTitle className="font-mono text-2xl tabular-nums">
-              {formatMoney(monthTotal)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
-            <TrendingUp className="size-3.5" />
-            {t("subtotal")}
-          </CardContent>
-        </Card>
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">{t("allTotal")}</CardDescription>
-            <CardTitle className="font-mono text-2xl tabular-nums">
-              {formatMoney(allTotal)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
-            <Wallet className="size-3.5" />
-            {t("allEntries")}
-          </CardContent>
-        </Card>
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">{t("allTime")}</CardDescription>
-            <CardTitle className="font-mono text-2xl tabular-nums">{byName.length}</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
-            <FolderKanban className="size-3.5" />
-            {tC("project")}
-          </CardContent>
-        </Card>
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs">{t("plNet")}</CardDescription>
-            <CardTitle className={cn("font-mono text-2xl tabular-nums", monthNet >= 0 ? "text-foreground" : "text-destructive")}>
-              {formatMoney(monthNet)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-xs text-muted-foreground flex items-center gap-1.5">
-            <Scale className="size-3.5" />
-            {t("plCardTitle")}
-          </CardContent>
-        </Card>
-      </div>
+      <WalletAccountPanel variant="compact" />
 
-      {projectPlRows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("plCardTitle")}</CardTitle>
-            <CardDescription>
-              {t("plCardDesc", { month: monthLabel(year, month, locale) })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{tC("project")}</TableHead>
-                    <TableHead className="text-end">{t("plReceived")}</TableHead>
-                    <TableHead className="text-end">{t("plSpent")}</TableHead>
-                    <TableHead className="text-end">{t("plNet")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {projectPlRows.map((row) => (
-                    <TableRow key={row.key}>
-                      <TableCell className="font-medium">{row.label}</TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {formatMoney(row.received)}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums text-muted-foreground">
-                        {formatMoney(row.spent)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-end tabular-nums font-medium",
-                          row.net >= 0 ? "text-foreground" : "text-destructive"
-                        )}
-                      >
-                        {formatMoney(row.net)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <ProjectCollectionsBanner onOpenJob={openDetailById} />
 
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t("sortBy")}</CardTitle>
-          <CardDescription>{t("allDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-      <div className="flex w-full flex-wrap items-end gap-3 sm:gap-4">
-        <div className="min-w-0 flex-1 basis-full flex flex-col gap-2.5 lg:basis-[22rem]">
-          <div className={controlLabelSlotClass}>
-            <Label className={controlLabelClass} htmlFor="projects-search">
-              {tC("search")}
-            </Label>
-          </div>
-          <div className="relative">
-            <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              id="projects-search"
-              className="h-11 ps-10"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("phSearch")}
-            />
-          </div>
-        </div>
-        <div className="min-w-0 flex-1 basis-[12rem] flex flex-col gap-2.5">
-          <div className={controlLabelSlotClass}>
-            <Label className={controlLabelClass}>{t("sortBy")}</Label>
-          </div>
-          <Select
-            value={sortBy}
-            onValueChange={(v) => v && setSortBy(v as "date" | "name" | "amount")}
-          >
-            <SelectTrigger className="h-11 w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date">{t("sort.date")}</SelectItem>
-              <SelectItem value="name">{t("sort.name")}</SelectItem>
-              <SelectItem value="amount">{t("sort.amount")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-0 basis-[10.5rem] flex flex-col gap-2.5">
-          <div className={controlLabelSlotClass}>
-            <Label className={controlLabelClass}>{t("order")}</Label>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full justify-between"
-            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-          >
-            {sortDir === "asc" ? t("asc") : t("desc")}
-            <ArrowUpDown className="size-4 shrink-0" />
-          </Button>
-        </div>
-        <div className="min-w-0 basis-full flex flex-col gap-2.5 sm:basis-auto">
-          <div className={controlLabelSlotClass}>
-            <Label className={controlLabelClass}>{tC("actions")}</Label>
-          </div>
-          <div className="flex min-w-0 gap-2 sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              title={t("excel")}
-              aria-label={t("excel")}
-              className="h-11 w-11 shrink-0"
-              onClick={() => {
-                exportProjectListExcel(
-                  allView,
-                  `projects-export-${year}-${String(month).padStart(2, "0")}.xlsx`
-                );
-                toast.success(t("excelOk"));
-              }}
-            >
-              <FileSpreadsheet className="size-4 shrink-0" />
-              <span className="sr-only">{t("excel")}</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-        </CardContent>
-      </Card>
+      <ProjectNormalBanner onOpenJob={openDetailById} />
 
-      {byName.length > 0 && (
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">{t("allTime")}</CardTitle>
-            <CardDescription>{t("allTimeDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {byName.map(({ name: n, total }) => (
-                <Badge key={n} variant="secondary" className="text-sm">
-                  {n}: {formatMoney(total)}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <ProjectJobsFilterBar
+        filters={filters}
+        clientNames={clientNames}
+        onCollectedChange={setCollected}
+        onTypeChange={setFilterProjectType}
+        onSortChange={setSort}
+        onClientChange={setClient}
+        onWorkPhaseChange={setFilterWorkPhase}
+        onSearchChange={setSearch}
+        onArchiveChange={setArchive}
+        onViewChange={setView}
+        onClearFilters={clearFilters}
+        shown={jobs.length}
+        total={listMeta.total}
+        loading={isListLoading}
+      />
 
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle>{t("inMonth", { month: monthLabel(year, month, locale) })}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <DataTableSkeleton columnShapes={["sm", "fill", "sm", "end", "end"]} rows={5} />
-          ) : monthView.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("noPayouts")}</p>
-          ) : (
-            <div className="overflow-x-auto rounded-md border">
-              <p className="border-b px-2 py-1 text-sm text-muted-foreground">
-                {t("subtotal")}{" "}
-                <span className="font-medium text-foreground">
-                  {formatMoney(monthView.reduce((s, r) => s + r.amount, 0))}
-                </span>
-              </p>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{tC("date")}</TableHead>
-                    <TableHead>{tC("project")}</TableHead>
-                    <TableHead className="hidden min-[480px]:table-cell">{t("lineNote")}</TableHead>
-                    <TableHead className="text-end">{tC("amount")}</TableHead>
-                    <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthView.map((r) => (
-                    <TableRow key={r._id}>
-                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                        {formatDateLong(new Date(r.date), locale)}
-                      </TableCell>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground min-[480px]:table-cell">
-                        {r.note?.trim() || "—"}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {formatMoney(r.amount)}
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <div className="flex flex-wrap items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => setEdit(r)}>
-                            {tC("edit")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              if (confirm(t("deleteQ"))) del.mutate(r._id);
-                            }}
-                          >
-                            {tC("delete")}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {monthView.length > 0 && (
-                <PaginatedListFooter
-                  hasNextPage={!!hasNextMonth}
-                  isFetchingNextPage={isFetchingMonth}
-                  onLoadMore={() => void fetchNextMonth()}
-                  labelLoadMore={tC("loadMore")}
-                  labelLoading={tC("loadingMore")}
-                  labelEnd={tC("endOfList")}
-                />
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle>{t("allEntries")}</CardTitle>
-          <CardDescription>{t("allDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {allView.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("allEmpty")}</p>
-          ) : (
-            <div className="max-h-80 max-w-full overflow-x-auto overflow-y-auto rounded-md border">
-              <p className="border-b px-2 py-1 text-sm text-muted-foreground">
-                {t("allTotal")} {formatMoney(allView.reduce((s, r) => s + r.amount, 0))}
-              </p>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{tC("date")}</TableHead>
-                    <TableHead>{tC("project")}</TableHead>
-                    <TableHead className="hidden min-[480px]:table-cell">{t("lineNote")}</TableHead>
-                    <TableHead className="text-end">{tC("amount")}</TableHead>
-                    <TableHead className="w-32 text-end">{tC("actions")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allView.map((r) => (
-                    <TableRow key={r._id + "-a"}>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDateLong(new Date(r.date), locale)}
-                      </TableCell>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground min-[480px]:table-cell">
-                        {r.note?.trim() || "—"}
-                      </TableCell>
-                      <TableCell className="text-end tabular-nums">
-                        {formatMoney(r.amount)}
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <div className="flex flex-wrap items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => setEdit(r)}>
-                            {tC("edit")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              if (confirm(t("deleteQ"))) del.mutate(r._id);
-                            }}
-                          >
-                            {tC("delete")}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {allView.length > 0 && (
-                <PaginatedListFooter
-                  hasNextPage={!!hasNextAll}
-                  isFetchingNextPage={isFetchingAll}
-                  onLoadMore={() => void fetchNextAll()}
-                  labelLoadMore={tC("loadMore")}
-                  labelLoading={tC("loadingMore")}
-                  labelEnd={tC("endOfList")}
-                />
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog
-        open={addOpen}
-        onOpenChange={(o) => {
-          setAddOpen(o);
+      <ProjectBulkActionBar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onCollect={() => setBulkCollectOpen(true)}
+        onStatementPdfClient={() => {
+          void runPdfDownload(() => downloadStatementPdf(selectedJobs, locale, t, "client"));
         }}
-      >
-        <DialogContent className="sm:max-w-md p-5 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>{t("add")}</DialogTitle>
-            <DialogDescription>{t("addDesc")}</DialogDescription>
+        onStatementPdfInternal={() => {
+          void runPdfDownload(() => downloadStatementPdf(selectedJobs, locale, t, "internal"));
+        }}
+        isCollecting={bulkCollect.isPending}
+        canCollect={canCollectSelected}
+        canStatement={canStatementSelected}
+        pdfBusy={pdfBusy}
+        labels={{
+          selected: t("bulkSelected"),
+          clear: t("bulkClear"),
+          collectAll: t("bulkCollect"),
+          pdfMenu: t("bulkPdfMenu"),
+          pdfClient: t("pdfForClient"),
+          pdfInternal: t("pdfWithDetails"),
+        }}
+      />
+
+      {isListLoading ? (
+        <ProjectJobsTotalsSkeleton />
+      ) : (
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="p-3 pb-1">
+            <CardDescription className="text-[11px]">{t("totalAgreed")}</CardDescription>
+            <CardTitle className="font-mono text-base tabular-nums sm:text-lg">{formatMoney(totals.agreed)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="p-3 pb-1">
+            <CardDescription className="text-[11px]">{t("totalCollected")}</CardDescription>
+            <CardTitle className="font-mono text-base tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-lg">
+              {formatMoney(totals.collected)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="p-3 pb-1">
+            <CardDescription className="text-[11px]">{t("totalPending")}</CardDescription>
+            <CardTitle className="font-mono text-base tabular-nums text-amber-600 dark:text-amber-400 sm:text-lg">
+              {formatMoney(totals.pending)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="p-3 pb-1">
+            <CardDescription className="text-[11px]">{t("plSpent")}</CardDescription>
+            <CardTitle className="font-mono text-base tabular-nums sm:text-lg">{formatMoney(totals.spent)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="col-span-2 border-border/70 shadow-sm sm:col-span-1">
+          <CardHeader className="p-3 pb-1">
+            <CardDescription className="text-[11px]">{t("plNet")}</CardDescription>
+            <CardTitle className={cn("font-mono text-base tabular-nums sm:text-lg", totals.net >= 0 ? "" : "text-destructive")}>
+              {formatMoney(totals.net)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+      )}
+
+      {isListLoading ? (
+        viewMode === "kanban" ? <ProjectJobsKanbanSkeleton /> : <ProjectJobsListSkeleton />
+      ) : jobs.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {hasActiveFilters ? t("noJobsFiltered") : t("noJobs")}
+          </CardContent>
+        </Card>
+      ) : viewMode === "kanban" ? (
+        <ProjectJobsKanban
+          jobs={jobs}
+          selectedIds={selectedIds}
+          {...jobCardHandlers}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {jobs.map((job) => (
+            <ProjectJobCard
+              key={job.id}
+              job={job}
+              selected={selectedIds.has(job.id)}
+              {...jobCardHandlers}
+            />
+          ))}
+          <PaginatedListFooter
+            hasNextPage={!!hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            onLoadMore={() => void fetchNextPage()}
+            labelLoadMore={tC("loadMore")}
+            labelLoading={tC("loadingMore")}
+            labelEnd={tC("endOfList")}
+          />
+        </div>
+      )}
+
+      {/* Create job — type + essentials first, rest optional */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader className="text-start">
+            <DialogTitle>{t("addJob")}</DialogTitle>
+            <DialogDescription className="text-start leading-relaxed">
+              {t("addJobDescShort")}
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2.5">
-              <Label htmlFor="add-proj-name">{t("projName")}</Label>
+          <div className="space-y-4">
+            <ProjectTypeField
+              id="job-type"
+              value={projectType}
+              onChange={(v) => {
+                setProjectType(v);
+                if (v === "normal") setCreateScopeItems([]);
+              }}
+            />
+            {templates.length > 0 && projectType !== "normal" && (
+              <div className="space-y-2">
+                <Label htmlFor="job-template">{t("templatePick")}</Label>
+                <select
+                  id="job-template"
+                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const tpl = templates.find((x) => x.id === e.target.value);
+                    if (tpl) applyTemplate(tpl);
+                  }}
+                >
+                  <option value="">{t("templateNone")}</option>
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name}{tpl.isBuiltin ? "" : " ★"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="job-name">{t("projName")}</Label>
               <Input
-                id="add-proj-name"
-                className="h-11"
+                id="job-name"
+                className="h-11 text-base"
+                placeholder={t("projNamePh")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
               />
             </div>
-            <div className="flex flex-col gap-2.5">
-              <Label htmlFor="add-proj-amt">{tC("amount")}</Label>
+            <div className="space-y-2">
+              <Label htmlFor="job-amount">{t("agreedAmount")}</Label>
               <Input
-                id="add-proj-amt"
-                className="h-11"
+                id="job-amount"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                min="0"
+                className="h-11 text-base font-mono tabular-nums"
+                placeholder={t("agreedAmountPh")}
+                value={agreedAmount}
+                onChange={(e) => setAgreedAmount(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-2.5">
-              <Label htmlFor="add-proj-date">{tC("date")}</Label>
-              <Input
-                id="add-proj-date"
-                className="h-11"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+            <ClientField
+              id="job-client"
+              value={clientName}
+              onChange={setClientName}
+              clients={clientOptions}
+              newClientPhone={clientPhone}
+              onNewClientPhoneChange={setClientPhone}
+            />
+            <PaymentMethodField
+              id="job-pay-method"
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+              optional={false}
+              size="compact"
+            />
+
+            {isDetailedProjectType(projectType) && (
+              <ProjectScopeEditor
+                items={createScopeItems}
+                onChange={setCreateScopeItems}
+                labels={scopeLabels}
               />
-            </div>
-            <div className="flex flex-col gap-2.5">
-              <Label htmlFor="add-proj-note">{t("lineNote")}</Label>
-              <Textarea
-                id="add-proj-note"
-                value={payoutNote}
-                onChange={(e) => setPayoutNote(e.target.value)}
-                placeholder={t("lineNotePh")}
-                rows={2}
-                className="min-h-14"
+            )}
+
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 rounded-xl border border-dashed border-border/70 bg-muted/10 px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted/20 hover:text-foreground"
+              onClick={() => setShowMoreOptions((v) => !v)}
+              aria-expanded={showMoreOptions}
+            >
+              <span>{t("optionalDetails")}</span>
+              <ChevronDown
+                className={cn("size-4 shrink-0 transition-transform", showMoreOptions && "rotate-180")}
               />
-            </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
-                {tC("close")}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => m.mutate()}
-                disabled={!name.trim() || !amount}
-              >
-                {tC("save")}
-              </Button>
-            </DialogFooter>
+            </button>
+
+            {showMoreOptions && (
+              <div className="space-y-3 rounded-xl border border-border/60 bg-muted/5 p-3">
+                <div className="space-y-2">
+                  <Label htmlFor="job-phase">{t("workPhase")}</Label>
+                  <select
+                    id="job-phase"
+                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={workPhase}
+                    onChange={(e) => setWorkPhase(e.target.value as WorkPhase)}
+                  >
+                    {WORK_PHASES.map((p) => (
+                      <option key={p} value={p}>
+                        {t(`workPhase_${p}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="rounded-lg border border-border/50 p-3 space-y-2">
+                  <label className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                      checked={isCollected}
+                      onChange={(e) => setIsCollected(e.target.checked)}
+                    />
+                    <span>
+                      <span className="font-medium">{t("collectedNow")}</span>
+                      {!isCollected && (
+                        <span className="mt-1 block text-xs text-muted-foreground leading-snug">
+                          {t("pendingHint")}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="job-start">{t("startDate")}</Label>
+                    <Input
+                      id="job-start"
+                      type="date"
+                      className="h-11"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="job-due">{t("expectedDate")}</Label>
+                    <Input
+                      id="job-due"
+                      type="date"
+                      className="h-11"
+                      value={expectedDate}
+                      onChange={(e) => setExpectedDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="job-notes">{t("lineNote")}</Label>
+                  <Textarea
+                    id="job-notes"
+                    rows={2}
+                    placeholder={t("lineNotePh")}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t("costLaterHint")}</p>
+                {!isCollected && (
+                  <div className="space-y-2 rounded-lg border border-dashed border-border/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-sm">{t("installmentsPlan")}</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() =>
+                          setInstallmentRows((rows) => [
+                            ...rows,
+                            { amount: "", dueDate: defaultFormDateYmd(), note: "" },
+                          ])
+                        }
+                      >
+                        <Plus className="me-1 size-3.5" />
+                        {t("addInstallmentLine")}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t("installmentsPlanHint")}</p>
+                    {installmentRows.map((row, idx) => (
+                      <div key={idx} className="grid gap-2 sm:grid-cols-3">
+                        <Input
+                          type="number"
+                          placeholder={t("installmentAmountPh")}
+                          className="h-10"
+                          value={row.amount}
+                          onChange={(e) =>
+                            setInstallmentRows((rows) =>
+                              rows.map((r, i) => (i === idx ? { ...r, amount: e.target.value } : r))
+                            )
+                          }
+                        />
+                        <Input
+                          type="date"
+                          className="h-10"
+                          value={row.dueDate}
+                          onChange={(e) =>
+                            setInstallmentRows((rows) =>
+                              rows.map((r, i) => (i === idx ? { ...r, dueDate: e.target.value } : r))
+                            )
+                          }
+                        />
+                        <Input
+                          placeholder={t("installmentNotePh")}
+                          className="h-10"
+                          value={row.note}
+                          onChange={(e) =>
+                            setInstallmentRows((rows) =>
+                              rows.map((r, i) => (i === idx ? { ...r, note: e.target.value } : r))
+                            )
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+              {tC("close")}
+            </Button>
+            <Button
+              type="button"
+              className="min-w-[6rem]"
+              disabled={!name.trim() || !agreedAmount || Number(agreedAmount) <= 0 || createJob.isPending}
+              onClick={() => createJob.mutate(undefined)}
+            >
+              {createJob.isPending ? <Loader2 className="size-4 animate-spin" /> : t("saveJob")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={!!edit}
-        onOpenChange={(open) => {
-          if (!open) setEdit(null);
-        }}
-      >
+      {/* Edit job */}
+      <Dialog open={!!editJob} onOpenChange={(o) => !o && setEditJob(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader className="text-start">
+            <DialogTitle>{t("editJobTitle")}</DialogTitle>
+            <DialogDescription className="text-start">{t("editJobDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">{t("projName")}</Label>
+              <Input id="edit-name" className="h-11" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-amount">{t("agreedAmount")}</Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                step="0.01"
+                className="h-11"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+              />
+            </div>
+            <ClientField
+              id="edit-client"
+              value={editClientName}
+              onChange={setEditClientName}
+              clients={clientOptions}
+              newClientPhone={editClientPhone}
+              onNewClientPhoneChange={setEditClientPhone}
+              size="compact"
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-start">{t("startDate")}</Label>
+                <Input
+                  id="edit-start"
+                  type="date"
+                  className="h-11"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-due">{t("expectedDate")}</Label>
+                <Input
+                  id="edit-due"
+                  type="date"
+                  className="h-11"
+                  value={editExpectedDate}
+                  onChange={(e) => setEditExpectedDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">{t("lineNote")}</Label>
+              <Textarea id="edit-notes" rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </div>
+            <PaymentMethodField
+              id="edit-pay-method"
+              value={editPaymentMethod}
+              onChange={setEditPaymentMethod}
+              optional={false}
+              size="compact"
+            />
+            <ProjectTypeField
+              id="edit-type"
+              value={editProjectType}
+              onChange={setEditProjectType}
+              compact
+            />
+            <div className="space-y-2">
+              <Label htmlFor="edit-phase">{t("workPhase")}</Label>
+              <select
+                id="edit-phase"
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={editWorkPhase}
+                onChange={(e) => setEditWorkPhase(e.target.value as WorkPhase)}
+              >
+                {WORK_PHASES.map((p) => (
+                  <option key={p} value={p}>
+                    {t(`workPhase_${p}`)}
+                  </option>
+                ))}
+              </select>
+              {editWorkPhase === "delivered" && editJob?.workPhase !== "delivered" && (
+                <p className="text-xs text-muted-foreground">{t("deliveredAutoCollectHint")}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setEditJob(null)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              disabled={!editName.trim() || !editAmount || updateJob.isPending}
+              onClick={() => updateJob.mutate(undefined)}
+            >
+              {updateJob.isPending ? <Loader2 className="size-4 animate-spin" /> : tC("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Collect */}
+      <Dialog open={!!collectJob} onOpenChange={(o) => { if (!o) { setCollectJob(null); setCollectPayoutId(undefined); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("dialogTitle")}</DialogTitle>
-            <DialogDescription>{t("addDesc")}</DialogDescription>
+            <DialogTitle>{collectPayoutId ? t("collectInstallmentTitle") : t("collectTitle")}</DialogTitle>
+            <DialogDescription>{collectJob?.name}</DialogDescription>
           </DialogHeader>
-          {edit && <EditP key={edit._id} row={edit} onDone={() => setEdit(null)} />}
+          <div className="space-y-3">
+            {!collectPayoutId && (
+              <div className="space-y-2">
+                <Label>{tC("amount")}</Label>
+                <Input type="number" step="0.01" className="h-11" value={collectAmount} onChange={(e) => setCollectAmount(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  {t("collectPartialHint", { remaining: formatMoney(collectJob?.pendingAmount ?? 0) })}
+                </p>
+              </div>
+            )}
+            {collectPayoutId && collectJob && (
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t("installmentAmount")}</p>
+                <p className="font-mono text-lg font-bold tabular-nums">{formatMoney(Number(collectAmount))}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>{tC("date")}</Label>
+              <Input type="date" className="h-11" value={collectDate} onChange={(e) => setCollectDate(e.target.value)} />
+            </div>
+            <PaymentMethodField value={collectMethod} onChange={setCollectMethod} optional={false} size="compact" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCollectJob(null)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              onClick={() => collectJob && collectMutation.mutate({ job: collectJob, payoutId: collectPayoutId })}
+              disabled={collectMutation.isPending}
+            >
+              {t("collectBtn")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add installment */}
+      <Dialog open={!!installmentJob} onOpenChange={(o) => !o && setInstallmentJob(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("addInstallmentTitle")}</DialogTitle>
+            <DialogDescription>{installmentJob?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t("installmentAmount")}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                className="h-11"
+                value={instAmount}
+                onChange={(e) => setInstAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("installmentDue")}</Label>
+              <Input type="date" className="h-11" value={instDue} onChange={(e) => setInstDue(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("installmentNote")}</Label>
+              <Input
+                className="h-11"
+                placeholder={t("installmentNotePh")}
+                value={instNote}
+                onChange={(e) => setInstNote(e.target.value)}
+              />
+            </div>
+            {installmentJob && (
+              <p className="text-xs text-muted-foreground">
+                {t("installmentRemaining", { amount: formatMoney(installmentJob.pendingAmount) })}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setInstallmentJob(null)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              disabled={!instAmount || addInstallmentMutation.isPending}
+              onClick={() => installmentJob && addInstallmentMutation.mutate(installmentJob)}
+            >
+              {tC("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add cost */}
+      <Dialog open={!!costJob} onOpenChange={(o) => !o && setCostJob(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("addCostBtn")}</DialogTitle>
+            <DialogDescription>{costJob?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t("costTitle")}</Label>
+              <Input className="h-11" value={costTitle} onChange={(e) => setCostTitle(e.target.value)} placeholder={t("costTitlePh")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{tC("amount")}</Label>
+              <Input type="number" step="0.01" className="h-11" value={costAmount} onChange={(e) => setCostAmount(e.target.value)} />
+            </div>
+            <PaymentMethodField value={costMethod} onChange={setCostMethod} size="compact" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCostJob(null)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              onClick={() => costJob && addCostMutation.mutate(costJob)}
+              disabled={!costTitle.trim() || !costAmount || addCostMutation.isPending}
+            >
+              {tC("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail */}
+      <Dialog open={!!detailJob} onOpenChange={(o) => !o && setDetailJob(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{detailJob?.name}</DialogTitle>
+            <DialogDescription>{detailJob?.notes || t("detailsDesc")}</DialogDescription>
+          </DialogHeader>
+          {detailJob && (
+            <div className="space-y-4 text-sm">
+              {detailJob.status === "cancelled" && detailJob.cancellationReason && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs">
+                  <p className="font-medium text-destructive">{t("cancelledBanner")}</p>
+                  <p className="mt-1 text-muted-foreground">{detailJob.cancellationReason}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="text-muted-foreground">{t("clientName")}: </span>{detailClientName || "—"}</div>
+                <div><span className="text-muted-foreground">{t("agreedAmount")}: </span>{formatMoney(detailJob.agreedAmount)}</div>
+                <div><span className="text-muted-foreground">{t("netProfit")}: </span>{formatMoney(detailJob.netCollected)}</div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={pdfBusy}
+                  onClick={() => {
+                    void runPdfDownload(() =>
+                      downloadProposalPdf(
+                        { ...detailJob, clientName: detailClientName, scopeItems: detailScopeItems },
+                        "client",
+                        locale,
+                        t
+                      )
+                    );
+                  }}
+                >
+                  <FileText className="me-1.5 size-3.5" />
+                  {t("pdfForClient")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pdfBusy}
+                  onClick={() => {
+                    void runPdfDownload(() =>
+                      downloadProposalPdf(
+                        { ...detailJob, clientName: detailClientName, scopeItems: detailScopeItems },
+                        "internal",
+                        locale,
+                        t
+                      )
+                    );
+                  }}
+                >
+                  <FileText className="me-1.5 size-3.5" />
+                  {t("pdfWithDetails")}
+                </Button>
+              </div>
+
+              {isDetailedProjectType(detailJob.projectType) && (
+                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/5 p-3">
+                  <ClientField
+                    id="detail-client"
+                    value={detailClientName}
+                    onChange={setDetailClientName}
+                    clients={clientOptions}
+                    newClientPhone={detailClientPhone}
+                    onNewClientPhoneChange={setDetailClientPhone}
+                    size="compact"
+                  />
+                  <ProjectScopeEditor
+                    items={detailScopeItems}
+                    onChange={setDetailScopeItems}
+                    labels={scopeLabels}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={saveScope.isPending}
+                    onClick={() => saveScope.mutate(undefined)}
+                  >
+                    {saveScope.isPending ? <Loader2 className="me-1.5 size-3.5 animate-spin" /> : null}
+                    {t("scopeSave")}
+                  </Button>
+                </div>
+              )}
+
+              {detailJob.costs.length > 0 && (
+                <div>
+                  <p className="mb-2 font-medium">{t("costsList")}</p>
+                  <ul className="space-y-1">
+                    {detailJob.costs.map((c) => (
+                      <li key={c.id} className="flex justify-between rounded-md bg-muted/20 px-2 py-1">
+                        <span>{c.title}</span>
+                        <span className="font-mono tabular-nums">{formatMoney(c.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {detailJob.payouts.length > 0 && (
+                <div>
+                  <p className="mb-2 font-medium">{t("installmentsList")}</p>
+                  <ul className="space-y-2">
+                    {detailJob.payouts.map((p) => (
+                      <li
+                        key={p.id}
+                        className={cn(
+                          "flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between",
+                          p.isCollected
+                            ? "border-emerald-500/20 bg-emerald-500/5"
+                            : "border-amber-500/25 bg-amber-500/5"
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            {p.isCollected ? (
+                              <Banknote className="size-3.5 shrink-0 text-emerald-600" />
+                            ) : (
+                              <Clock className="size-3.5 shrink-0 text-amber-600" />
+                            )}
+                            <span className="font-mono font-semibold tabular-nums">{formatMoney(p.amount)}</span>
+                            <Badge variant={p.isCollected ? "default" : "secondary"} className="text-[0.65rem]">
+                              {p.isCollected ? t("statusCollected") : t("statusPending")}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {p.isCollected ? t("collectedOn") : t("dueOn")}{" "}
+                            {formatDateLong(new Date(p.date), locale)}
+                            {p.note ? ` · ${p.note}` : ""}
+                          </p>
+                        </div>
+                        {!p.isCollected && detailJob.status !== "cancelled" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => {
+                              setDetailJob(null);
+                              openCollect(detailJob, p);
+                            }}
+                          >
+                            {t("collectBtn")}
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {detailJob.status !== "cancelled" && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setDetailJob(null);
+                    openEdit(detailJob);
+                  }}
+                >
+                  <Pencil className="me-1.5 size-3.5" />
+                  {t("editJob")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setInstallmentJob(detailJob);
+                    setInstDue(defaultFormDateYmd());
+                    setDetailJob(null);
+                  }}
+                >
+                  <Plus className="me-1.5 size-3.5" />
+                  {t("addInstallmentBtn")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setCostJob(detailJob);
+                    setDetailJob(null);
+                  }}
+                >
+                  <Receipt className="me-1.5 size-3.5" />
+                  {t("addCostBtn")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCancelJob(detailJob);
+                    setCancelReason("");
+                    setDetailJob(null);
+                  }}
+                >
+                  {t("cancelJobBtn")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={!canDeleteProjectJob(detailJob)}
+                  onClick={() => handleDelete(detailJob)}
+                >
+                  {t("deleteJob")}
+                </Button>
+              </div>
+              )}
+              <p className="text-xs text-muted-foreground">{t("costOptionalHint")}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Clone project */}
+      <Dialog open={!!cloneSource} onOpenChange={(o) => !o && setCloneSource(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("cloneTitle")}</DialogTitle>
+            <DialogDescription>{cloneSource?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="clone-name">{t("projName")}</Label>
+              <Input id="clone-name" className="h-11" value={cloneName} onChange={(e) => setCloneName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clone-amount">{t("agreedAmount")}</Label>
+              <Input
+                id="clone-amount"
+                type="number"
+                className="h-11 font-mono"
+                value={cloneAmount}
+                onChange={(e) => setCloneAmount(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCloneSource(null)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              disabled={!cloneName.trim() || !cloneAmount || cloneMutation.isPending}
+              onClick={() =>
+                cloneSource &&
+                cloneMutation.mutate({
+                  id: cloneSource.id,
+                  name: cloneName.trim(),
+                  agreedAmount: Number(cloneAmount),
+                })
+              }
+            >
+              {t("cloneConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel project */}
+      <Dialog open={!!cancelJob} onOpenChange={(o) => !o && setCancelJob(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("cancelJobTitle")}</DialogTitle>
+            <DialogDescription>{cancelJob?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cancel-reason">{t("cancelReason")}</Label>
+            <Textarea
+              id="cancel-reason"
+              rows={3}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder={t("cancelReasonPh")}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCancelJob(null)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!cancelReason.trim() || cancelJobMutation.isPending}
+              onClick={() =>
+                cancelJob && cancelJobMutation.mutate({ id: cancelJob.id, reason: cancelReason.trim() })
+              }
+            >
+              {t("cancelJobConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk collect */}
+      <Dialog open={bulkCollectOpen} onOpenChange={setBulkCollectOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("bulkCollectTitle")}</DialogTitle>
+            <DialogDescription>{t("bulkCollectDesc", { count: selectedIds.size })}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-collect-date">{tC("date")}</Label>
+              <Input
+                id="bulk-collect-date"
+                type="date"
+                className="h-11"
+                value={bulkCollectDate}
+                onChange={(e) => setBulkCollectDate(e.target.value)}
+              />
+            </div>
+            <PaymentMethodField
+              id="bulk-collect-method"
+              value={bulkCollectMethod}
+              onChange={setBulkCollectMethod}
+              optional={false}
+              size="compact"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBulkCollectOpen(false)}>
+              {tC("cancel")}
+            </Button>
+            <Button type="button" disabled={bulkCollect.isPending} onClick={() => bulkCollect.mutate()}>
+              {bulkCollect.isPending ? <Loader2 className="size-4 animate-spin" /> : t("bulkCollectConfirm")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

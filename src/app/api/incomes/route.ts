@@ -3,6 +3,7 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
 import { normalizeIncomeType } from "@/lib/income-types";
+import { parsePaymentMethodBody } from "@/lib/payment-method";
 import { monthDateBoundsUTC, incomeInMonth } from "@/lib/db-month-filters";
 import { parseListPagination, toPaginatedBody } from "@/lib/api/list-pagination";
 import { queueAfterIncome } from "@/lib/services/activity-notifications";
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
         date: d.date,
         incomeType: d.incomeType,
         category: d.category || d.incomeType,
+        paymentMethod: d.paymentMethod ?? "unspecified",
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       }));
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
-    const { title, amount, date, incomeType, category } = body;
+    const { title, amount, date, incomeType, category, paymentMethod } = body;
     if (!title || amount == null || !date) {
       return NextResponse.json(
         { error: "title, amount, and date are required" },
@@ -92,6 +94,7 @@ export async function POST(req: Request) {
       date: new Date(date),
       incomeType: normalizeIncomeType(incomeType),
       category: String(category ?? incomeType ?? "other").trim(),
+      paymentMethod: parsePaymentMethodBody(paymentMethod) ?? "unspecified",
     });
     const uid = String(user.id);
     const row = { title: String(title), amount: Number(amount) };

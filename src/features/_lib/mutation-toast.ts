@@ -49,6 +49,23 @@ export function withMutationToasts<TData = unknown, TVariables = unknown, TError
 /**
  * For mutations that only toast success / error (no long loading), or delete with simple feedback.
  */
+export function mergeMutationToasts<TData = unknown, TVariables = unknown, TError = Error>(
+  messages: ToastMessages,
+  extra?: {
+    onSuccess?: (data: TData, variables: TVariables, ctx: ToastCtx | undefined) => void;
+  }
+) {
+  const base = withMutationToasts<TData, TVariables, TError>(messages);
+  return {
+    onMutate: base.onMutate,
+    onError: base.onError,
+    onSuccess: (data: TData, variables: TVariables, ctx: ToastCtx | undefined) => {
+      base.onSuccess(data, variables, ctx);
+      extra?.onSuccess?.(data, variables, ctx);
+    },
+  };
+}
+
 export function toastErrorOnly<TError = Error>(e: TError) {
   const msg = e instanceof Error ? e.message : "Error";
   toast.error(msg);

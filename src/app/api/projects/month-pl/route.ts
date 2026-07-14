@@ -40,6 +40,7 @@ export async function GET(req: Request) {
           $match: {
             userId: uid,
             date: { $gte: mStart, $lte: mEnd },
+            $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
           },
         },
         {

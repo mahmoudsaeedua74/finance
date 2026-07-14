@@ -3,6 +3,7 @@ import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { Income } from "@/lib/models";
 import { normalizeIncomeType } from "@/lib/income-types";
+import { parsePaymentMethodBody } from "@/lib/payment-method";
 import { queueAfterIncome } from "@/lib/services/activity-notifications";
 import mongoose from "mongoose";
 
@@ -37,7 +38,7 @@ export async function PUT(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     const body = await req.json();
-    const { title, amount, date, incomeType, category } = body;
+    const { title, amount, date, incomeType, category, paymentMethod } = body;
     await connectDB();
     const doc = await Income.findOneAndUpdate(
       { _id: params.id, userId: user.id },
@@ -47,6 +48,9 @@ export async function PUT(req: Request, { params }: Ctx) {
         ...(date != null && { date: new Date(date) }),
         ...(incomeType != null && { incomeType: normalizeIncomeType(incomeType) }),
         ...(category != null && { category: String(category).trim() }),
+        ...(paymentMethod !== undefined && {
+          paymentMethod: parsePaymentMethodBody(paymentMethod) ?? "unspecified",
+        }),
       },
       { new: true }
     );

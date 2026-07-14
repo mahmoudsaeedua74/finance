@@ -36,18 +36,30 @@ export async function PUT(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     const body = await req.json();
-    const { name, amount, date, note } = body;
+    const { name, amount, date, note, isCollected, paymentMethod, collectedAt } = body;
     await connectDB();
+    const patch: Record<string, unknown> = {};
+    if (name != null) patch.name = String(name);
+    if (amount != null) patch.amount = Number(amount);
+    if (date != null) patch.date = new Date(date);
+    if (note !== undefined) {
+      patch.note = typeof note === "string" ? note.trim().slice(0, 500) : "";
+    }
+    if (isCollected !== undefined) {
+      patch.isCollected = Boolean(isCollected);
+      patch.collectedAt = isCollected
+        ? collectedAt
+          ? new Date(collectedAt)
+          : new Date()
+        : null;
+    }
+    if (paymentMethod !== undefined) {
+      patch.paymentMethod =
+        paymentMethod === "cash" || paymentMethod === "card" ? paymentMethod : "unspecified";
+    }
     const doc = await Project.findOneAndUpdate(
       { _id: params.id, userId: user.id },
-      {
-        ...(name != null && { name: String(name) }),
-        ...(amount != null && { amount: Number(amount) }),
-        ...(date != null && { date: new Date(date) }),
-        ...(note !== undefined && {
-          note: typeof note === "string" ? note.trim().slice(0, 500) : "",
-        }),
-      },
+      { $set: patch },
       { new: true }
     );
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });

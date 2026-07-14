@@ -1,5 +1,11 @@
 export { Income, type IIncome, type IncomeType } from "./Income";
 export { Project, type IProject } from "./Project";
+export {
+  FreelanceProject,
+  type IFreelanceProject,
+  type FreelanceProjectStatus,
+} from "./FreelanceProject";
+export { UserWallet, type IUserWallet } from "./UserWallet";
 export { Expense, type IExpense, type ExpenseKind } from "./Expense";
 export { User, type IUser } from "./User";
 export { Budget, type IBudget } from "./Budget";
@@ -22,3 +28,5 @@ export {
 export { EmailDigestState, type IEmailDigestState } from "./EmailDigestState";
 export { GoldHolding, type IGoldHolding, type GoldKarat } from "./GoldHolding";
 export { Category, type ICategory, type CategoryType } from "./Category";
+export { ClientProfile, type IClientProfile } from "./ClientProfile";
+export { ProjectTemplate, type IProjectTemplate } from "./ProjectTemplate";

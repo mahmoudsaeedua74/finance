@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
-import { Project } from "@/lib/models";
+import { FreelanceProject, Project } from "@/lib/models";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +11,11 @@ export async function GET() {
   if (unauthorized) return unauthorized;
   try {
     await connectDB();
-    const raw = await Project.distinct("name", { userId: user.id });
-    const names = (raw as string[])
+    const [projNames, jobNames] = await Promise.all([
+      Project.distinct("name", { userId: user.id }),
+      FreelanceProject.distinct("name", { userId: user.id }),
+    ]);
+    const names = [...(projNames as string[]), ...(jobNames as string[])]
       .map((n) => n.trim())
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
