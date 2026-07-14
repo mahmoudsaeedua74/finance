@@ -83,16 +83,6 @@ export async function downloadStatementPdf(
   return filename;
 }
 
-/** @deprecated Use downloadProposalPdf */
-export const printProposalPdf = downloadProposalPdf;
-
-/** @deprecated Use downloadStatementPdf */
-export const printStatementPdf = downloadStatementPdf;
-
-export function canPrintProposal(_job: ProjectJobDto): boolean {
-  return true;
-}
-
 export function canBulkStatement(jobs: ProjectJobDto[]): boolean {
   return jobs.length > 0;
 }

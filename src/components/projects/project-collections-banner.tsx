@@ -26,7 +26,6 @@ type Props = {
 
 export function ProjectCollectionsBanner({ onOpenJob, variant = "preview" }: Props) {
   const t = useTranslations("projects");
-  const locale = useLocale();
 
   const { data: countData } = useQuery({
     queryKey: ["project-attention", "collections-count"],

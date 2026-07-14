@@ -115,7 +115,7 @@ export default function TransactionsPage() {
   const tExp = useTranslations("expense");
   const tCat = useTranslations("expense.categories");
   const locale = useLocale();
-  const { invalidateIncomes, invalidateExpenses } = useFinanceInvalidation();
+  const { invalidateIncomes } = useFinanceInvalidation();
   const deleteExpenseMut = useDeleteExpense();
 
   const [tab, setTab] = useState<"all" | "income" | "expense" | "recurring">("all");

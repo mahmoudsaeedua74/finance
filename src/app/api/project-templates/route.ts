@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import {
-  deleteProjectTemplate,
   listProjectTemplates,
   saveProjectTemplate,
 } from "@/lib/services/project-template-service";

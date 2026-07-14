@@ -20,7 +20,7 @@ import { ProjectBulkActionBar } from "@/components/projects/project-bulk-action-
 import { ProjectScopeEditor } from "@/components/projects/project-scope-editor";
 import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
-import { ProjectTypeField, projectTypeLabel } from "@/components/forms/project-type-field";
+import { ProjectTypeField } from "@/components/forms/project-type-field";
 import { ClientField } from "@/components/forms/client-field";
 import { type ProjectType } from "@/lib/project-type";
 import { WORK_PHASES, type WorkPhase } from "@/lib/project-work-phase";
@@ -66,34 +66,12 @@ import {
   Plus,
   Banknote,
   Receipt,
-  CheckCircle2,
   Clock,
   Pencil,
   ChevronDown,
 } from "lucide-react";
 import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
-
-function statusBadge(status: ProjectJobDto["status"], t: (k: string) => string) {
-  const map = {
-    pending: { label: t("statusPending"), variant: "secondary" as const },
-    partial: { label: t("statusPartial"), variant: "outline" as const },
-    collected: { label: t("statusCollected"), variant: "default" as const },
-    cancelled: { label: t("statusCancelled"), variant: "destructive" as const },
-  };
-  const s = map[status] ?? map.pending;
-  return <Badge variant={s.variant}>{s.label}</Badge>;
-}
-
-function workPhaseBadge(phase: WorkPhase, t: (k: string) => string) {
-  const map = {
-    quote: { label: t("workPhase_quote"), variant: "outline" as const },
-    in_progress: { label: t("workPhase_in_progress"), variant: "secondary" as const },
-    delivered: { label: t("workPhase_delivered"), variant: "default" as const },
-  };
-  const s = map[phase] ?? map.in_progress;
-  return <Badge variant={s.variant}>{s.label}</Badge>;
-}
 
 function newClientPhonePayload(
   name: string,
@@ -110,7 +88,6 @@ function newClientPhonePayload(
 export default function ProjectsPage() {
   const t = useTranslations("projects");
   const tC = useTranslations("common");
-  const tW = useTranslations("wallet");
   const locale = useLocale();
   const qc = useQueryClient();
   const { invalidateProjects, invalidateExpenses } = useFinanceInvalidation();
@@ -143,7 +120,7 @@ export default function ProjectsPage() {
     queryFn: () => jsonFetch<{ data: ClientOption[] }>("/api/clients?options=1"),
     staleTime: 60_000,
   });
-  const clientOptions = clientOptionsData?.data ?? [];
+  const clientOptions = useMemo(() => clientOptionsData?.data ?? [], [clientOptionsData?.data]);
   const clientNames = useMemo(
     () => clientOptions.map((c) => c.clientName),
     [clientOptions]
@@ -565,25 +542,6 @@ export default function ProjectsPage() {
     ...mergeMutationToasts(
       { loading: t("loadingArchive"), success: t("archivedOk") },
       { onSuccess: () => invalidateProjects() }
-    ),
-  });
-
-  const saveTemplateMutation = useMutation({
-    mutationFn: () =>
-      jsonFetch("/api/project-templates", {
-        method: "POST",
-        body: JSON.stringify({
-          name: `${projectTypeLabel(projectType, t)} ${new Date().toLocaleDateString(locale)}`,
-          projectType,
-          expectedPaymentMethod: paymentMethod,
-          workPhase,
-          notes,
-          scopeItems: createScopeItems,
-        }),
-      }),
-    ...mergeMutationToasts(
-      { loading: tC("saving"), success: t("templateSaved") },
-      { onSuccess: () => {} }
     ),
   });
 

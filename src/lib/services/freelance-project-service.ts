@@ -8,7 +8,7 @@ import {
 } from "@/lib/models";
 import { monthDateBoundsUTC } from "@/lib/db-month-filters";
 import { normalizePaymentMethod } from "@/lib/payment-method";
-import { buildProjectTypeMongoFilter, normalizeProjectType, type ProjectType } from "@/lib/project-type";
+import { buildProjectTypeMongoFilter, normalizeProjectType } from "@/lib/project-type";
 import { normalizeWorkPhase, type WorkPhase } from "@/lib/project-work-phase";
 import type {
   ProjectJobListFilters,

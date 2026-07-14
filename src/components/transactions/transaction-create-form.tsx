@@ -11,13 +11,6 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CategorySelectField } from "@/components/categories/category-select-field";
 import { ExpenseCategoryField } from "@/components/expense/expense-category-field";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
