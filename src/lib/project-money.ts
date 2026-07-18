@@ -23,7 +23,17 @@ export async function resolveProjectMoney(
   currencyRaw: unknown
 ): Promise<ResolvedProjectMoney> {
   const currency = parseProjectCurrencyBody(currencyRaw) ?? normalizeProjectCurrency(currencyRaw);
-  const originalAmount = roundMoney(amount);
+  const originalAmount = roundMoney(Math.max(0, amount));
+
+  // No FX needed when amount is still TBD (open retainer / end-of-month billing).
+  if (originalAmount <= 0) {
+    return {
+      currency,
+      originalAmount: 0,
+      exchangeRateToEgp: currency === "EGP" ? 1 : 1,
+      agreedAmount: 0,
+    };
+  }
 
   if (currency === "EGP") {
     return {

@@ -5,11 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { ProjectScopeItem, ScopeComplexity } from "@/lib/project-scope";
+import { formatMoney } from "@/lib/format";
+import type { ProjectCurrency } from "@/lib/currency";
+import {
+  sumScopeItemAmounts,
+  type ProjectScopeItem,
+  type ScopeComplexity,
+} from "@/lib/project-scope";
 
 type Props = {
   items: ProjectScopeItem[];
   onChange: (items: ProjectScopeItem[]) => void;
+  /** Project currency — scope line prices are in this currency. */
+  currency?: ProjectCurrency;
+  /** Fill project agreed amount from sum of lines. */
+  onApplyTotal?: (total: number) => void;
+  applyTotalLabel?: string;
   labels: {
     title: string;
     itemTitle: string;
@@ -21,6 +32,7 @@ type Props = {
     complexityLow: string;
     complexityMid: string;
     complexityHigh: string;
+    total?: string;
   };
 };
 
@@ -31,7 +43,14 @@ const emptyItem = (): ProjectScopeItem => ({
   tech: "",
 });
 
-export function ProjectScopeEditor({ items, onChange, labels }: Props) {
+export function ProjectScopeEditor({
+  items,
+  onChange,
+  currency = "EGP",
+  onApplyTotal,
+  applyTotalLabel,
+  labels,
+}: Props) {
   const update = (index: number, patch: Partial<ProjectScopeItem>) => {
     onChange(items.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
@@ -40,11 +59,20 @@ export function ProjectScopeEditor({ items, onChange, labels }: Props) {
     onChange(items.filter((_, i) => i !== index));
   };
 
+  const total = sumScopeItemAmounts(items);
+  const amountLabel =
+    currency === "SAR" ? `${labels.amount} (SAR)` : `${labels.amount} (EGP)`;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <Label className="text-sm font-medium">{labels.title}</Label>
-        <Button type="button" size="sm" variant="outline" onClick={() => onChange([...items, emptyItem()])}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onChange([...items, emptyItem()])}
+        >
           <Plus className="me-1 size-3.5" />
           {labels.add}
         </Button>
@@ -53,7 +81,10 @@ export function ProjectScopeEditor({ items, onChange, labels }: Props) {
         <p className="text-xs text-muted-foreground">{labels.add}</p>
       ) : (
         items.map((item, index) => (
-          <div key={index} className="space-y-2 rounded-xl border border-border/70 bg-muted/10 p-3">
+          <div
+            key={index}
+            className="space-y-2 rounded-xl border border-border/70 bg-muted/10 p-3"
+          >
             <div className="flex items-start gap-2">
               <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="space-y-1 sm:col-span-2">
@@ -74,16 +105,20 @@ export function ProjectScopeEditor({ items, onChange, labels }: Props) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">{labels.amount}</Label>
+                  <Label className="text-xs text-muted-foreground">{amountLabel}</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    placeholder={currency === "SAR" ? "مثال: 150" : "مثال: 500"}
                     value={item.amount ?? ""}
                     onChange={(e) =>
                       update(index, {
                         amount: e.target.value ? Number(e.target.value) : undefined,
                       })
                     }
-                    className="h-9"
+                    className="h-9 font-mono tabular-nums"
                   />
                 </div>
                 <div className="space-y-1">
@@ -102,7 +137,9 @@ export function ProjectScopeEditor({ items, onChange, labels }: Props) {
                     value={item.complexity ?? ""}
                     onChange={(e) =>
                       update(index, {
-                        complexity: (e.target.value || undefined) as ScopeComplexity | undefined,
+                        complexity: (e.target.value || undefined) as
+                          | ScopeComplexity
+                          | undefined,
                       })
                     }
                   >
@@ -113,12 +150,39 @@ export function ProjectScopeEditor({ items, onChange, labels }: Props) {
                   </select>
                 </div>
               </div>
-              <Button type="button" size="icon" variant="ghost" className="size-8 shrink-0" onClick={() => remove(index)}>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-8 shrink-0"
+                onClick={() => remove(index)}
+              >
                 <Trash2 className="size-4 text-destructive" />
               </Button>
             </div>
           </div>
         ))
+      )}
+
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 py-2.5 text-sm">
+          <div>
+            <span className="text-muted-foreground">{labels.total ?? "المجموع"}: </span>
+            <span className="font-mono font-semibold tabular-nums">
+              {formatMoney(total, currency)}
+            </span>
+          </div>
+          {onApplyTotal && total > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => onApplyTotal(total)}
+            >
+              {applyTotalLabel ?? "استخدم كسعر المشروع"}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

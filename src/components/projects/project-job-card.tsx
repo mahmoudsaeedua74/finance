@@ -227,7 +227,7 @@ export function ProjectJobCard({
           )}
         </div>
 
-        {job.agreedAmount > 0 && (
+        {job.agreedAmount > 0 ? (
           <div className="space-y-1">
             {job.currency === "SAR" && (
               <p className="text-[10px] text-muted-foreground">
@@ -252,6 +252,10 @@ export function ProjectJobCard({
               />
             </div>
           </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11px] text-amber-800 dark:text-amber-300">
+            {t("amountTbd")}
+          </p>
         )}
 
         {!compact && (

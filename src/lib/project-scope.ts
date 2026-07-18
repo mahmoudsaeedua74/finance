@@ -1,11 +1,15 @@
 import type { ProjectType } from "@/lib/project-type";
+import { roundMoney } from "@/lib/currency";
 
 export type ScopeComplexity = "low" | "mid" | "high";
 
 export type ProjectScopeItem = {
   title: string;
   description?: string;
-  /** Internal breakdown line amount — optional on client proposal */
+  /**
+   * Line price in the project's currency (EGP or SAR) — not hours.
+   * Optional until you settle / bill.
+   */
   amount?: number;
   complexity?: ScopeComplexity;
   tech?: string;
@@ -42,6 +46,17 @@ export function parseScopeItems(raw: unknown): ProjectScopeItem[] {
       };
     })
     .filter((x): x is ProjectScopeItem => x != null);
+}
+
+/** Sum of line prices that have an amount (project currency). */
+export function sumScopeItemAmounts(items: ProjectScopeItem[]): number {
+  return roundMoney(
+    items.reduce(
+      (s, i) =>
+        s + (typeof i.amount === "number" && Number.isFinite(i.amount) ? i.amount : 0),
+      0
+    )
+  );
 }
 
 export function parseClientName(raw: unknown): string {

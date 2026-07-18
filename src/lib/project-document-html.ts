@@ -1,5 +1,9 @@
 import { formatMoney } from "@/lib/format";
-import type { ProjectScopeItem, ScopeComplexity } from "@/lib/project-scope";
+import {
+  sumScopeItemAmounts,
+  type ProjectScopeItem,
+  type ScopeComplexity,
+} from "@/lib/project-scope";
 
 export type DocumentAudience = "client" | "internal";
 
@@ -146,23 +150,14 @@ function docStyles(): string {
   `;
 }
 
-function complexityBadge(c?: ScopeComplexity): string {
-  if (!c) return "—";
-  const cls = c === "high" ? "high" : c === "mid" ? "mid" : "low";
-  return `<span class="badge ${cls}">${esc(COMPLEXITY_AR[c])}</span>`;
-}
-
-function pct(amount: number, total: number): string {
-  if (total <= 0) return "—";
-  return `${Math.round((amount / total) * 100)}%`;
-}
-
 export type ProposalDocInput = {
   title: string;
   subtitle?: string;
   clientName: string;
   dateLabel: string;
   total: number;
+  /** Display currency for line amounts + total (default EGP). */
+  currency?: string;
   items: ProjectScopeItem[];
   audience: DocumentAudience;
   issuerName?: string;
@@ -186,36 +181,34 @@ export type StatementDocInput = {
 };
 
 export function buildProposalHtml(input: ProposalDocInput): string {
-  const isClient = input.audience === "client";
-  const totalFmt = formatMoney(input.total);
+  const cur = input.currency === "SAR" ? "SAR" : "EGP";
   const items = input.items.length
     ? input.items
     : [{ title: input.title, description: input.subtitle ?? "" }];
 
-  const headerCols = isClient
-    ? `<th style="width:4%">#</th><th style="width:96%">البند / الوصف</th>`
-    : `<th style="width:4%">#</th><th style="width:34%">البند / الوصف</th><th style="width:14%">التقنية</th><th style="width:12%">التعقيد</th><th style="width:10%">النسبة</th><th style="width:12%">المبلغ</th>`;
+  const scopeSum = sumScopeItemAmounts(items);
+  const total = scopeSum > 0 ? scopeSum : input.total;
+  const totalFmt = formatMoney(total, cur);
+
+  const headerCols = `<th style="width:6%">#</th><th style="width:68%">البند / الوصف</th><th style="width:26%">المبلغ</th>`;
 
   const bodyRows = items
     .map((item, i) => {
-      const desc = item.description ? `<br />${esc(item.description)}` : "";
-      if (isClient) {
-        return `<tr><td class="num">${i + 1}</td><td><strong>${esc(item.title)}</strong>${desc}</td></tr>`;
-      }
-      const amt = item.amount ?? 0;
+      const bits: string[] = [];
+      if (item.description) bits.push(esc(item.description));
+      if (item.tech) bits.push(esc(item.tech));
+      if (item.complexity) bits.push(COMPLEXITY_AR[item.complexity] ?? item.complexity);
+      const meta = bits.length
+        ? `<br /><span style="color:#6b7280;font-size:11px">${bits.join(" · ")}</span>`
+        : "";
+      const moneyCell = item.amount != null ? formatMoney(item.amount, cur) : "—";
       return `<tr>
         <td class="num">${i + 1}</td>
-        <td><strong>${esc(item.title)}</strong>${desc}</td>
-        <td class="num">${esc(item.tech || "—")}</td>
-        <td class="num">${complexityBadge(item.complexity)}</td>
-        <td class="num">${item.amount != null ? pct(amt, input.total) : "—"}</td>
-        <td class="money">${item.amount != null ? formatMoney(amt) : "—"}</td>
+        <td><strong>${esc(item.title)}</strong>${meta}</td>
+        <td class="money">${moneyCell}</td>
       </tr>`;
     })
     .join("");
-
-  const footColspan = isClient ? 1 : 5;
-  const docKind = isClient ? "عرض / Proposal" : "تقرير توزيع داخلي";
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -237,18 +230,17 @@ export function buildProposalHtml(input: ProposalDocInput): string {
     </div>
     <div class="meta">
       <div class="meta-row"><span class="meta-label">العميل</span><span class="meta-value">${esc(input.clientName || "—")}</span></div>
-      <div class="meta-row"><span class="meta-label">النوع</span><span class="meta-value">${docKind}</span></div>
       <div class="meta-row"><span class="meta-label">الإجمالي</span><span class="meta-value highlight">${totalFmt}</span></div>
       <div class="meta-row"><span class="meta-label">عدد البنود</span><span class="meta-value">${items.length}</span></div>
     </div>
     <table>
       <thead><tr>${headerCols}</tr></thead>
       <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td colspan="${footColspan}" style="text-align:center">الإجمالي</td><td class="money">${totalFmt}</td></tr></tfoot>
+      <tfoot><tr><td colspan="2" style="text-align:center">الإجمالي</td><td class="money">${totalFmt}</td></tr></tfoot>
     </table>
     <div class="footer">
       <span class="footer-name">${esc(input.issuerName ?? "Mahmoud Saeed")}</span>
-      <span>${esc(input.footerNote ?? docKind)}</span>
+      <span>${esc(input.footerNote ?? "")}</span>
     </div>
   </div>
 </body>

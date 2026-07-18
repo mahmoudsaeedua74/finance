@@ -6,7 +6,7 @@ import {
   type DocumentAudience,
 } from "@/lib/project-document-html";
 import { downloadHtmlAsPdf, pdfFilename } from "@/lib/project-document-pdf";
-import { isDetailedProjectType } from "@/lib/project-scope";
+import { isDetailedProjectType, sumScopeItemAmounts } from "@/lib/project-scope";
 import type { ProjectJobDto } from "@/types/project-job";
 
 function docDateLabel(locale: string): string {
@@ -27,6 +27,11 @@ export async function downloadProposalPdf(
   locale: string,
   t: (k: string) => string
 ): Promise<string> {
+  const currency = job.currency === "SAR" ? "SAR" : "EGP";
+  const projectTotal = currency === "SAR" ? job.originalAmount : job.agreedAmount;
+  const scopeSum = sumScopeItemAmounts(job.scopeItems ?? []);
+  const total = scopeSum > 0 ? scopeSum : projectTotal;
+
   const html = buildProposalHtml({
     title: job.name,
     subtitle: isDetailedProjectType(job.projectType)
@@ -34,18 +39,13 @@ export async function downloadProposalPdf(
       : undefined,
     clientName: job.clientName,
     dateLabel: docDateLabel(locale),
-    total: job.agreedAmount,
+    total,
+    currency,
     items: job.scopeItems,
     audience,
-    footerNote:
-      audience === "client"
-        ? t("docFooterProposalClient")
-        : t("docFooterProposalInternal"),
+    footerNote: t("docFooterProposalClient"),
   });
-  const filename = pdfFilename(
-    job.name,
-    audience === "client" ? "proposal-client" : "proposal-internal"
-  );
+  const filename = pdfFilename(job.name, "proposal");
   await downloadHtmlAsPdf(html, filename);
   return filename;
 }

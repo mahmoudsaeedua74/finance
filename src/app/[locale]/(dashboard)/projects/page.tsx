@@ -33,7 +33,7 @@ import {
   hasActiveProjectJobFilters,
 } from "@/lib/project-job-filters";
 import { useProjectJobsList } from "@/hooks/use-project-jobs-list";
-import { isDetailedProjectType, type ProjectScopeItem } from "@/lib/project-scope";
+import { isDetailedProjectType, sumScopeItemAmounts, type ProjectScopeItem } from "@/lib/project-scope";
 import {
   canBulkCollect,
   canBulkStatement,
@@ -174,21 +174,6 @@ export default function ProjectsPage() {
   const [editProjectType, setEditProjectType] = useState<ProjectType>("normal");
   const [editWorkPhase, setEditWorkPhase] = useState<WorkPhase>("in_progress");
 
-  const needsFx = currency === "SAR" || editCurrency === "SAR";
-  const {
-    data: fxData,
-    isLoading: fxLoading,
-    isError: fxError,
-  } = useQuery({
-    queryKey: ["fx-rate", "SAR", "EGP"],
-    queryFn: () =>
-      jsonFetch<{ data: { rate: number; updatedAt: string } }>("/api/fx/rate?from=SAR&to=EGP"),
-    staleTime: 60 * 60 * 1000,
-    enabled: needsFx,
-    retry: 1,
-  });
-  const sarToEgp = fxData?.data?.rate;
-
   const [collectAmount, setCollectAmount] = useState("");
   const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
   const [collectMethod, setCollectMethod] = useState<PaymentMethod>("cash");
@@ -204,11 +189,28 @@ export default function ProjectsPage() {
   const [detailScopeItems, setDetailScopeItems] = useState<ProjectScopeItem[]>([]);
   const [detailClientName, setDetailClientName] = useState("");
   const [detailClientPhone, setDetailClientPhone] = useState("");
+  const [detailCurrency, setDetailCurrency] = useState<ProjectCurrency>("EGP");
+  const [detailAmount, setDetailAmount] = useState("");
   const [cancelJob, setCancelJob] = useState<ProjectJobDto | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cloneSource, setCloneSource] = useState<ProjectJobDto | null>(null);
   const [cloneName, setCloneName] = useState("");
   const [cloneAmount, setCloneAmount] = useState("");
+
+  const needsFx = currency === "SAR" || editCurrency === "SAR" || detailCurrency === "SAR";
+  const {
+    data: fxData,
+    isLoading: fxLoading,
+    isError: fxError,
+  } = useQuery({
+    queryKey: ["fx-rate", "SAR", "EGP"],
+    queryFn: () =>
+      jsonFetch<{ data: { rate: number; updatedAt: string } }>("/api/fx/rate?from=SAR&to=EGP"),
+    staleTime: 60 * 60 * 1000,
+    enabled: needsFx,
+    retry: 1,
+  });
+  const sarToEgp = fxData?.data?.rate;
 
   const selectedJobs = useMemo(
     () => jobs.filter((j) => selectedIds.has(j.id)),
@@ -257,6 +259,7 @@ export default function ProjectsPage() {
       complexityLow: t("scopeComplexity_low"),
       complexityMid: t("scopeComplexity_mid"),
       complexityHigh: t("scopeComplexity_high"),
+      total: t("scopeTotal"),
     }),
     [t]
   );
@@ -299,6 +302,14 @@ export default function ProjectsPage() {
     setDetailScopeItems(job.scopeItems ?? []);
     setDetailClientName(job.clientName ?? "");
     setDetailClientPhone("");
+    setDetailCurrency(job.currency ?? "EGP");
+    setDetailAmount(
+      String(
+        job.originalAmount != null && Number.isFinite(job.originalAmount)
+          ? job.originalAmount
+          : job.agreedAmount ?? 0
+      )
+    );
   }, []);
 
   const createJob = useMutation({
@@ -307,7 +318,7 @@ export default function ProjectsPage() {
         method: "POST",
         body: JSON.stringify({
           name,
-          agreedAmount: Number(agreedAmount),
+          agreedAmount: agreedAmount.trim() === "" ? 0 : Number(agreedAmount),
           currency,
           notes,
           startDate: new Date(startDate).toISOString(),
@@ -353,7 +364,7 @@ export default function ProjectsPage() {
         method: "PUT",
         body: JSON.stringify({
           name: editName,
-          agreedAmount: Number(editAmount),
+          agreedAmount: editAmount.trim() === "" ? 0 : Number(editAmount),
           currency: editCurrency,
           notes: editNotes,
           startDate: new Date(editStartDate).toISOString(),
@@ -454,21 +465,44 @@ export default function ProjectsPage() {
   });
 
   const saveScope = useMutation({
-    mutationFn: () => {
+    mutationFn: (opts?: { syncTotal?: boolean }) => {
       if (!detailJob) return Promise.reject(new Error("No job"));
-      return jsonFetch(`/api/project-jobs/${detailJob.id}`, {
+      const items = detailScopeItems.filter((i) => i.title.trim());
+      const sum = sumScopeItemAmounts(items);
+      const amount =
+        opts?.syncTotal && sum > 0
+          ? sum
+          : detailAmount.trim() === ""
+            ? 0
+            : Number(detailAmount);
+      const body: Record<string, unknown> = {
+        clientName: detailClientName,
+        clientPhone: newClientPhonePayload(detailClientName, detailClientPhone, clientOptions),
+        scopeItems: items,
+        currency: detailCurrency,
+        agreedAmount: Number.isFinite(amount) && amount >= 0 ? amount : 0,
+      };
+      return jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${detailJob.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          clientName: detailClientName,
-          clientPhone: newClientPhonePayload(detailClientName, detailClientPhone, clientOptions),
-          scopeItems: detailScopeItems.filter((i) => i.title.trim()),
-        }),
+        body: JSON.stringify(body),
       });
     },
     ...mergeMutationToasts(
       { loading: tC("savingChanges"), success: t("scopeSaved") },
       {
-        onSuccess: () => {
+        onSuccess: (res) => {
+          if (res?.data) {
+            setDetailJob(res.data);
+            setDetailScopeItems(res.data.scopeItems ?? []);
+            setDetailCurrency(res.data.currency ?? "EGP");
+            setDetailAmount(
+              String(
+                res.data.originalAmount != null && Number.isFinite(res.data.originalAmount)
+                  ? res.data.originalAmount
+                  : res.data.agreedAmount ?? 0
+              )
+            );
+          }
           invalidateProjects();
           void qc.invalidateQueries({ queryKey: ["client-options"] });
           void qc.invalidateQueries({ queryKey: ["clients"] });
@@ -824,7 +858,7 @@ export default function ProjectsPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
               <div className="space-y-2">
-                <Label htmlFor="job-amount">{t("agreedAmount")}</Label>
+                <Label htmlFor="job-amount">{t("agreedAmountOptional")}</Label>
                 <Input
                   id="job-amount"
                   type="number"
@@ -832,10 +866,15 @@ export default function ProjectsPage() {
                   step="0.01"
                   min="0"
                   className="h-11 text-base font-mono tabular-nums"
-                  placeholder={t("agreedAmountPh")}
+                  placeholder={t("agreedAmountPhOptional")}
                   value={agreedAmount}
-                  onChange={(e) => setAgreedAmount(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setAgreedAmount(v);
+                    if (!v.trim() || Number(v) <= 0) setIsCollected(false);
+                  }}
                 />
+                <p className="text-xs text-muted-foreground">{t("agreedAmountHint")}</p>
               </div>
               <ProjectCurrencyField
                 id="job-currency"
@@ -878,7 +917,10 @@ export default function ProjectsPage() {
               <ProjectScopeEditor
                 items={createScopeItems}
                 onChange={setCreateScopeItems}
+                currency={currency}
                 labels={scopeLabels}
+                applyTotalLabel={t("scopeApplyTotal")}
+                onApplyTotal={(total) => setAgreedAmount(String(total))}
               />
             )}
 
@@ -912,11 +954,21 @@ export default function ProjectsPage() {
                   </select>
                 </div>
                 <div className="rounded-lg border border-border/50 p-3 space-y-2">
-                  <label className="flex cursor-pointer items-start gap-3 text-sm">
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 text-sm",
+                      agreedAmount.trim() === "" || Number(agreedAmount) <= 0
+                        ? "cursor-not-allowed opacity-60"
+                        : ""
+                    )}
+                  >
                     <input
                       type="checkbox"
                       className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
                       checked={isCollected}
+                      disabled={
+                        agreedAmount.trim() === "" || Number(agreedAmount) <= 0
+                      }
                       onChange={(e) => setIsCollected(e.target.checked)}
                     />
                     <span>
@@ -1032,10 +1084,14 @@ export default function ProjectsPage() {
               className="min-w-[6rem]"
               disabled={
                 !name.trim() ||
-                !agreedAmount ||
-                Number(agreedAmount) <= 0 ||
+                (agreedAmount.trim() !== "" &&
+                  (!Number.isFinite(Number(agreedAmount)) || Number(agreedAmount) < 0)) ||
                 createJob.isPending ||
-                (currency === "SAR" && (fxLoading || fxError || sarToEgp == null))
+                (isCollected &&
+                  (agreedAmount.trim() === "" || Number(agreedAmount) <= 0)) ||
+                (currency === "SAR" &&
+                  Number(agreedAmount) > 0 &&
+                  (fxLoading || fxError || sarToEgp == null))
               }
               onClick={() => createJob.mutate(undefined)}
             >
@@ -1059,12 +1115,15 @@ export default function ProjectsPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
               <div className="space-y-2">
-                <Label htmlFor="edit-amount">{t("agreedAmount")}</Label>
+                <Label htmlFor="edit-amount">{t("agreedAmountOptional")}</Label>
                 <Input
                   id="edit-amount"
                   type="number"
+                  inputMode="decimal"
                   step="0.01"
-                  className="h-11"
+                  min="0"
+                  className="h-11 font-mono tabular-nums"
+                  placeholder={t("agreedAmountPhOptional")}
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
                 />
@@ -1073,7 +1132,7 @@ export default function ProjectsPage() {
                 id="edit-currency"
                 value={editCurrency}
                 onChange={setEditCurrency}
-                className="sm:min-w-[11rem]"
+                className="sm:min-w-[12rem]"
               />
             </div>
             {editCurrency === "SAR" && (
@@ -1163,9 +1222,12 @@ export default function ProjectsPage() {
               type="button"
               disabled={
                 !editName.trim() ||
-                !editAmount ||
+                (editAmount.trim() !== "" &&
+                  (!Number.isFinite(Number(editAmount)) || Number(editAmount) < 0)) ||
                 updateJob.isPending ||
-                (editCurrency === "SAR" && (fxLoading || fxError || sarToEgp == null))
+                (editCurrency === "SAR" &&
+                  Number(editAmount) > 0 &&
+                  (fxLoading || fxError || sarToEgp == null))
               }
               onClick={() => updateJob.mutate(undefined)}
             >
@@ -1383,20 +1445,76 @@ export default function ProjectsPage() {
                     onNewClientPhoneChange={setDetailClientPhone}
                     size="compact"
                   />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+                    <div className="space-y-2">
+                      <Label htmlFor="detail-amount">{t("agreedAmountOptional")}</Label>
+                      <Input
+                        id="detail-amount"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        className="h-11 font-mono tabular-nums"
+                        placeholder={t("agreedAmountPhOptional")}
+                        value={detailAmount}
+                        onChange={(e) => setDetailAmount(e.target.value)}
+                      />
+                    </div>
+                    <ProjectCurrencyField
+                      id="detail-currency"
+                      value={detailCurrency}
+                      onChange={setDetailCurrency}
+                      className="sm:min-w-[12rem]"
+                    />
+                  </div>
+                  {detailCurrency === "SAR" &&
+                    !fxLoading &&
+                    !fxError &&
+                    sarToEgp != null &&
+                    Number(detailAmount) > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("fxPreview", {
+                          egp: formatMoney(toEgpAmount(Number(detailAmount), "SAR", sarToEgp)),
+                          rate: String(Math.round(sarToEgp * 100) / 100),
+                        })}
+                      </p>
+                    )}
                   <ProjectScopeEditor
                     items={detailScopeItems}
                     onChange={setDetailScopeItems}
+                    currency={detailCurrency}
                     labels={scopeLabels}
+                    applyTotalLabel={t("scopeApplyTotal")}
+                    onApplyTotal={(total) => {
+                      setDetailAmount(String(total));
+                      saveScope.mutate({ syncTotal: true });
+                    }}
                   />
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={saveScope.isPending}
-                    onClick={() => saveScope.mutate(undefined)}
-                  >
-                    {saveScope.isPending ? <Loader2 className="me-1.5 size-3.5 animate-spin" /> : null}
-                    {t("scopeSave")}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={saveScope.isPending}
+                      onClick={() => saveScope.mutate(undefined)}
+                    >
+                      {saveScope.isPending ? (
+                        <Loader2 className="me-1.5 size-3.5 animate-spin" />
+                      ) : null}
+                      {t("scopeSave")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={
+                        saveScope.isPending ||
+                        sumScopeItemAmounts(detailScopeItems) <= 0
+                      }
+                      onClick={() => saveScope.mutate({ syncTotal: true })}
+                    >
+                      {t("scopeSaveAndApplyTotal")}
+                    </Button>
+                  </div>
                 </div>
               )}
 

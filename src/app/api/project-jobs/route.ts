@@ -57,7 +57,11 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const name = String(body?.name ?? "").trim();
-    const amountInCurrency = Number(body?.agreedAmount);
+    const amountRaw = body?.agreedAmount;
+    const amountInCurrency =
+      amountRaw === "" || amountRaw == null || amountRaw === undefined
+        ? 0
+        : Number(amountRaw);
     const notes = typeof body?.notes === "string" ? body.notes.trim().slice(0, 500) : "";
     const startDateRaw = body?.startDate;
     const expectedPaymentDateRaw = body?.expectedPaymentDate;
@@ -75,7 +79,13 @@ export async function POST(req: Request) {
 
     if (!name || !Number.isFinite(amountInCurrency) || amountInCurrency < 0) {
       return NextResponse.json(
-        { error: "name and agreedAmount are required" },
+        { error: "name is required; agreedAmount must be 0 or more" },
+        { status: 400 }
+      );
+    }
+    if (isCollected && amountInCurrency <= 0) {
+      return NextResponse.json(
+        { error: "Cannot mark collected without an amount — set the price first" },
         { status: 400 }
       );
     }
