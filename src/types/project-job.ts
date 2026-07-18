@@ -1,3 +1,4 @@
+import type { ProjectCurrency } from "@/lib/currency";
 import type { FreelanceProjectStatus } from "@/lib/models/FreelanceProject";
 import type { PaymentMethod } from "@/lib/payment-method";
 import type { ProjectType } from "@/lib/project-type";
@@ -8,7 +9,15 @@ export type ProjectJobDto = {
   id: string;
   name: string;
   clientName: string;
+  /** Always EGP — use for totals, pending, progress. */
   agreedAmount: number;
+  currency: ProjectCurrency;
+  /** Amount in `currency` as agreed with the client. */
+  originalAmount: number;
+  /** Locked 1 currency → EGP at save time. */
+  exchangeRateToEgp: number;
+  billingStatus: "unbilled" | "billed";
+  invoiceId: string | null;
   projectType: ProjectType;
   scopeItems: ProjectScopeItem[];
   status: FreelanceProjectStatus;

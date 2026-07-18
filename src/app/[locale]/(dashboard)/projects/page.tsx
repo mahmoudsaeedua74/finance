@@ -9,6 +9,8 @@ import { WalletAccountPanel } from "@/components/wallet/wallet-account-panel";
 import { ProjectJobsFilterBar } from "@/components/projects/project-jobs-filter-bar";
 import { ProjectCollectionsBanner } from "@/components/projects/project-collections-banner";
 import { ProjectNormalBanner } from "@/components/projects/project-normal-banner";
+import { NormalBillingBasketPanel } from "@/components/projects/normal-billing-basket";
+import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
 import {
   ProjectJobsKanbanSkeleton,
   ProjectJobsListSkeleton,
@@ -21,10 +23,12 @@ import { ProjectScopeEditor } from "@/components/projects/project-scope-editor";
 import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { ProjectTypeField } from "@/components/forms/project-type-field";
+import { ProjectCurrencyField } from "@/components/forms/project-currency-field";
 import { ClientField } from "@/components/forms/client-field";
 import { type ProjectType } from "@/lib/project-type";
+import type { ProjectCurrency } from "@/lib/currency";
+import { toEgpAmount } from "@/lib/currency";
 import { WORK_PHASES, type WorkPhase } from "@/lib/project-work-phase";
-import type { ProjectTemplateDto } from "@/lib/project-templates-builtin";
 import {
   hasActiveProjectJobFilters,
 } from "@/lib/project-job-filters";
@@ -98,6 +102,7 @@ export default function ProjectsPage() {
     meta,
     totals,
     setCollected,
+    setBilling,
     setProjectType: setFilterProjectType,
     setSort,
     setClient,
@@ -126,13 +131,6 @@ export default function ProjectsPage() {
     [clientOptions]
   );
 
-  const { data: templatesData } = useQuery({
-    queryKey: ["project-templates"],
-    queryFn: () => jsonFetch<{ data: ProjectTemplateDto[] }>("/api/project-templates"),
-    staleTime: 120_000,
-  });
-  const templates = templatesData?.data ?? [];
-
   const viewMode = filters.view ?? "list";
 
   const [addOpen, setAddOpen] = useState(false);
@@ -152,6 +150,7 @@ export default function ProjectsPage() {
 
   const [name, setName] = useState("");
   const [agreedAmount, setAgreedAmount] = useState("");
+  const [currency, setCurrency] = useState<ProjectCurrency>("EGP");
   const [notes, setNotes] = useState("");
   const [startDate, setStartDate] = useState(() => defaultFormDateYmd());
   const [expectedDate, setExpectedDate] = useState("");
@@ -167,12 +166,28 @@ export default function ProjectsPage() {
   const [editClientName, setEditClientName] = useState("");
   const [editClientPhone, setEditClientPhone] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editCurrency, setEditCurrency] = useState<ProjectCurrency>("EGP");
   const [editNotes, setEditNotes] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [editExpectedDate, setEditExpectedDate] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState<PaymentMethod>("cash");
   const [editProjectType, setEditProjectType] = useState<ProjectType>("normal");
   const [editWorkPhase, setEditWorkPhase] = useState<WorkPhase>("in_progress");
+
+  const needsFx = currency === "SAR" || editCurrency === "SAR";
+  const {
+    data: fxData,
+    isLoading: fxLoading,
+    isError: fxError,
+  } = useQuery({
+    queryKey: ["fx-rate", "SAR", "EGP"],
+    queryFn: () =>
+      jsonFetch<{ data: { rate: number; updatedAt: string } }>("/api/fx/rate?from=SAR&to=EGP"),
+    staleTime: 60 * 60 * 1000,
+    enabled: needsFx,
+    retry: 1,
+  });
+  const sarToEgp = fxData?.data?.rate;
 
   const [collectAmount, setCollectAmount] = useState("");
   const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
@@ -249,6 +264,7 @@ export default function ProjectsPage() {
   const resetAddForm = useCallback(() => {
     setName("");
     setAgreedAmount("");
+    setCurrency("EGP");
     setNotes("");
     setStartDate(defaultFormDateYmd());
     setExpectedDate("");
@@ -266,7 +282,8 @@ export default function ProjectsPage() {
   const openEdit = useCallback((job: ProjectJobDto) => {
     setEditJob(job);
     setEditName(job.name);
-    setEditAmount(String(job.agreedAmount));
+    setEditAmount(String(job.originalAmount ?? job.agreedAmount));
+    setEditCurrency(job.currency ?? "EGP");
     setEditNotes(job.notes ?? "");
     setEditStartDate(toLocalYmd(new Date(job.startDate)));
     setEditExpectedDate(job.expectedPaymentDate ? toLocalYmd(new Date(job.expectedPaymentDate)) : "");
@@ -291,6 +308,7 @@ export default function ProjectsPage() {
         body: JSON.stringify({
           name,
           agreedAmount: Number(agreedAmount),
+          currency,
           notes,
           startDate: new Date(startDate).toISOString(),
           expectedPaymentDate: expectedDate ? new Date(expectedDate).toISOString() : null,
@@ -336,6 +354,7 @@ export default function ProjectsPage() {
         body: JSON.stringify({
           name: editName,
           agreedAmount: Number(editAmount),
+          currency: editCurrency,
           notes: editNotes,
           startDate: new Date(editStartDate).toISOString(),
           expectedPaymentDate: editExpectedDate ? new Date(editExpectedDate).toISOString() : null,
@@ -547,18 +566,10 @@ export default function ProjectsPage() {
 
   const hasActiveFilters = hasActiveProjectJobFilters(filters);
 
-  const applyTemplate = useCallback((tpl: ProjectTemplateDto) => {
-    setProjectType(tpl.projectType);
-    setPaymentMethod(tpl.expectedPaymentMethod === "card" ? "card" : "cash");
-    setWorkPhase(tpl.workPhase);
-    setNotes(tpl.notes);
-    setCreateScopeItems(tpl.scopeItems ?? []);
-  }, []);
-
   const startClone = useCallback((job: ProjectJobDto) => {
     setCloneSource(job);
     setCloneName(`${job.name} (2)`);
-    setCloneAmount(String(job.agreedAmount));
+    setCloneAmount(String(job.originalAmount ?? job.agreedAmount));
   }, []);
 
   const handleArchive = useCallback(
@@ -658,10 +669,15 @@ export default function ProjectsPage() {
 
       <ProjectNormalBanner onOpenJob={openDetailById} />
 
+      <AiInsightPanel surface="projects" />
+
+      <NormalBillingBasketPanel onChanged={() => invalidateProjects()} />
+
       <ProjectJobsFilterBar
         filters={filters}
         clientNames={clientNames}
         onCollectedChange={setCollected}
+        onBillingChange={setBilling}
         onTypeChange={setFilterProjectType}
         onSortChange={setSort}
         onClientChange={setClient}
@@ -690,7 +706,7 @@ export default function ProjectsPage() {
         canStatement={canStatementSelected}
         pdfBusy={pdfBusy}
         labels={{
-          selected: t("bulkSelected"),
+          selected: t("bulkSelected", { count: selectedIds.size }),
           clear: t("bulkClear"),
           collectAll: t("bulkCollect"),
           pdfMenu: t("bulkPdfMenu"),
@@ -795,27 +811,6 @@ export default function ProjectsPage() {
                 if (v === "normal") setCreateScopeItems([]);
               }}
             />
-            {templates.length > 0 && projectType !== "normal" && (
-              <div className="space-y-2">
-                <Label htmlFor="job-template">{t("templatePick")}</Label>
-                <select
-                  id="job-template"
-                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  defaultValue=""
-                  onChange={(e) => {
-                    const tpl = templates.find((x) => x.id === e.target.value);
-                    if (tpl) applyTemplate(tpl);
-                  }}
-                >
-                  <option value="">{t("templateNone")}</option>
-                  {templates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.name}{tpl.isBuiltin ? "" : " ★"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="job-name">{t("projName")}</Label>
               <Input
@@ -827,20 +822,42 @@ export default function ProjectsPage() {
                 autoFocus
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="job-amount">{t("agreedAmount")}</Label>
-              <Input
-                id="job-amount"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                className="h-11 text-base font-mono tabular-nums"
-                placeholder={t("agreedAmountPh")}
-                value={agreedAmount}
-                onChange={(e) => setAgreedAmount(e.target.value)}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="space-y-2">
+                <Label htmlFor="job-amount">{t("agreedAmount")}</Label>
+                <Input
+                  id="job-amount"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  className="h-11 text-base font-mono tabular-nums"
+                  placeholder={t("agreedAmountPh")}
+                  value={agreedAmount}
+                  onChange={(e) => setAgreedAmount(e.target.value)}
+                />
+              </div>
+              <ProjectCurrencyField
+                id="job-currency"
+                value={currency}
+                onChange={setCurrency}
+                className="sm:min-w-[11rem]"
               />
             </div>
+            {currency === "SAR" && (
+              <p className="text-xs text-muted-foreground">
+                {fxLoading && t("fxLoading")}
+                {fxError && <span className="text-destructive">{t("fxError")}</span>}
+                {!fxLoading && !fxError && sarToEgp != null && Number(agreedAmount) > 0 && (
+                  <>
+                    {t("fxPreview", {
+                      egp: formatMoney(toEgpAmount(Number(agreedAmount), "SAR", sarToEgp)),
+                      rate: String(Math.round(sarToEgp * 100) / 100),
+                    })}
+                  </>
+                )}
+              </p>
+            )}
             <ClientField
               id="job-client"
               value={clientName}
@@ -1013,7 +1030,13 @@ export default function ProjectsPage() {
             <Button
               type="button"
               className="min-w-[6rem]"
-              disabled={!name.trim() || !agreedAmount || Number(agreedAmount) <= 0 || createJob.isPending}
+              disabled={
+                !name.trim() ||
+                !agreedAmount ||
+                Number(agreedAmount) <= 0 ||
+                createJob.isPending ||
+                (currency === "SAR" && (fxLoading || fxError || sarToEgp == null))
+              }
               onClick={() => createJob.mutate(undefined)}
             >
               {createJob.isPending ? <Loader2 className="size-4 animate-spin" /> : t("saveJob")}
@@ -1034,17 +1057,39 @@ export default function ProjectsPage() {
               <Label htmlFor="edit-name">{t("projName")}</Label>
               <Input id="edit-name" className="h-11" value={editName} onChange={(e) => setEditName(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-amount">{t("agreedAmount")}</Label>
-              <Input
-                id="edit-amount"
-                type="number"
-                step="0.01"
-                className="h-11"
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="space-y-2">
+                <Label htmlFor="edit-amount">{t("agreedAmount")}</Label>
+                <Input
+                  id="edit-amount"
+                  type="number"
+                  step="0.01"
+                  className="h-11"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                />
+              </div>
+              <ProjectCurrencyField
+                id="edit-currency"
+                value={editCurrency}
+                onChange={setEditCurrency}
+                className="sm:min-w-[11rem]"
               />
             </div>
+            {editCurrency === "SAR" && (
+              <p className="text-xs text-muted-foreground">
+                {fxLoading && t("fxLoading")}
+                {fxError && <span className="text-destructive">{t("fxError")}</span>}
+                {!fxLoading && !fxError && sarToEgp != null && Number(editAmount) > 0 && (
+                  <>
+                    {t("fxPreview", {
+                      egp: formatMoney(toEgpAmount(Number(editAmount), "SAR", sarToEgp)),
+                      rate: String(Math.round(sarToEgp * 100) / 100),
+                    })}
+                  </>
+                )}
+              </p>
+            )}
             <ClientField
               id="edit-client"
               value={editClientName}
@@ -1116,7 +1161,12 @@ export default function ProjectsPage() {
             <Button type="button" variant="outline" onClick={() => setEditJob(null)}>{tC("cancel")}</Button>
             <Button
               type="button"
-              disabled={!editName.trim() || !editAmount || updateJob.isPending}
+              disabled={
+                !editName.trim() ||
+                !editAmount ||
+                updateJob.isPending ||
+                (editCurrency === "SAR" && (fxLoading || fxError || sarToEgp == null))
+              }
               onClick={() => updateJob.mutate(undefined)}
             >
               {updateJob.isPending ? <Loader2 className="size-4 animate-spin" /> : tC("save")}
@@ -1265,7 +1315,19 @@ export default function ProjectsPage() {
               )}
               <div className="grid grid-cols-2 gap-2">
                 <div><span className="text-muted-foreground">{t("clientName")}: </span>{detailClientName || "—"}</div>
-                <div><span className="text-muted-foreground">{t("agreedAmount")}: </span>{formatMoney(detailJob.agreedAmount)}</div>
+                <div>
+                  <span className="text-muted-foreground">{t("agreedAmount")}: </span>
+                  {detailJob.currency === "SAR" ? (
+                    <span className="font-mono tabular-nums">
+                      {formatMoney(detailJob.originalAmount, "SAR")}
+                      <span className="ms-1 text-muted-foreground">
+                        {t("amountInEgp", { amount: formatMoney(detailJob.agreedAmount) })}
+                      </span>
+                    </span>
+                  ) : (
+                    formatMoney(detailJob.agreedAmount)
+                  )}
+                </div>
                 <div><span className="text-muted-foreground">{t("netProfit")}: </span>{formatMoney(detailJob.netCollected)}</div>
               </div>
 
@@ -1490,6 +1552,18 @@ export default function ProjectsPage() {
                 value={cloneAmount}
                 onChange={(e) => setCloneAmount(e.target.value)}
               />
+              {cloneSource?.currency === "SAR" && (
+                <p className="text-xs text-muted-foreground">
+                  {t("currencySar")}
+                  {cloneSource.exchangeRateToEgp
+                    ? ` · ${t("amountInEgp", {
+                        amount: formatMoney(
+                          toEgpAmount(Number(cloneAmount) || 0, "SAR", cloneSource.exchangeRateToEgp)
+                        ),
+                      })}`
+                    : null}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

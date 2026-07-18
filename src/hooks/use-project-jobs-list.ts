@@ -11,6 +11,7 @@ import {
   parseProjectJobListFilters,
   PROJECT_JOBS_PAGE_SIZE,
   type ProjectJobCollectedFilter,
+  type ProjectJobBillingFilter,
   type ProjectJobArchiveFilter,
   type ProjectJobListFilters,
   type ProjectJobListMeta,
@@ -49,6 +50,13 @@ export function useProjectJobsList() {
   const setCollected = useCallback(
     (collected: ProjectJobCollectedFilter) => {
       replaceFilters({ ...filters, collected });
+    },
+    [filters, replaceFilters]
+  );
+
+  const setBilling = useCallback(
+    (billing: ProjectJobBillingFilter) => {
+      replaceFilters({ ...filters, billing });
     },
     [filters, replaceFilters]
   );
@@ -144,6 +152,7 @@ export function useProjectJobsList() {
     meta,
     totals,
     setCollected,
+    setBilling,
     setProjectType,
     setSort,
     setClient,

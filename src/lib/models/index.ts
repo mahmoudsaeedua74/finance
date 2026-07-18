@@ -30,3 +30,4 @@ export { GoldHolding, type IGoldHolding, type GoldKarat } from "./GoldHolding";
 export { Category, type ICategory, type CategoryType } from "./Category";
 export { ClientProfile, type IClientProfile } from "./ClientProfile";
 export { ProjectTemplate, type IProjectTemplate } from "./ProjectTemplate";
+export { Invoice, type IInvoice, type InvoiceStatus } from "./Invoice";

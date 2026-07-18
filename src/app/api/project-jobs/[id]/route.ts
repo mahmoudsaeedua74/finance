@@ -31,6 +31,7 @@ import {
 } from "@/lib/services/project-template-service";
 import { DELETE_HAS_COLLECTION_MSG, canDeleteProjectJob } from "@/lib/project-job-rules";
 import mongoose from "mongoose";
+import { resolveProjectMoney } from "@/lib/project-money";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,37 @@ export async function PUT(req: Request, { params }: Ctx) {
 
     const update: Record<string, unknown> = {};
     if (body?.name != null) update.name = String(body.name).trim();
-    if (body?.agreedAmount != null) update.agreedAmount = Number(body.agreedAmount);
+
+    const amountTouched = body?.agreedAmount != null || body?.currency != null;
+    if (amountTouched) {
+      const amountInCurrency =
+        body?.agreedAmount != null
+          ? Number(body.agreedAmount)
+          : Number(
+              existing.originalAmount != null && Number.isFinite(existing.originalAmount)
+                ? existing.originalAmount
+                : existing.agreedAmount
+            );
+      if (!Number.isFinite(amountInCurrency) || amountInCurrency < 0) {
+        return NextResponse.json({ error: "Invalid agreedAmount" }, { status: 400 });
+      }
+      try {
+        const money = await resolveProjectMoney(
+          amountInCurrency,
+          body?.currency ?? existing.currency ?? "EGP"
+        );
+        update.agreedAmount = money.agreedAmount;
+        update.currency = money.currency;
+        update.originalAmount = money.originalAmount;
+        update.exchangeRateToEgp = money.exchangeRateToEgp;
+      } catch (e) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : "Could not resolve exchange rate" },
+          { status: 502 }
+        );
+      }
+    }
+
     if (body?.notes !== undefined) {
       update.notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 500) : "";
     }
@@ -165,7 +196,7 @@ export async function PUT(req: Request, { params }: Ctx) {
     );
     if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (body?.name != null || body?.agreedAmount != null || body?.paymentMethod != null) {
+    if (body?.name != null || body?.agreedAmount != null || body?.currency != null || body?.paymentMethod != null) {
       const pendingPayout = await Project.findOne({
         userId: user.id,
         freelanceProjectId: job._id,
@@ -173,7 +204,7 @@ export async function PUT(req: Request, { params }: Ctx) {
       }).sort({ date: -1 });
       if (pendingPayout) {
         if (body?.name != null) pendingPayout.name = job.name;
-        if (body?.agreedAmount != null) pendingPayout.amount = job.agreedAmount;
+        if (body?.agreedAmount != null || body?.currency != null) pendingPayout.amount = job.agreedAmount;
         if (body?.paymentMethod != null || body?.expectedPaymentMethod != null) {
           pendingPayout.paymentMethod = job.expectedPaymentMethod;
         }

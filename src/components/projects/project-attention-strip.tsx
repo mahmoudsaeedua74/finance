@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, Clock, FileQuestion, PackageCheck, CalendarClock } from "lucide-react";
+import { AlertTriangle, Clock, FileQuestion, PackageCheck, CalendarClock, CircleDollarSign } from "lucide-react";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import type { ProjectAttentionItem } from "@/lib/services/project-attention-service";
@@ -18,6 +18,7 @@ const kindIcon = {
   installment_due_soon: Clock,
   stale_quote: FileQuestion,
   delivered_unpaid: PackageCheck,
+  pending_balance: CircleDollarSign,
 } as const;
 
 export function ProjectAttentionStrip({ onOpenJob }: Props) {

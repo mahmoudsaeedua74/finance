@@ -209,6 +209,17 @@ export function ProjectJobCard({
               {t("archivedBadge")}
             </Badge>
           )}
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-5 px-1.5 text-[10px]",
+              job.billingStatus === "billed"
+                ? "border-sky-500/40 text-sky-700 dark:text-sky-300"
+                : "border-amber-500/40 text-amber-700 dark:text-amber-300"
+            )}
+          >
+            {job.billingStatus === "billed" ? t("billingBilled") : t("billingUnbilled")}
+          </Badge>
           {!compact && (
             <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
               {projectTypeLabel(job.projectType ?? "normal", t)}
@@ -218,6 +229,14 @@ export function ProjectJobCard({
 
         {job.agreedAmount > 0 && (
           <div className="space-y-1">
+            {job.currency === "SAR" && (
+              <p className="text-[10px] text-muted-foreground">
+                <span className="font-mono tabular-nums">{formatMoney(job.originalAmount, "SAR")}</span>
+                <span className="ms-1">
+                  {t("amountInEgp", { amount: formatMoney(job.agreedAmount) })}
+                </span>
+              </p>
+            )}
             <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
               <span>{formatMoney(job.collectedAmount)}</span>
               <span className="font-mono tabular-nums">{Math.round(collectionPct)}%</span>

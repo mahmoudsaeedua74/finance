@@ -1,18 +1,17 @@
 import { ar, enUS } from "date-fns/locale";
 import { format as dformat } from "date-fns";
 
-const fmt = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 2,
-});
-
 function dfLocale(code: string) {
   return code === "ar" ? ar : enUS;
 }
 
-export function formatMoney(n: number) {
-  return fmt.format(n);
+/** Default display currency is EGP (app bookkeeping base). */
+export function formatMoney(n: number, currency = "EGP") {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 export function monthLabel(

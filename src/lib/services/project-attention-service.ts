@@ -7,14 +7,17 @@ export type ProjectAttentionKind =
   | "payment_due_soon"
   | "installment_due_soon"
   | "stale_quote"
-  | "delivered_unpaid";
+  | "delivered_unpaid"
+  /** Any remaining unpaid balance (all project types). */
+  | "pending_balance";
 
-/** Payment / installment reminders — excludes stale quotes. */
+/** Payment / unpaid — excludes stale quotes. */
 export const COLLECTION_ATTENTION_KINDS: ProjectAttentionKind[] = [
   "payment_overdue",
   "payment_due_soon",
   "installment_due_soon",
   "delivered_unpaid",
+  "pending_balance",
 ];
 
 export type ProjectAttentionScope = "collections" | "preview" | "all";
@@ -27,6 +30,7 @@ export type ProjectAttentionItem = {
   detail: string;
   amount?: number;
   date?: string;
+  projectType?: string;
 };
 
 function startOfUtcDay(d: Date) {
@@ -98,6 +102,7 @@ export async function getProjectAttentionItems(
     const collected = colMap.get(id) ?? 0;
     const pending = Math.max(0, job.agreedAmount - collected);
     const cn = job.clientName?.trim() ?? "";
+    const projectType = (job.projectType as string | undefined) ?? "normal";
 
     if (
       job.expectedPaymentDate &&
@@ -112,6 +117,7 @@ export async function getProjectAttentionItems(
         detail: "expectedPaymentDate",
         amount: pending,
         date: new Date(job.expectedPaymentDate).toISOString(),
+        projectType,
       });
     }
 
@@ -129,6 +135,7 @@ export async function getProjectAttentionItems(
         detail: "expectedPaymentDate",
         amount: pending,
         date: new Date(job.expectedPaymentDate).toISOString(),
+        projectType,
       });
     }
 
@@ -145,6 +152,7 @@ export async function getProjectAttentionItems(
         detail: "quote",
         amount: pending,
         date: job.createdAt.toISOString(),
+        projectType,
       });
     }
 
@@ -156,6 +164,7 @@ export async function getProjectAttentionItems(
         clientName: cn,
         detail: "delivered",
         amount: pending,
+        projectType,
       });
     }
   }
@@ -171,6 +180,40 @@ export async function getProjectAttentionItems(
       detail: inst.note?.trim() || "installment",
       amount: inst.amount,
       date: new Date(inst.date).toISOString(),
+      projectType: (job.projectType as string | undefined) ?? "normal",
+    });
+  }
+
+  // Include EVERY unpaid job (Normal, CSS, SDK, …) — not only date-based alerts.
+  const jobsWithCollectionHit = new Set(
+    items
+      .filter((i) =>
+        (
+          [
+            "payment_overdue",
+            "payment_due_soon",
+            "installment_due_soon",
+            "delivered_unpaid",
+          ] as ProjectAttentionKind[]
+        ).includes(i.kind)
+      )
+      .map((i) => i.jobId)
+  );
+
+  for (const job of jobs) {
+    const id = String(job._id);
+    if (jobsWithCollectionHit.has(id)) continue;
+    const collected = colMap.get(id) ?? 0;
+    const pending = Math.max(0, job.agreedAmount - collected);
+    if (pending <= 0.005) continue;
+    push({
+      kind: "pending_balance",
+      jobId: id,
+      jobName: job.name,
+      clientName: job.clientName?.trim() ?? "",
+      detail: "pending",
+      amount: pending,
+      projectType: (job.projectType as string | undefined) ?? "normal",
     });
   }
 
@@ -179,21 +222,26 @@ export async function getProjectAttentionItems(
     "delivered_unpaid",
     "payment_due_soon",
     "installment_due_soon",
+    "pending_balance",
     "stale_quote",
   ];
-  items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  items.sort((a, b) => {
+    const byKind = order.indexOf(a.kind) - order.indexOf(b.kind);
+    if (byKind !== 0) return byKind;
+    return (b.amount ?? 0) - (a.amount ?? 0);
+  });
 
   const filtered =
     scope === "all"
       ? items
       : items.filter((i) => COLLECTION_ATTENTION_KINDS.includes(i.kind));
 
-  if (scope === "preview") {
-    const urgent = filtered.filter((i) => i.kind !== "delivered_unpaid");
-    return (urgent.length > 0 ? urgent : filtered).slice(0, 3);
+  // Preview + collections pages: full unpaid list (all types).
+  if (scope === "preview" || scope === "collections") {
+    return filtered;
   }
 
-  return scope === "collections" ? filtered : filtered.slice(0, 12);
+  return filtered.slice(0, 12);
 }
 
 export function attentionFromJobs(jobs: ProjectJobDto[]): ProjectAttentionItem[] {
@@ -217,6 +265,7 @@ export function attentionFromJobs(jobs: ProjectJobDto[]): ProjectAttentionItem[]
         detail: "overdue",
         amount: pending,
         date: job.expectedPaymentDate,
+        projectType: job.projectType,
       });
     } else if (
       job.expectedPaymentDate &&
@@ -231,6 +280,7 @@ export function attentionFromJobs(jobs: ProjectJobDto[]): ProjectAttentionItem[]
         detail: "soon",
         amount: pending,
         date: job.expectedPaymentDate,
+        projectType: job.projectType,
       });
     }
 
@@ -242,6 +292,7 @@ export function attentionFromJobs(jobs: ProjectJobDto[]): ProjectAttentionItem[]
         clientName: job.clientName,
         detail: "quote",
         amount: pending,
+        projectType: job.projectType,
       });
     }
 
@@ -253,6 +304,7 @@ export function attentionFromJobs(jobs: ProjectJobDto[]): ProjectAttentionItem[]
         clientName: job.clientName,
         detail: "delivered",
         amount: pending,
+        projectType: job.projectType,
       });
     }
 
@@ -268,10 +320,28 @@ export function attentionFromJobs(jobs: ProjectJobDto[]): ProjectAttentionItem[]
           detail: p.note || "installment",
           amount: p.amount,
           date: p.date,
+          projectType: job.projectType,
         });
       }
     }
   }
 
-  return items.slice(0, 12);
+  const hit = new Set(
+    items.filter((i) => i.kind !== "stale_quote").map((i) => i.jobId)
+  );
+  for (const job of jobs) {
+    if (job.status === "cancelled" || hit.has(job.id)) continue;
+    if (job.pendingAmount <= 0.005) continue;
+    items.push({
+      kind: "pending_balance",
+      jobId: job.id,
+      jobName: job.name,
+      clientName: job.clientName,
+      detail: "pending",
+      amount: job.pendingAmount,
+      projectType: job.projectType,
+    });
+  }
+
+  return items;
 }

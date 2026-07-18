@@ -16,6 +16,8 @@ import { ensureClientPhone } from "@/lib/services/client-profile-service";
 import { parseProjectJobListFilters, parseProjectJobPagination } from "@/lib/project-job-filters";
 import { createInstallmentSchedule } from "@/lib/services/project-payout-service";
 import { queueAfterProject } from "@/lib/services/activity-notifications";
+import { resolveProjectMoney } from "@/lib/project-money";
+import { roundMoney } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const name = String(body?.name ?? "").trim();
-    const agreedAmount = Number(body?.agreedAmount);
+    const amountInCurrency = Number(body?.agreedAmount);
     const notes = typeof body?.notes === "string" ? body.notes.trim().slice(0, 500) : "";
     const startDateRaw = body?.startDate;
     const expectedPaymentDateRaw = body?.expectedPaymentDate;
@@ -71,12 +73,24 @@ export async function POST(req: Request) {
       ? (body.installments as InstallmentInputBody[])
       : [];
 
-    if (!name || !Number.isFinite(agreedAmount) || agreedAmount < 0) {
+    if (!name || !Number.isFinite(amountInCurrency) || amountInCurrency < 0) {
       return NextResponse.json(
         { error: "name and agreedAmount are required" },
         { status: 400 }
       );
     }
+
+    let money;
+    try {
+      money = await resolveProjectMoney(amountInCurrency, body?.currency);
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "Could not resolve exchange rate" },
+        { status: 502 }
+      );
+    }
+    const { agreedAmount, currency, originalAmount, exchangeRateToEgp } = money;
+
     const startDate = startDateRaw ? new Date(String(startDateRaw)) : new Date();
     if (Number.isNaN(startDate.getTime())) {
       return NextResponse.json({ error: "Invalid startDate" }, { status: 400 });
@@ -96,6 +110,9 @@ export async function POST(req: Request) {
       userId: user.id,
       name,
       agreedAmount,
+      currency,
+      originalAmount,
+      exchangeRateToEgp,
       notes,
       startDate,
       expectedPaymentDate,
@@ -120,9 +137,10 @@ export async function POST(req: Request) {
         note: "Initial collection",
       });
     } else if (!isCollected && agreedAmount > 0) {
+      const rate = exchangeRateToEgp;
       const parsedInstallments = installments
         .map((i) => ({
-          amount: Number(i?.amount),
+          amount: roundMoney(Number(i?.amount) * (currency === "SAR" ? rate : 1)),
           dueDate: i?.dueDate ? new Date(String(i.dueDate)) : startDate,
           note: typeof i?.note === "string" ? i.note.trim() : "",
         }))

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { formatDateMedium, formatMoney } from "@/lib/format";
 import { exportTransactionsExcel } from "@/lib/export-excel";
 import { labelExpenseCategory } from "@/lib/expense-categories";
+import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
 import {
   Briefcase,
   Car,
@@ -410,6 +411,8 @@ export default function TransactionsPage() {
           </DropdownMenu>
         </div>
       </div>
+
+      <AiInsightPanel surface="transactions" />
 
       {error ? <QueryErrorAlert error={error as Error} /> : null}
 

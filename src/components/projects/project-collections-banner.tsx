@@ -1,13 +1,17 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, CalendarClock, ChevronLeft, Clock, PackageCheck } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronLeft, CircleDollarSign, Clock, PackageCheck } from "lucide-react";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import type { ProjectAttentionItem } from "@/lib/services/project-attention-service";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import { projectTypeLabel } from "@/components/forms/project-type-field";
+import { PROJECT_TYPES, type ProjectType } from "@/lib/project-type";
+import { FilterNativeSelect } from "@/components/ui/filter-native-select";
 
 const kindIcon = {
   payment_overdue: AlertTriangle,
@@ -15,6 +19,7 @@ const kindIcon = {
   installment_due_soon: Clock,
   stale_quote: Clock,
   delivered_unpaid: PackageCheck,
+  pending_balance: CircleDollarSign,
 } as const;
 
 type Props = {
@@ -115,6 +120,7 @@ export function ProjectCollectionsBanner({ onOpenJob, variant = "preview" }: Pro
 export function ProjectCollectionsList() {
   const t = useTranslations("projects");
   const locale = useLocale();
+  const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
 
   const { data, isLoading } = useQuery({
     queryKey: ["project-attention", "collections"],
@@ -124,7 +130,25 @@ export function ProjectCollectionsList() {
       ),
   });
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data?.data]);
+  const filtered = useMemo(() => {
+    if (typeFilter === "all") return items;
+    return items.filter((item) => {
+      const type = (item.projectType ?? "normal") as ProjectType;
+      return type === typeFilter;
+    });
+  }, [items, typeFilter]);
+
+  const typeOptions = useMemo(
+    () => [
+      { value: "all", label: t("filterTypeAll") },
+      ...PROJECT_TYPES.map((type) => ({
+        value: type,
+        label: t(`type.${type}`),
+      })),
+    ],
+    [t]
+  );
 
   if (isLoading) {
     return <div className="h-40 animate-pulse rounded-xl bg-muted/20" />;
@@ -139,36 +163,72 @@ export function ProjectCollectionsList() {
   }
 
   return (
-    <ul className="space-y-2">
-      {items.map((item) => {
-        const Icon = kindIcon[item.kind];
-        return (
-          <li key={`${item.kind}-${item.jobId}-${item.date ?? ""}`}>
-            <Link
-              href={`/projects/${item.jobId}`}
-              className="flex items-start gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm transition hover:border-primary/35 hover:shadow-md"
-            >
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
-                <Icon className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
-                  {t(`attention_${item.kind}`)}
-                </p>
-                <p className="mt-0.5 truncate font-medium">{item.jobName}</p>
-                {item.clientName ? (
-                  <p className="truncate text-xs text-muted-foreground">{item.clientName}</p>
-                ) : null}
-                <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-                  {item.amount != null ? formatMoney(item.amount) : ""}
-                  {item.date ? ` · ${formatDateLong(new Date(item.date), locale)}` : ""}
-                </p>
-              </div>
-              <ChevronLeft className="size-4 shrink-0 self-center text-muted-foreground rtl:rotate-180" />
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/60 bg-card p-3">
+        <FilterNativeSelect
+          id="collections-filter-type"
+          label={t("filterType")}
+          value={typeFilter}
+          options={typeOptions}
+          onChange={(v) => setTypeFilter(v as ProjectType | "all")}
+          active={typeFilter !== "all"}
+          className="w-full min-w-[10rem] sm:max-w-[14rem]"
+        />
+        <p className="pb-2 text-xs text-muted-foreground">
+          {t("collectionsFilterResult", {
+            shown: filtered.length,
+            total: items.length,
+          })}
+        </p>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/70 py-12 text-center text-sm text-muted-foreground">
+          {t("collectionsFilterEmpty")}
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {filtered.map((item) => {
+            const Icon = kindIcon[item.kind];
+            return (
+              <li key={`${item.kind}-${item.jobId}-${item.date ?? ""}`}>
+                <Link
+                  href={`/projects/${item.jobId}`}
+                  className="flex items-start gap-3 rounded-xl border border-border/60 bg-card p-3 shadow-sm transition hover:border-primary/35 hover:shadow-md"
+                >
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                    <Icon className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                      {t(`attention_${item.kind}`)}
+                    </p>
+                    <p className="mt-0.5 truncate font-medium">{item.jobName}</p>
+                    {item.clientName ? (
+                      <p className="truncate text-xs text-muted-foreground">{item.clientName}</p>
+                    ) : null}
+                    {item.projectType ? (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {projectTypeLabel(
+                          (item.projectType as ProjectType) ?? "normal",
+                          t
+                        )}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                      {item.amount != null ? formatMoney(item.amount) : ""}
+                      {item.date
+                        ? ` · ${formatDateLong(new Date(item.date), locale)}`
+                        : ""}
+                    </p>
+                  </div>
+                  <ChevronLeft className="size-4 shrink-0 self-center text-muted-foreground rtl:rotate-180" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

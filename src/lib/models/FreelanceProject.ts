@@ -1,4 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
+import type { ProjectCurrency } from "@/lib/currency";
+import { PROJECT_CURRENCIES } from "@/lib/currency";
 import type { PaymentMethod } from "@/lib/payment-method";
 import type { ProjectType } from "@/lib/project-type";
 import { PROJECT_TYPES } from "@/lib/project-type";
@@ -11,8 +13,14 @@ export interface IFreelanceProject {
   _id: string;
   userId: mongoose.Types.ObjectId;
   name: string;
-  /** Agreed / quoted amount from the client. */
+  /** Agreed amount always stored in EGP (for totals / payment math). */
   agreedAmount: number;
+  /** Currency the client agreed in (default EGP). */
+  currency: ProjectCurrency;
+  /** Amount as entered in `currency` (equals agreedAmount when EGP). */
+  originalAmount: number;
+  /** Locked rate: 1 unit of currency → EGP (1 for EGP). */
+  exchangeRateToEgp: number;
   status: FreelanceProjectStatus;
   /** Delivery pipeline: quote → in progress → delivered (separate from payment status) */
   workPhase: WorkPhase;
@@ -27,6 +35,10 @@ export interface IFreelanceProject {
   projectType: ProjectType;
   /** Client / customer name for statements & proposals */
   clientName?: string;
+  /** Billing basket status — separate from payment collected. */
+  billingStatus: "unbilled" | "billed";
+  /** Active invoice this job sits in (editable until invoice paid). */
+  invoiceId?: mongoose.Types.ObjectId | null;
   /** Scope line items for non-normal projects (proposals) */
   scopeItems?: ProjectScopeItem[];
   notes?: string;
@@ -41,6 +53,13 @@ const FreelanceProjectSchema = new Schema<IFreelanceProject>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true },
     agreedAmount: { type: Number, required: true, min: 0 },
+    currency: {
+      type: String,
+      enum: PROJECT_CURRENCIES,
+      default: "EGP",
+    },
+    originalAmount: { type: Number, min: 0 },
+    exchangeRateToEgp: { type: Number, min: 0, default: 1 },
     status: {
       type: String,
       enum: ["pending", "partial", "collected", "cancelled"],
@@ -68,6 +87,13 @@ const FreelanceProjectSchema = new Schema<IFreelanceProject>(
       default: "normal",
     },
     clientName: { type: String, trim: true, default: "" },
+    billingStatus: {
+      type: String,
+      enum: ["unbilled", "billed"],
+      default: "unbilled",
+      index: true,
+    },
+    invoiceId: { type: Schema.Types.ObjectId, ref: "Invoice", default: null },
     scopeItems: {
       type: [
         {

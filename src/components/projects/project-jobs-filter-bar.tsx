@@ -11,10 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PROJECT_TYPES, type ProjectType } from "@/lib/project-type";
 import { WORK_PHASES } from "@/lib/project-work-phase";
 import {
+  DEFAULT_PROJECT_JOB_COLLECTED,
   DEFAULT_PROJECT_JOB_SORT,
   hasActiveProjectJobFilters,
   type ProjectJobArchiveFilter,
   type ProjectJobCollectedFilter,
+  type ProjectJobBillingFilter,
   type ProjectJobListFilters,
   type ProjectJobSort,
   type ProjectJobViewMode,
@@ -26,6 +28,7 @@ type Props = {
   filters: ProjectJobListFilters;
   clientNames?: string[];
   onCollectedChange: (v: ProjectJobCollectedFilter) => void;
+  onBillingChange: (v: ProjectJobBillingFilter) => void;
   onTypeChange: (v: ProjectType | "all") => void;
   onSortChange: (v: ProjectJobSort) => void;
   onClientChange: (v: string) => void;
@@ -50,6 +53,7 @@ export function ProjectJobsFilterBar({
   filters,
   clientNames = [],
   onCollectedChange,
+  onBillingChange,
   onTypeChange,
   onSortChange,
   onClientChange,
@@ -64,7 +68,8 @@ export function ProjectJobsFilterBar({
 }: Props) {
   const t = useTranslations("projects");
 
-  const collected = filters.collected ?? "all";
+  const collected = filters.collected ?? DEFAULT_PROJECT_JOB_COLLECTED;
+  const billing = filters.billing ?? "all";
   const projectType = (filters.projectType ?? "all") as ProjectType | "all";
   const sort = filters.sort ?? DEFAULT_PROJECT_JOB_SORT;
   const client = filters.client ?? "";
@@ -74,15 +79,7 @@ export function ProjectJobsFilterBar({
   const view = filters.view ?? "list";
 
   const hasActive = hasActiveProjectJobFilters(filters);
-
-  const collectedOptions = useMemo(
-    () =>
-      (["all", "collected", "pending"] as const).map((key) => ({
-        value: key,
-        label: t(`filterCollected_${key}`),
-      })),
-    [t]
-  );
+  const showCollected = collected !== "pending";
 
   const typeOptions = useMemo(
     () => [
@@ -92,6 +89,15 @@ export function ProjectJobsFilterBar({
         label: t(`type.${type}`),
       })),
     ],
+    [t]
+  );
+
+  const billingOptions = useMemo(
+    () =>
+      (["all", "unbilled", "billed"] as const).map((key) => ({
+        value: key,
+        label: t(`filterBilling_${key}`),
+      })),
     [t]
   );
 
@@ -120,6 +126,15 @@ export function ProjectJobsFilterBar({
       (["active", "archived", "all"] as const).map((key) => ({
         value: key,
         label: t(`filterArchive_${key}`),
+      })),
+    [t]
+  );
+
+  const collectedModeOptions = useMemo(
+    () =>
+      (["all", "collected"] as const).map((key) => ({
+        value: key,
+        label: t(`filterCollected_${key}`),
       })),
     [t]
   );
@@ -177,6 +192,33 @@ export function ProjectJobsFilterBar({
         </div>
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={showCollected}
+            onChange={(e) =>
+              onCollectedChange(e.target.checked ? "all" : "pending")
+            }
+          />
+          <span className="font-medium text-foreground">{t("filterShowCollected")}</span>
+        </label>
+        <span className="text-xs text-muted-foreground">{t("filterShowCollectedHint")}</span>
+        {showCollected ? (
+          <div className="ms-auto w-full min-w-[10rem] sm:w-auto sm:min-w-[12rem]">
+            <FilterNativeSelect
+              id="project-filter-collected-mode"
+              label={t("filterCollectedMode")}
+              value={collected === "collected" ? "collected" : "all"}
+              options={collectedModeOptions}
+              onChange={(v) => onCollectedChange(v as ProjectJobCollectedFilter)}
+              active={collected === "collected"}
+            />
+          </div>
+        ) : null}
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div className="space-y-1.5 xl:col-span-2">
           <Label htmlFor="project-filter-search" className="text-xs text-muted-foreground">
@@ -229,12 +271,12 @@ export function ProjectJobsFilterBar({
         />
 
         <FilterNativeSelect
-          id="project-filter-collected"
-          label={t("filterCollected")}
-          value={collected}
-          options={collectedOptions}
-          onChange={(v) => onCollectedChange(v as ProjectJobCollectedFilter)}
-          active={collected !== "all"}
+          id="project-filter-billing"
+          label={t("filterBilling")}
+          value={billing}
+          options={billingOptions}
+          onChange={(v) => onBillingChange(v as ProjectJobBillingFilter)}
+          active={billing !== "all"}
         />
 
         <FilterNativeSelect

@@ -53,7 +53,7 @@ export function ProjectBulkActionBar({
         className
       )}
     >
-      <p className="text-sm font-medium">{labels.selected.replace("{count}", String(count))}</p>
+      <p className="text-sm font-medium">{labels.selected}</p>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={onClear}>
           {labels.clear}

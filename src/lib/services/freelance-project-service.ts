@@ -117,6 +117,12 @@ function buildProjectJobsMongoQuery(
     query.status = { $in: ["pending", "partial"] };
   }
 
+  if (filters?.billing === "billed") {
+    query.billingStatus = "billed";
+  } else if (filters?.billing === "unbilled") {
+    query.billingStatus = { $ne: "billed" };
+  }
+
   if (filters?.projectType && filters.projectType !== "all") {
     Object.assign(query, buildProjectTypeMongoFilter(normalizeProjectType(filters.projectType)));
   }
@@ -242,10 +248,27 @@ export async function buildProjectJobDto(
   const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount);
   const derivedWorkPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collectedAmount);
 
+  const currency = job.currency === "SAR" ? "SAR" : "EGP";
+  const originalAmount =
+    typeof job.originalAmount === "number" && Number.isFinite(job.originalAmount)
+      ? job.originalAmount
+      : job.agreedAmount;
+  const exchangeRateToEgp =
+    typeof job.exchangeRateToEgp === "number" &&
+    Number.isFinite(job.exchangeRateToEgp) &&
+    job.exchangeRateToEgp > 0
+      ? job.exchangeRateToEgp
+      : 1;
+
   return {
     id: String(job._id),
     name: job.name,
     agreedAmount: job.agreedAmount,
+    currency,
+    originalAmount,
+    exchangeRateToEgp,
+    billingStatus: job.billingStatus === "billed" ? "billed" : "unbilled",
+    invoiceId: job.invoiceId ? String(job.invoiceId) : null,
     status: job.status === "cancelled" ? "cancelled" : derivedStatus,
     workPhase: derivedWorkPhase,
     cancellationReason: job.cancellationReason?.trim() ?? "",

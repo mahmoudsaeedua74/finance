@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { ReportChartsLazy } from "@/components/dashboard/report-charts-lazy";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
+import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
 import { Badge } from "@/components/ui/badge";
 import {
   applyReportFilters,
@@ -223,6 +224,8 @@ export default function ReportPage() {
       {range === "monthly" && (
         <p className="text-xs text-muted-foreground">{t("emailNote")}</p>
       )}
+
+      <AiInsightPanel surface="reports" />
 
       {/* Left filters (sidebar) · Right analytics (Stitch reports.html) */}
       <div className="grid grid-cols-12 gap-4 lg:items-start lg:gap-6">

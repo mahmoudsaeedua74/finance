@@ -7,6 +7,7 @@ import { normalizeWorkPhase } from "@/lib/project-work-phase";
 import { parseScopeItems } from "@/lib/project-scope";
 import { buildProjectJobDto } from "@/lib/services/freelance-project-service";
 import { defaultWorkPhaseForCreate } from "@/lib/project-work-phase";
+import { resolveProjectMoney } from "@/lib/project-money";
 
 function toUserTemplateDto(row: {
   _id: unknown;
@@ -79,16 +80,39 @@ export async function cloneFreelanceProject(
   if (!source) throw new Error("Not found");
 
   const name = (input?.name ?? `${source.name} (copy)`).trim();
-  const agreedAmount =
-    input?.agreedAmount != null && Number.isFinite(Number(input.agreedAmount))
-      ? Number(input.agreedAmount)
+  const sourceCurrency = source.currency === "SAR" ? "SAR" : "EGP";
+  const sourceOriginal =
+    typeof source.originalAmount === "number" && Number.isFinite(source.originalAmount)
+      ? source.originalAmount
       : source.agreedAmount;
+
+  let agreedAmount: number;
+  let currency = sourceCurrency;
+  let originalAmount = sourceOriginal;
+  let exchangeRateToEgp =
+    typeof source.exchangeRateToEgp === "number" && source.exchangeRateToEgp > 0
+      ? source.exchangeRateToEgp
+      : 1;
+
+  if (input?.agreedAmount != null && Number.isFinite(Number(input.agreedAmount))) {
+    const money = await resolveProjectMoney(Number(input.agreedAmount), sourceCurrency);
+    agreedAmount = money.agreedAmount;
+    currency = money.currency;
+    originalAmount = money.originalAmount;
+    exchangeRateToEgp = money.exchangeRateToEgp;
+  } else {
+    agreedAmount = source.agreedAmount;
+  }
+
   const clientName = input?.clientName?.trim() ?? source.clientName?.trim() ?? "";
 
   const job = await FreelanceProject.create({
     userId: uid,
     name,
     agreedAmount,
+    currency,
+    originalAmount,
+    exchangeRateToEgp,
     clientName,
     projectType: source.projectType,
     scopeItems: source.scopeItems ?? [],
