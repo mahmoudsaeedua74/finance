@@ -487,7 +487,7 @@ export default function ProjectsPage() {
         body: JSON.stringify(body),
       });
     },
-    ...mergeMutationToasts(
+    ...mergeMutationToasts<{ data: ProjectJobDto }>(
       { loading: tC("savingChanges"), success: t("scopeSaved") },
       {
         onSuccess: (res) => {
