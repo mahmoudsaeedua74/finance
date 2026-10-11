@@ -31,6 +31,7 @@ export function ReportForecastCompare() {
 
   const { data: cur, isLoading: l0 } = useQuery({
     queryKey: ["forecast", year, month],
+    staleTime: 60_000,
     queryFn: () =>
       jsonFetch<{ data: ForecastPayload }>(
         `/api/forecast?year=${year}&month=${month}`,
@@ -38,6 +39,7 @@ export function ReportForecastCompare() {
   });
   const { data: nxt, isLoading: l1 } = useQuery({
     queryKey: ["forecast", next.year, next.month],
+    staleTime: 60_000,
     queryFn: () =>
       jsonFetch<{ data: ForecastPayload }>(
         `/api/forecast?year=${next.year}&month=${next.month}`,

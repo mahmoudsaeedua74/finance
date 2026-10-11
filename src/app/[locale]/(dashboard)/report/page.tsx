@@ -29,63 +29,8 @@ import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
 import { ReportForecastCompare } from "@/components/report/report-forecast-compare";
 import { ReportRangeToolbar } from "@/components/report/report-range-toolbar";
-import { useReports, type ReportFilterType } from "@/hooks/use-reports";
+import type { ReportFilterType } from "@/hooks/use-reports";
 import { queryKeys } from "@/features/_lib/query-keys";
-
-function combineReports(year: number, reports: MonthlyReportDto[]): MonthlyReportDto {
-  const incomeByType: Record<string, number> = {};
-  const expenseByCategory: Record<string, number> = {};
-
-  for (const r of reports) {
-    for (const [k, v] of Object.entries(r.incomeByType)) {
-      incomeByType[k] = (incomeByType[k] ?? 0) + v;
-    }
-    for (const [k, v] of Object.entries(r.expenseByCategory)) {
-      expenseByCategory[k] = (expenseByCategory[k] ?? 0) + v;
-    }
-  }
-
-  const totalIncome = reports.reduce((s, r) => s + r.summary.totalIncome, 0);
-  const totalExpenses = reports.reduce((s, r) => s + r.summary.totalExpenses, 0);
-  const totalIncomeFromIncomes = reports.reduce(
-    (s, r) => s + r.summary.totalIncomeFromIncomes,
-    0
-  );
-  const projectIncome = reports.reduce((s, r) => s + r.summary.projectIncome, 0);
-  const salaryIncome = reports.reduce((s, r) => s + (r.summary.salaryIncome ?? 0), 0);
-
-  const expenseLineItems = reports.flatMap((r) => r.expenseLineItems);
-  const incomeLineItems = reports.flatMap((r) => r.incomeLineItems);
-  const projectLineItems = reports.flatMap((r) => r.projectLineItems);
-
-  const biggestExpense = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1])[0];
-
-  return {
-    year,
-    month: 0,
-    summary: {
-      totalIncome,
-      totalExpenses,
-      netBalance: totalIncome - totalExpenses,
-      totalIncomeFromIncomes,
-      projectIncome,
-      salaryIncome,
-    },
-    incomeByType,
-    expenseByCategory,
-    expenseLineItems,
-    incomeLineItems,
-    projectLineItems,
-    insights: {
-      overspent: totalExpenses > totalIncome,
-      biggestExpenseCategory: biggestExpense
-        ? { name: biggestExpense[0], amount: biggestExpense[1] }
-        : null,
-      moneyLeft: totalIncome - totalExpenses,
-    },
-    smartInsights: [],
-  };
-}
 
 export default function ReportPage() {
   const t = useTranslations("report");
@@ -105,33 +50,27 @@ export default function ReportPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["report", range, year, month],
     enabled: range === "monthly",
+    staleTime: 60_000,
     queryFn: () =>
       jsonFetch<{ data: MonthlyReportDto }>(
         `/api/reports/monthly?year=${year}&month=${month}`
       ),
   });
-  const summaryQ = useReports(range);
   const raw = data?.data;
   const ledgerQ = useQuery({
     queryKey: queryKeys.ledgerReport(),
     queryFn: () => jsonFetch<{ data: MonthlyReportDto }>("/api/summary/ledger"),
     enabled: range === "all",
+    staleTime: 60_000,
   });
   const yearlyQ = useQuery({
     queryKey: ["report-yearly", year],
     enabled: range === "yearly",
-    queryFn: async () => {
-      const months = Array.from({ length: 12 }, (_, i) => i + 1);
-      const results = await Promise.all(
-        months.map((m) =>
-          jsonFetch<{ data: MonthlyReportDto }>(`/api/reports/monthly?year=${year}&month=${m}`)
-        )
-      );
-      return combineReports(
-        year,
-        results.map((r) => r.data)
-      );
-    },
+    staleTime: 60_000,
+    queryFn: () =>
+      jsonFetch<{ data: MonthlyReportDto }>(`/api/reports/yearly?year=${year}`).then(
+        (r) => r.data
+      ),
   });
   const activeRaw =
     range === "monthly"
@@ -183,9 +122,6 @@ export default function ReportPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {error && range === "monthly" && <QueryErrorAlert error={error} />}
-      {summaryQ.error && range !== "monthly" && (
-        <QueryErrorAlert error={summaryQ.error} />
-      )}
       {yearlyQ.error && range === "yearly" && <QueryErrorAlert error={yearlyQ.error} />}
       {ledgerQ.error && range === "all" && <QueryErrorAlert error={ledgerQ.error} />}
 

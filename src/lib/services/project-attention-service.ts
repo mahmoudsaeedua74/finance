@@ -44,19 +44,17 @@ function addDaysUtc(d: Date, n: number) {
 }
 
 async function collectedMap(userId: mongoose.Types.ObjectId) {
-  const payouts = await Project.find({
-    userId,
-    $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
-  })
-    .select("freelanceProjectId amount")
-    .lean();
-  const map = new Map<string, number>();
-  for (const p of payouts) {
-    if (!p.freelanceProjectId) continue;
-    const id = String(p.freelanceProjectId);
-    map.set(id, (map.get(id) ?? 0) + p.amount);
-  }
-  return map;
+  const rows = await Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+    {
+      $match: {
+        userId,
+        freelanceProjectId: { $ne: null },
+        $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+      },
+    },
+    { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r.total]));
 }
 
 export async function getProjectAttentionItems(
@@ -69,12 +67,17 @@ export async function getProjectAttentionItems(
   const weekEnd = addDaysUtc(today, 7);
   const staleQuoteBefore = addDaysUtc(today, -14);
 
+  // Fully collected jobs never surface attention — skip them for every scope.
   const [jobs, installments, colMap] = await Promise.all([
     FreelanceProject.find({
       userId: uid,
       isArchived: { $ne: true },
-      status: { $nin: ["cancelled"] },
-    }).lean(),
+      status: { $in: ["pending", "partial"] },
+    })
+      .select(
+        "_id name clientName agreedAmount status workPhase projectType expectedPaymentDate startDate createdAt"
+      )
+      .lean(),
     Project.find({
       userId: uid,
       isCollected: false,

@@ -17,12 +17,19 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
   const { mStart, mEnd } = monthDateBoundsUTC(year, month);
   const nq = expenseNonTemplateInMonth(userId, mStart, mEnd);
   const tq = expenseTemplatesApplyingInMonth(userId, mStart, mEnd);
-  const [incomeRows, projectRows, expNon, expTpl, smartInsights] = await Promise.all([
-    Income.find(incomeInMonth(userId, mStart, mEnd)).lean(),
-    Project.find(projectPayoutInMonth(userId, mStart, mEnd)).lean(),
-    Expense.find(nq).lean(),
-    Expense.find(tq).lean(),
-    buildSmartInsights(userId, year, month),
+  const [incomeRows, projectRows, expNon, expTpl] = await Promise.all([
+    Income.find(incomeInMonth(userId, mStart, mEnd))
+      .select("title amount date incomeType")
+      .lean(),
+    Project.find(projectPayoutInMonth(userId, mStart, mEnd))
+      .select("name amount date note")
+      .lean(),
+    Expense.find(nq)
+      .select("title amount date category kind projectName isTemplate recurring")
+      .lean(),
+    Expense.find(tq)
+      .select("title amount date category kind projectName isTemplate recurring")
+      .lean(),
   ]);
   const expenses = [
     ...((expNon as IExpense[]) ?? []),
@@ -95,6 +102,12 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       : null,
     moneyLeft: basisIncome - totalExpenses,
   };
+
+  // Reuse month totals; only prev-month still needs a light fetch inside buildSmartInsights.
+  const smartInsights = await buildSmartInsights(userId, year, month, {
+    salary: salaryIncome,
+    expenses: totalExpenses,
+  });
 
   return {
     year,

@@ -172,17 +172,25 @@ function buildProjectJobsSort(filters?: ProjectJobListFilters) {
   } as Record<string, 1 | -1>;
 }
 
+const LIST_JOB_SELECT =
+  "_id name clientName agreedAmount currency originalAmount exchangeRateToEgp billingStatus invoiceId status workPhase isArchived archivedAt startDate createdAt expectedPaymentDate expectedPaymentMethod projectType";
+
 async function aggregateFilteredTotals(
   uid: mongoose.Types.ObjectId,
   query: Record<string, unknown>
 ): Promise<ProjectJobListTotals> {
-  const jobs = await FreelanceProject.find(query).select("_id agreedAmount").lean();
-  if (jobs.length === 0) {
+  const [agreedAgg, jobIds] = await Promise.all([
+    FreelanceProject.aggregate<{ agreed: number }>([
+      { $match: query },
+      { $group: { _id: null, agreed: { $sum: "$agreedAmount" } } },
+    ]),
+    FreelanceProject.distinct("_id", query),
+  ]);
+
+  const agreed = agreedAgg[0]?.agreed ?? 0;
+  if (jobIds.length === 0) {
     return { agreed: 0, collected: 0, pending: 0, spent: 0, net: 0 };
   }
-
-  const jobIds = jobs.map((j) => j._id);
-  const agreed = jobs.reduce((s, j) => s + j.agreedAmount, 0);
 
   const [payoutAgg, expenseAgg] = await Promise.all([
     Project.aggregate<{ total: number }>([
@@ -240,24 +248,40 @@ export async function buildProjectJobDto(
   const uid = new mongoose.Types.ObjectId(userId);
   const jobId =
     typeof job._id === "string" ? new mongoose.Types.ObjectId(job._id) : job._id;
-  const [payouts, costs] = await Promise.all([
+  const costMatch = {
+    userId: uid,
+    isTemplate: false,
+    $or: [
+      { freelanceProjectId: jobId },
+      {
+        projectName: {
+          $regex: `^${escapeRegex(job.name.trim())}$`,
+          $options: "i",
+        },
+      },
+    ],
+  };
+
+  const [payouts, costs, spentAgg] = await Promise.all([
     Project.find({ userId: uid, freelanceProjectId: jobId })
+      .select("amount date isCollected collectedAt paymentMethod note")
       .sort({ date: -1 })
       .lean(),
-    Expense.find({
-      userId: uid,
-      isTemplate: false,
-      $or: [{ freelanceProjectId: jobId }, { projectName: job.name }],
-    })
+    Expense.find(costMatch)
+      .select("title amount date category paymentMethod")
       .sort({ date: -1 })
       .limit(50)
       .lean(),
+    Expense.aggregate<{ total: number }>([
+      { $match: costMatch },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]),
   ]);
 
   const collectedAmount = payouts
     .filter((p) => p.isCollected !== false)
     .reduce((s, p) => s + p.amount, 0);
-  const spentAmount = await spentForJob(uid, jobId, job.name);
+  const spentAmount = spentAgg[0]?.total ?? 0;
   const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount);
   const derivedWorkPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collectedAmount);
 
@@ -405,14 +429,14 @@ async function buildProjectJobListDtos(
       invoiceId: job.invoiceId ? String(job.invoiceId) : null,
       status: job.status === "cancelled" ? "cancelled" : derivedStatus,
       workPhase: derivedWorkPhase,
-      cancellationReason: job.cancellationReason?.trim() ?? "",
+      cancellationReason: "",
       isArchived: Boolean(job.isArchived),
       archivedAt: job.archivedAt ? job.archivedAt.toISOString() : null,
       profitMarginPct:
         collectedAmount > 0.005
           ? Math.round(((collectedAmount - spentAmount) / collectedAmount) * 1000) / 10
           : null,
-      notes: job.notes?.trim() ?? "",
+      notes: "",
       startDate: job.startDate.toISOString(),
       createdAt: job.createdAt.toISOString(),
       expectedPaymentDate: job.expectedPaymentDate
@@ -421,13 +445,7 @@ async function buildProjectJobListDtos(
       expectedPaymentMethod: normalizePaymentMethod(job.expectedPaymentMethod),
       projectType: normalizeProjectType(job.projectType),
       clientName: job.clientName?.trim() ?? "",
-      scopeItems: (job.scopeItems ?? []).map((item) => ({
-        title: item.title,
-        description: item.description?.trim() ?? "",
-        amount: item.amount,
-        complexity: item.complexity,
-        tech: item.tech?.trim() ?? "",
-      })),
+      scopeItems: [],
       collectedAmount,
       pendingAmount: Math.max(0, job.agreedAmount - collectedAmount),
       spentAmount,
@@ -449,10 +467,14 @@ export async function listProjectJobs(
   const limit = pagination?.limit ?? PROJECT_JOBS_PAGE_SIZE;
   const offset = pagination?.offset ?? 0;
 
-  const [filteredTotal, totalAll, jobDocs, totals] = await Promise.all([
+  const [filteredTotal, jobDocs, totals] = await Promise.all([
     FreelanceProject.countDocuments(query),
-    FreelanceProject.countDocuments({ userId: uid }),
-    FreelanceProject.find(query).sort(sortSpec).skip(offset).limit(limit + 1).lean(),
+    FreelanceProject.find(query)
+      .select(LIST_JOB_SELECT)
+      .sort(sortSpec)
+      .skip(offset)
+      .limit(limit + 1)
+      .lean(),
     aggregateFilteredTotals(uid, query),
   ]);
 
@@ -461,7 +483,7 @@ export async function listProjectJobs(
 
   const meta: ProjectJobListMeta = {
     total: filteredTotal,
-    totalAll,
+    totalAll: filteredTotal,
     shown: filteredTotal,
     loaded: offset + rows.length,
     offset,
@@ -496,18 +518,26 @@ export type NormalProjectsSummary = {
 
 export async function getNormalProjectsSummary(userId: string): Promise<NormalProjectsSummary> {
   const uid = new mongoose.Types.ObjectId(userId);
-  const query = {
+  const base = {
     userId: uid,
-    status: { $ne: "cancelled" },
+    status: { $ne: "cancelled" as const },
     isArchived: { $ne: true },
     ...buildProjectTypeMongoFilter("normal"),
   };
 
-  const jobs = await FreelanceProject.find(query)
-    .select("_id name clientName agreedAmount")
-    .lean();
+  const [total, collectedCount, uncollectedJobs, collectedAgreedAgg] = await Promise.all([
+    FreelanceProject.countDocuments(base),
+    FreelanceProject.countDocuments({ ...base, status: "collected" }),
+    FreelanceProject.find({ ...base, status: { $in: ["pending", "partial"] } })
+      .select("_id name clientName agreedAmount status")
+      .lean(),
+    FreelanceProject.aggregate<{ total: number }>([
+      { $match: { ...base, status: "collected" } },
+      { $group: { _id: null, total: { $sum: "$agreedAmount" } } },
+    ]),
+  ]);
 
-  if (jobs.length === 0) {
+  if (total === 0) {
     return {
       total: 0,
       uncollectedCount: 0,
@@ -518,54 +548,44 @@ export async function getNormalProjectsSummary(userId: string): Promise<NormalPr
     };
   }
 
-  const jobIds = jobs.map((j) => j._id);
-  const payoutAgg = await Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
-    {
-      $match: {
-        userId: uid,
-        freelanceProjectId: { $in: jobIds },
-        $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
-      },
-    },
-    { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
-  ]);
+  const uncollectedIds = uncollectedJobs.map((j) => j._id);
+  const payoutAgg =
+    uncollectedIds.length === 0
+      ? []
+      : await Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+          {
+            $match: {
+              userId: uid,
+              freelanceProjectId: { $in: uncollectedIds },
+              $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+            },
+          },
+          { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+        ]);
   const collectedMap = new Map(payoutAgg.map((r) => [String(r._id), r.total]));
 
-  let uncollectedCount = 0;
-  let collectedCount = 0;
   let pendingAmount = 0;
-  let collectedAmount = 0;
   const uncollected: NormalProjectPreview[] = [];
-
-  for (const job of jobs) {
+  for (const job of uncollectedJobs) {
     const collected = collectedMap.get(String(job._id)) ?? 0;
     const pending = Math.max(0, job.agreedAmount - collected);
-    collectedAmount += collected;
-    const paymentStatus = derivePaymentStatus(job.agreedAmount, collected);
-
-    if (paymentStatus === "collected") {
-      collectedCount += 1;
-    } else {
-      uncollectedCount += 1;
-      pendingAmount += pending;
-      uncollected.push({
-        id: String(job._id),
-        name: job.name,
-        clientName: job.clientName?.trim() ?? "",
-        pendingAmount: pending,
-        status: paymentStatus === "partial" ? "partial" : "pending",
-      });
-    }
+    pendingAmount += pending;
+    uncollected.push({
+      id: String(job._id),
+      name: job.name,
+      clientName: job.clientName?.trim() ?? "",
+      pendingAmount: pending,
+      status: job.status === "partial" ? "partial" : "pending",
+    });
   }
-
   uncollected.sort((a, b) => b.pendingAmount - a.pendingAmount);
 
   return {
-    total: jobs.length,
-    uncollectedCount,
+    total,
+    uncollectedCount: uncollectedJobs.length,
     collectedCount,
     pendingAmount,
-    collectedAmount,
+    collectedAmount: collectedAgreedAgg[0]?.total ?? 0,
     preview: uncollected.slice(0, 4),
   };
 }

@@ -2,18 +2,27 @@ import { subMonths } from "date-fns";
 import { getMonthExpenseTotal, getMonthSalaryTotal } from "@/lib/services/month-rollup";
 import type { SmartInsightDto } from "@/types/report";
 
+export type SmartInsightPrecomputed = {
+  salary: number;
+  expenses: number;
+};
+
 /**
  * “رؤى سريعة”: بتركّز على **راتب** الشهر (نوع `salary`) دون جمعية أو باقي الأنواع.
  */
 export async function buildSmartInsights(
   userId: string,
   year: number,
-  month: number
+  month: number,
+  precomputed?: SmartInsightPrecomputed
 ): Promise<SmartInsightDto[]> {
-  const [salary, expenses] = await Promise.all([
-    getMonthSalaryTotal(userId, year, month),
-    getMonthExpenseTotal(userId, year, month),
-  ]);
+  const [salary, expenses] = precomputed
+    ? [precomputed.salary, precomputed.expenses]
+    : await Promise.all([
+        getMonthSalaryTotal(userId, year, month),
+        getMonthExpenseTotal(userId, year, month),
+      ]);
+
   const prev = subMonths(new Date(year, month - 1, 1), 1);
   const py = prev.getFullYear();
   const pm = prev.getMonth() + 1;

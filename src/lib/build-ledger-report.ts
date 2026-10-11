@@ -16,10 +16,16 @@ type ObjId = string | mongoose.Types.ObjectId;
 export async function buildLedgerReport(userId: ObjId) {
   const asOf = new Date();
   const [incomeRows, projectRows, expNon, templates] = await Promise.all([
-    Income.find({ userId }).lean(),
-    Project.find(projectCollectedFilter(String(userId))).lean(),
-    Expense.find({ userId, isTemplate: false }).lean(),
-    Expense.find({ userId, isTemplate: true, recurring: true }).lean(),
+    Income.find({ userId }).select("title amount date incomeType").lean(),
+    Project.find(projectCollectedFilter(String(userId)))
+      .select("name amount date note")
+      .lean(),
+    Expense.find({ userId, isTemplate: false })
+      .select("title amount date category kind projectName")
+      .lean(),
+    Expense.find({ userId, isTemplate: true, recurring: true })
+      .select("title amount category projectName validFrom validTo")
+      .lean(),
   ]);
 
   const incomeByType: Record<string, number> = {};

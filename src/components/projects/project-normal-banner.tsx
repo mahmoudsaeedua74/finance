@@ -19,7 +19,7 @@ export function ProjectNormalBanner({ onOpenJob }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ["normal-projects-summary"],
     queryFn: () => jsonFetch<{ data: NormalProjectsSummary }>("/api/project-jobs/normal-summary"),
-    staleTime: 60_000,
+    staleTime: 120_000,
   });
 
   const summary = data?.data;

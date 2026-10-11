@@ -315,7 +315,12 @@ export default function ProjectsPage() {
     (job: ProjectJobDto) => {
       // List rows omit payouts/costs for speed — show card data first, then hydrate.
       hydrateDetailFields(job);
-      void jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${job.id}`)
+      void qc
+        .fetchQuery({
+          queryKey: ["project-job", job.id],
+          queryFn: () => jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${job.id}`),
+          staleTime: 60_000,
+        })
         .then((res) => {
           if (res.data) hydrateDetailFields(res.data);
         })
@@ -323,7 +328,7 @@ export default function ProjectsPage() {
           /* keep list snapshot if detail fetch fails */
         });
     },
-    [hydrateDetailFields]
+    [hydrateDetailFields, qc]
   );
 
   const createJob = useMutation({
@@ -663,7 +668,12 @@ export default function ProjectsPage() {
         openDetail(job);
         return;
       }
-      void jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${id}`)
+      void qc
+        .fetchQuery({
+          queryKey: ["project-job", id],
+          queryFn: () => jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${id}`),
+          staleTime: 60_000,
+        })
         .then((res) => {
           if (res.data) hydrateDetailFields(res.data);
         })
@@ -671,7 +681,7 @@ export default function ProjectsPage() {
           /* ignore */
         });
     },
-    [jobs, openDetail, hydrateDetailFields]
+    [jobs, openDetail, hydrateDetailFields, qc]
   );
 
   const openCollect = useCallback(

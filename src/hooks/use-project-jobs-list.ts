@@ -118,7 +118,7 @@ export function useProjectJobsList() {
     },
     getNextPageParam: (last) =>
       last.hasMore && last.nextOffset != null ? last.nextOffset : undefined,
-    staleTime: 30_000,
+    staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
