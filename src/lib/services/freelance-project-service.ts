@@ -174,7 +174,7 @@ function buildProjectJobsSort(filters?: ProjectJobListFilters) {
 }
 
 const LIST_JOB_SELECT =
-  "_id name clientName agreedAmount currency originalAmount exchangeRateToEgp billingStatus invoiceId status workPhase isArchived archivedAt startDate createdAt expectedPaymentDate expectedPaymentMethod projectType";
+  "_id name clientName projectEmail projectPassword agreedAmount currency originalAmount exchangeRateToEgp billingStatus invoiceId status workPhase isArchived archivedAt startDate createdAt expectedPaymentDate expectedPaymentMethod projectType";
 
 async function aggregateFilteredTotals(
   uid: mongoose.Types.ObjectId,
@@ -325,6 +325,8 @@ export async function buildProjectJobDto(
     expectedPaymentMethod: normalizePaymentMethod(job.expectedPaymentMethod),
     projectType: normalizeProjectType(job.projectType),
     clientName: job.clientName?.trim() ?? "",
+    projectEmail: job.projectEmail?.trim() ?? "",
+    projectPassword: job.projectPassword?.trim() ?? "",
     scopeItems: (job.scopeItems ?? []).map((item) => ({
       title: item.title,
       description: item.description?.trim() ?? "",
@@ -446,6 +448,8 @@ async function buildProjectJobListDtos(
       expectedPaymentMethod: normalizePaymentMethod(job.expectedPaymentMethod),
       projectType: normalizeProjectType(job.projectType),
       clientName: job.clientName?.trim() ?? "",
+      projectEmail: job.projectEmail?.trim() ?? "",
+      projectPassword: job.projectPassword?.trim() ?? "",
       scopeItems: [],
       collectedAmount,
       pendingAmount: Math.max(0, job.agreedAmount - collectedAmount),

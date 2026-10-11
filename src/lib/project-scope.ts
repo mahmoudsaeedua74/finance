@@ -63,6 +63,11 @@ export function parseClientName(raw: unknown): string {
   return typeof raw === "string" ? raw.trim().slice(0, 120) : "";
 }
 
+/** Optional project login email / password (store credentials). */
+export function parseProjectCredential(raw: unknown, max = 200): string {
+  return typeof raw === "string" ? raw.trim().slice(0, max) : "";
+}
+
 export function complexityLabel(c: ScopeComplexity, t: (k: string) => string): string {
   return t(`scopeComplexity_${c}`);
 }

@@ -16,6 +16,7 @@ import { ProjectJobsKanban } from "@/components/projects/project-jobs-kanban";
 import { ProjectJobCard } from "@/components/projects/project-job-card";
 import { ProjectBulkActionBar } from "@/components/projects/project-bulk-action-bar";
 import { ProjectScopeEditor } from "@/components/projects/project-scope-editor";
+import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
 import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { ProjectTypeField } from "@/components/forms/project-type-field";
@@ -158,11 +159,15 @@ export default function ProjectsPage() {
   const [workPhase, setWorkPhase] = useState<WorkPhase>("quote");
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [projectEmail, setProjectEmail] = useState("");
+  const [projectPassword, setProjectPassword] = useState("");
   const [createScopeItems, setCreateScopeItems] = useState<ProjectScopeItem[]>([]);
 
   const [editName, setEditName] = useState("");
   const [editClientName, setEditClientName] = useState("");
   const [editClientPhone, setEditClientPhone] = useState("");
+  const [editProjectEmail, setEditProjectEmail] = useState("");
+  const [editProjectPassword, setEditProjectPassword] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editCurrency, setEditCurrency] = useState<ProjectCurrency>("EGP");
   const [editNotes, setEditNotes] = useState("");
@@ -275,6 +280,8 @@ export default function ProjectsPage() {
     setWorkPhase("quote");
     setClientName("");
     setClientPhone("");
+    setProjectEmail("");
+    setProjectPassword("");
     setCreateScopeItems([]);
     setInstallmentRows([]);
     setShowMoreOptions(false);
@@ -293,6 +300,8 @@ export default function ProjectsPage() {
     setEditWorkPhase(job.workPhase ?? "in_progress");
     setEditClientName(job.clientName ?? "");
     setEditClientPhone("");
+    setEditProjectEmail(job.projectEmail ?? "");
+    setEditProjectPassword(job.projectPassword ?? "");
   }, []);
 
   const hydrateDetailFields = useCallback((job: ProjectJobDto) => {
@@ -347,6 +356,8 @@ export default function ProjectsPage() {
           workPhase,
           clientName,
           clientPhone: newClientPhonePayload(clientName, clientPhone, clientOptions),
+          projectEmail,
+          projectPassword,
           scopeItems: isDetailedProjectType(projectType) ? createScopeItems : [],
           installments:
             !isCollected && installmentRows.length
@@ -392,6 +403,8 @@ export default function ProjectsPage() {
           workPhase: editWorkPhase,
           clientName: editClientName,
           clientPhone: newClientPhonePayload(editClientName, editClientPhone, clientOptions),
+          projectEmail: editProjectEmail,
+          projectPassword: editProjectPassword,
         }),
       });
     },
@@ -958,6 +971,35 @@ export default function ProjectsPage() {
               newClientPhone={clientPhone}
               onNewClientPhoneChange={setClientPhone}
             />
+            <div className="space-y-2 rounded-xl border border-border/50 bg-muted/5 p-3">
+              <p className="text-xs text-muted-foreground">{t("projectCredentialsHint")}</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="job-project-email">{t("projectEmail")}</Label>
+                  <Input
+                    id="job-project-email"
+                    type="email"
+                    autoComplete="off"
+                    className="h-11"
+                    placeholder={t("projectEmailPh")}
+                    value={projectEmail}
+                    onChange={(e) => setProjectEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="job-project-password">{t("projectPassword")}</Label>
+                  <Input
+                    id="job-project-password"
+                    type="text"
+                    autoComplete="off"
+                    className="h-11 font-mono"
+                    placeholder={t("projectPasswordPh")}
+                    value={projectPassword}
+                    onChange={(e) => setProjectPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
             <PaymentMethodField
               id="job-pay-method"
               value={paymentMethod}
@@ -1202,6 +1244,35 @@ export default function ProjectsPage() {
               onNewClientPhoneChange={setEditClientPhone}
               size="compact"
             />
+            <div className="space-y-2 rounded-xl border border-border/50 bg-muted/5 p-3">
+              <p className="text-xs text-muted-foreground">{t("projectCredentialsHint")}</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-project-email">{t("projectEmail")}</Label>
+                  <Input
+                    id="edit-project-email"
+                    type="email"
+                    autoComplete="off"
+                    className="h-11"
+                    placeholder={t("projectEmailPh")}
+                    value={editProjectEmail}
+                    onChange={(e) => setEditProjectEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-project-password">{t("projectPassword")}</Label>
+                  <Input
+                    id="edit-project-password"
+                    type="text"
+                    autoComplete="off"
+                    className="h-11 font-mono"
+                    placeholder={t("projectPasswordPh")}
+                    value={editProjectPassword}
+                    onChange={(e) => setEditProjectPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="edit-start">{t("startDate")}</Label>
@@ -1424,6 +1495,12 @@ export default function ProjectsPage() {
               )}
               <div className="grid grid-cols-2 gap-2">
                 <div><span className="text-muted-foreground">{t("clientName")}: </span>{detailClientName || "—"}</div>
+                <div className="col-span-2">
+                  <ProjectCredentialChips
+                    email={detailJob.projectEmail}
+                    password={detailJob.projectPassword}
+                  />
+                </div>
                 <div>
                   <span className="text-muted-foreground">{t("agreedAmount")}: </span>
                   {detailJob.currency === "SAR" ? (

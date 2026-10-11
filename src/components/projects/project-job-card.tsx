@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDateLong, formatMoney } from "@/lib/format";
+import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
 import { canSelectProjectJob } from "@/lib/project-document-actions";
 import { canDeleteProjectJob } from "@/lib/project-job-rules";
 import type { ProjectJobDto } from "@/types/project-job";
@@ -191,6 +192,12 @@ export function ProjectJobCard({
             </div>
           </div>
         </div>
+
+        <ProjectCredentialChips
+          email={job.projectEmail}
+          password={job.projectPassword}
+          compact
+        />
 
         <div className="flex flex-wrap items-center gap-1">
           <span

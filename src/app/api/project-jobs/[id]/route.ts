@@ -8,7 +8,7 @@ import {
 } from "@/lib/services/freelance-project-service";
 import { isWalletPaymentMethod, normalizePaymentMethod, parsePaymentMethodBody, type PaymentMethod } from "@/lib/payment-method";
 import { parseProjectTypeBody } from "@/lib/project-type";
-import { parseClientName, parseScopeItems } from "@/lib/project-scope";
+import { parseClientName, parseProjectCredential, parseScopeItems } from "@/lib/project-scope";
 import { parseWorkPhaseBody } from "@/lib/project-work-phase";
 import { ensureClientPhone } from "@/lib/services/client-profile-service";
 import {
@@ -126,6 +126,12 @@ export async function PUT(req: Request, { params }: Ctx) {
     }
     if (body?.clientName !== undefined) {
       update.clientName = parseClientName(body.clientName);
+    }
+    if (body?.projectEmail !== undefined) {
+      update.projectEmail = parseProjectCredential(body.projectEmail, 200);
+    }
+    if (body?.projectPassword !== undefined) {
+      update.projectPassword = parseProjectCredential(body.projectPassword, 200);
     }
     if (body?.scopeItems !== undefined) {
       update.scopeItems = parseScopeItems(body.scopeItems);

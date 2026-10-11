@@ -10,7 +10,7 @@ import {
 import { isWalletPaymentMethod, parsePaymentMethodBody } from "@/lib/payment-method";
 import { PAYMENT_METHOD_REQUIRED_MSG } from "@/lib/project-job-lifecycle";
 import { parseProjectTypeBody } from "@/lib/project-type";
-import { parseClientName, parseScopeItems } from "@/lib/project-scope";
+import { parseClientName, parseProjectCredential, parseScopeItems } from "@/lib/project-scope";
 import { defaultWorkPhaseForCreate, parseWorkPhaseBody } from "@/lib/project-work-phase";
 import { ensureClientPhone } from "@/lib/services/client-profile-service";
 import { parseProjectJobListFilters, parseProjectJobPagination } from "@/lib/project-job-filters";
@@ -70,6 +70,8 @@ export async function POST(req: Request) {
     const projectType = parseProjectTypeBody(body?.projectType) ?? "normal";
     const clientName = parseClientName(body?.clientName);
     const clientPhone = typeof body?.clientPhone === "string" ? body.clientPhone.trim().slice(0, 50) : "";
+    const projectEmail = parseProjectCredential(body?.projectEmail, 200);
+    const projectPassword = parseProjectCredential(body?.projectPassword, 200);
     const scopeItems = parseScopeItems(body?.scopeItems);
     const workPhase = parseWorkPhaseBody(body?.workPhase) ?? defaultWorkPhaseForCreate(isCollected);
     const costs = Array.isArray(body?.costs) ? (body.costs as CostInput[]) : [];
@@ -129,6 +131,8 @@ export async function POST(req: Request) {
       expectedPaymentMethod: paymentMethod,
       projectType,
       clientName,
+      projectEmail,
+      projectPassword,
       scopeItems,
       workPhase,
       status: isCollected ? "collected" : "pending",

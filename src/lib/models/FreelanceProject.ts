@@ -34,6 +34,10 @@ export interface IFreelanceProject {
   projectType: ProjectType;
   /** Client / customer name for statements & proposals */
   clientName?: string;
+  /** Optional store / project login email */
+  projectEmail?: string;
+  /** Optional store / project login password */
+  projectPassword?: string;
   /** Billing basket status — separate from payment collected. */
   billingStatus: "unbilled" | "billed";
   /** Active invoice this job sits in (editable until invoice paid). */
@@ -86,6 +90,8 @@ const FreelanceProjectSchema = new Schema<IFreelanceProject>(
       default: "normal",
     },
     clientName: { type: String, trim: true, default: "" },
+    projectEmail: { type: String, trim: true, default: "" },
+    projectPassword: { type: String, trim: true, default: "" },
     billingStatus: {
       type: String,
       enum: ["unbilled", "billed"],

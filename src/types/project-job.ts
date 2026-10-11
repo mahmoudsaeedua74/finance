@@ -9,6 +9,10 @@ export type ProjectJobDto = {
   id: string;
   name: string;
   clientName: string;
+  /** Optional store/project login email */
+  projectEmail: string;
+  /** Optional store/project login password */
+  projectPassword: string;
   /** Always EGP — use for totals, pending, progress. */
   agreedAmount: number;
   currency: ProjectCurrency;

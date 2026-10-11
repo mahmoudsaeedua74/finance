@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCallback, useState } from "react";
 import { ProjectCollectionsBanner } from "@/components/projects/project-collections-banner";
+import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
 
 type Props = { params: { id: string } };
 
@@ -204,6 +205,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
           <div className="h-full rounded-full bg-emerald-500" style={{ width: `${collectionPct}%` }} />
         </div>
       </div>
+
+      <ProjectCredentialChips email={job.projectEmail} password={job.projectPassword} />
 
       <div className="flex flex-wrap gap-2">
         {job.status !== "cancelled" && job.pendingAmount > 0.005 && (

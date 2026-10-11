@@ -114,6 +114,8 @@ export async function cloneFreelanceProject(
     originalAmount,
     exchangeRateToEgp,
     clientName,
+    projectEmail: source.projectEmail?.trim() ?? "",
+    projectPassword: source.projectPassword?.trim() ?? "",
     projectType: source.projectType,
     scopeItems: source.scopeItems ?? [],
     notes: source.notes?.trim() ?? "",
