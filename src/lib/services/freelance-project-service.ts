@@ -502,91 +502,60 @@ export async function listProjectJobs(
 export type NormalProjectPreview = {
   id: string;
   name: string;
-  clientName: string;
-  pendingAmount: number;
-  status: "pending" | "partial";
 };
 
 export type NormalProjectsSummary = {
-  total: number;
   uncollectedCount: number;
-  collectedCount: number;
   pendingAmount: number;
-  collectedAmount: number;
   preview: NormalProjectPreview[];
 };
 
+/** Uncollected Normal jobs only — count + pending total + name chips. */
 export async function getNormalProjectsSummary(userId: string): Promise<NormalProjectsSummary> {
   const uid = new mongoose.Types.ObjectId(userId);
-  const base = {
+  const query = {
     userId: uid,
-    status: { $ne: "cancelled" as const },
     isArchived: { $ne: true },
+    status: { $in: ["pending", "partial"] as const },
     ...buildProjectTypeMongoFilter("normal"),
   };
 
-  const [total, collectedCount, uncollectedJobs, collectedAgreedAgg] = await Promise.all([
-    FreelanceProject.countDocuments(base),
-    FreelanceProject.countDocuments({ ...base, status: "collected" }),
-    FreelanceProject.find({ ...base, status: { $in: ["pending", "partial"] } })
-      .select("_id name clientName agreedAmount status")
-      .lean(),
-    FreelanceProject.aggregate<{ total: number }>([
-      { $match: { ...base, status: "collected" } },
-      { $group: { _id: null, total: { $sum: "$agreedAmount" } } },
-    ]),
-  ]);
+  const uncollectedJobs = await FreelanceProject.find(query)
+    .select("_id name agreedAmount")
+    .lean();
 
-  if (total === 0) {
-    return {
-      total: 0,
-      uncollectedCount: 0,
-      collectedCount: 0,
-      pendingAmount: 0,
-      collectedAmount: 0,
-      preview: [],
-    };
+  if (uncollectedJobs.length === 0) {
+    return { uncollectedCount: 0, pendingAmount: 0, preview: [] };
   }
 
   const uncollectedIds = uncollectedJobs.map((j) => j._id);
-  const payoutAgg =
-    uncollectedIds.length === 0
-      ? []
-      : await Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
-          {
-            $match: {
-              userId: uid,
-              freelanceProjectId: { $in: uncollectedIds },
-              $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
-            },
-          },
-          { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
-        ]);
+  const payoutAgg = await Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+    {
+      $match: {
+        userId: uid,
+        freelanceProjectId: { $in: uncollectedIds },
+        $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+      },
+    },
+    { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+  ]);
   const collectedMap = new Map(payoutAgg.map((r) => [String(r._id), r.total]));
 
   let pendingAmount = 0;
-  const uncollected: NormalProjectPreview[] = [];
+  const rows: { id: string; name: string; pending: number }[] = [];
   for (const job of uncollectedJobs) {
     const collected = collectedMap.get(String(job._id)) ?? 0;
     const pending = Math.max(0, job.agreedAmount - collected);
+    if (pending <= 0.005) continue;
     pendingAmount += pending;
-    uncollected.push({
-      id: String(job._id),
-      name: job.name,
-      clientName: job.clientName?.trim() ?? "",
-      pendingAmount: pending,
-      status: job.status === "partial" ? "partial" : "pending",
-    });
+    rows.push({ id: String(job._id), name: job.name, pending });
   }
-  uncollected.sort((a, b) => b.pendingAmount - a.pendingAmount);
+  rows.sort((a, b) => b.pending - a.pending);
 
   return {
-    total,
-    uncollectedCount: uncollectedJobs.length,
-    collectedCount,
+    uncollectedCount: rows.length,
     pendingAmount,
-    collectedAmount: collectedAgreedAgg[0]?.total ?? 0,
-    preview: uncollected.slice(0, 4),
+    preview: rows.map(({ id, name }) => ({ id, name })),
   };
 }
 
