@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ProjectJobsFilterBar } from "@/components/projects/project-jobs-filter-bar";
 import { ProjectNormalBanner } from "@/components/projects/project-normal-banner";
-import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
 import {
   ProjectJobsKanbanSkeleton,
   ProjectJobsListSkeleton,
@@ -731,8 +730,6 @@ export default function ProjectsPage() {
       {error && <QueryErrorAlert error={error} />}
 
       <ProjectNormalBanner onOpenJob={openDetailById} />
-
-      <AiInsightPanel surface="projects" />
 
       <ProjectJobsFilterBar
         filters={filters}

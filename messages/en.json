@@ -799,7 +799,6 @@
   "ai": {
     "title": "Tips from your numbers",
     "run": "Show tips",
-    "desc_projects": "Your numbers: ready to invoice, uncollected cash, and who to prioritize.",
     "desc_transactions": "Where you spend most, and simple ways to save — from your transactions.",
     "desc_reports": "Income, spend, and net — a plain summary from reports."
   },

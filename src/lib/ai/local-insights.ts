@@ -1,118 +1,11 @@
 import mongoose from "mongoose";
-import { Expense, FreelanceProject, Income } from "@/lib/models";
-import {
-  COLLECTION_ATTENTION_KINDS,
-  getProjectAttentionItems,
-} from "@/lib/services/project-attention-service";
+import { Expense, Income } from "@/lib/models";
 import { buildLedgerReport } from "@/lib/build-ledger-report";
 import { roundMoney } from "@/lib/currency";
 import { formatMoney } from "@/lib/format";
 
 function money(n: number) {
   return formatMoney(roundMoney(n));
-}
-
-function typeLabel(type: string) {
-  const map: Record<string, string> = {
-    normal: "Normal",
-    css: "CSS",
-    sdk: "SDK",
-    frontend: "Frontend",
-    backend: "Backend",
-    "full-stack": "Full-stack",
-  };
-  return map[type] ?? type;
-}
-
-export async function buildLocalProjectsInsights(
-  userId: string,
-  locale: "ar" | "en"
-): Promise<string> {
-  const uid = new mongoose.Types.ObjectId(userId);
-  const ar = locale === "ar";
-
-  const [attention, byType, activeCount] = await Promise.all([
-    getProjectAttentionItems(userId, "collections"),
-    FreelanceProject.aggregate([
-      {
-        $match: {
-          userId: uid,
-          isArchived: { $ne: true },
-          status: { $nin: ["cancelled", "collected"] },
-        },
-      },
-      {
-        $group: {
-          _id: { $ifNull: ["$projectType", "normal"] },
-          count: { $sum: 1 },
-          agreedEgp: { $sum: "$agreedAmount" },
-        },
-      },
-      { $sort: { agreedEgp: -1 } },
-    ]),
-    FreelanceProject.countDocuments({
-      userId: uid,
-      isArchived: { $ne: true },
-      status: { $nin: ["cancelled", "collected"] },
-    }),
-  ]);
-
-  const collectionKinds = new Set(COLLECTION_ATTENTION_KINDS);
-  const unpaid = attention.filter((i) => collectionKinds.has(i.kind));
-  const unpaidEgp = roundMoney(unpaid.reduce((s, i) => s + (i.amount ?? 0), 0));
-  const unpaidJobs = new Set(unpaid.map((i) => i.jobId)).size;
-
-  const byClientPending = new Map<string, number>();
-  for (const i of unpaid) {
-    const name = (i.clientName || "").trim() || (ar ? "بدون اسم" : "No name");
-    byClientPending.set(name, roundMoney((byClientPending.get(name) ?? 0) + (i.amount ?? 0)));
-  }
-  const topPending = Array.from(byClientPending.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  const lines: string[] = [];
-
-  lines.push(ar ? "📊 صورة سريعة" : "📊 Snapshot");
-  lines.push(
-    ar
-      ? `• مشاريع نشطة: ${activeCount}`
-      : `• Active projects: ${activeCount}`
-  );
-  lines.push(
-    ar
-      ? `• فلوس لسه متتحصّلتش: ${money(unpaidEgp)} على ${unpaidJobs} مشروع`
-      : `• Still uncollected: ${money(unpaidEgp)} across ${unpaidJobs} jobs`
-  );
-
-  if (unpaidEgp > 0.5 && topPending.length) {
-    lines.push("");
-    lines.push(ar ? "💰 أولوية التحصيل" : "💰 Collection priority");
-    for (const [name, amt] of topPending) {
-      lines.push(ar ? `• «${name}»: ${money(amt)}` : `• “${name}”: ${money(amt)}`);
-    }
-    lines.push(
-      ar
-        ? "→ حدّد المشاريع واعمل تحصيل جماعي، أو افتح صفحة التحصيلات."
-        : "→ Multi-select and bulk-collect, or open the collections page."
-    );
-  }
-
-  if (byType.length > 0) {
-    lines.push("");
-    lines.push(ar ? "📁 توزيع الشغل النشط" : "📁 Active work mix");
-    lines.push(
-      byType
-        .slice(0, 4)
-        .map(
-          (r: { _id: string; count: number; agreedEgp: number }) =>
-            `${typeLabel(String(r._id))}: ${r.count} · ${money(r.agreedEgp)}`
-        )
-        .join("  |  ")
-    );
-  }
-
-  return lines.join("\n");
 }
 
 export async function buildLocalFinanceInsights(
@@ -223,11 +116,6 @@ export async function buildLocalFinanceInsights(
           : `📁 Project income ≈ ${pct}% of all income.`
       );
     }
-    lines.push(
-      ar
-        ? "✅ لو عميل واحد ماسك أغلب الـ Normal — ابدأ بفاتورته من صفحة المشاريع."
-        : "✅ If one client holds most Normal work — start their invoice on Projects."
-    );
   }
 
   return lines.join("\n");

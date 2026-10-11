@@ -12,7 +12,7 @@ import { toast } from "sonner";
 export function AiInsightPanel({
   surface,
 }: {
-  surface: "projects" | "transactions" | "reports";
+  surface: "transactions" | "reports";
 }) {
   const t = useTranslations("ai");
   const locale = useLocale();
