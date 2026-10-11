@@ -1,5 +1,3 @@
-export type ProjectJobCollectedFilter = "all" | "collected" | "pending";
-
 export type ProjectJobArchiveFilter = "active" | "archived" | "all";
 
 export type ProjectJobViewMode = "list" | "kanban";
@@ -10,15 +8,12 @@ export type ProjectJobSortOrder = "desc" | "asc";
 export type ProjectJobSort = `${ProjectJobSortBy}_${ProjectJobSortOrder}`;
 
 export const DEFAULT_PROJECT_JOB_SORT: ProjectJobSort = "createdAt_desc";
-/** Hide fully collected jobs by default — turn on “show collected” to see them. */
-export const DEFAULT_PROJECT_JOB_COLLECTED: ProjectJobCollectedFilter = "pending";
 export const PROJECT_JOBS_PAGE_SIZE = 24;
 export const PROJECT_JOBS_MAX_PAGE_SIZE = 100;
 
 export type ProjectJobWorkPhaseFilter = "all" | "quote" | "in_progress" | "delivered";
 
 export type ProjectJobListFilters = {
-  collected?: ProjectJobCollectedFilter;
   projectType?: string;
   sort?: ProjectJobSort;
   client?: string;
@@ -66,12 +61,6 @@ export function parseProjectJobSort(raw: string | null): ProjectJobSort {
 export function parseProjectJobListFilters(
   searchParams: URLSearchParams
 ): ProjectJobListFilters {
-  const collectedRaw = searchParams.get("collected");
-  const collected: ProjectJobCollectedFilter =
-    collectedRaw === "collected" || collectedRaw === "all" || collectedRaw === "pending"
-      ? collectedRaw
-      : DEFAULT_PROJECT_JOB_COLLECTED;
-
   const typeRaw = searchParams.get("type")?.trim();
   const projectType = typeRaw && typeRaw !== "all" ? typeRaw : "all";
 
@@ -96,7 +85,7 @@ export function parseProjectJobListFilters(
   const viewRaw = searchParams.get("view");
   const view: ProjectJobViewMode = viewRaw === "kanban" ? "kanban" : "list";
 
-  return { collected, projectType, sort, client, workPhase, q, archive, view };
+  return { projectType, sort, client, workPhase, q, archive, view };
 }
 
 export function parseProjectJobPagination(
@@ -118,9 +107,6 @@ export function parseProjectJobPagination(
 }
 
 function appendFilterParams(p: URLSearchParams, filters: ProjectJobListFilters) {
-  if (filters.collected && filters.collected !== DEFAULT_PROJECT_JOB_COLLECTED) {
-    p.set("collected", filters.collected);
-  }
   if (filters.projectType && filters.projectType !== "all") {
     p.set("type", filters.projectType);
   }
@@ -169,7 +155,6 @@ export function buildProjectJobsQueryString(
 
 export function hasActiveProjectJobFilters(filters: ProjectJobListFilters): boolean {
   return (
-    (filters.collected != null && filters.collected !== DEFAULT_PROJECT_JOB_COLLECTED) ||
     (filters.projectType != null && filters.projectType !== "all") ||
     (filters.sort != null && filters.sort !== DEFAULT_PROJECT_JOB_SORT) ||
     Boolean(filters.client?.trim()) ||

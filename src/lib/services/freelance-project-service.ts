@@ -128,13 +128,10 @@ function buildProjectJobsMongoQuery(
   uid: mongoose.Types.ObjectId,
   filters?: ProjectJobListFilters
 ) {
-  const query: Record<string, unknown> = { userId: uid };
-
-  if (filters?.collected === "collected") {
-    query.status = "collected";
-  } else if (filters?.collected === "pending") {
-    query.status = { $in: ["pending", "partial"] };
-  }
+  const query: Record<string, unknown> = {
+    userId: uid,
+    status: { $ne: "cancelled" },
+  };
 
   if (filters?.projectType && filters.projectType !== "all") {
     Object.assign(query, buildProjectTypeMongoFilter(normalizeProjectType(filters.projectType)));

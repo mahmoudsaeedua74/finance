@@ -108,14 +108,14 @@ export function FreelanceKpiStrip() {
           title={t("activeProjects")}
           value={String(k.activeProjects)}
           icon={<Briefcase className="size-4" />}
-          href="/projects?collected=pending"
+          href="/projects"
           delay={0.06}
         />
         <KpiCard
           title={t("totalPending")}
           value={formatMoney(k.totalPending)}
           icon={<Clock className="size-4" />}
-          href="/projects?collected=pending"
+          href="/projects"
           tone="warning"
           delay={0.09}
         />
@@ -132,7 +132,7 @@ export function FreelanceKpiStrip() {
           value={String(k.dueThisWeek)}
           hint={t("dueThisWeekHint")}
           icon={<CalendarClock className="size-4" />}
-          href="/projects?collected=pending"
+          href="/projects"
           delay={0.15}
         />
         <KpiCard
@@ -140,7 +140,7 @@ export function FreelanceKpiStrip() {
           value={String(k.overdueCount)}
           hint={t("overdueHint")}
           icon={<AlertTriangle className="size-4" />}
-          href="/projects?collected=pending"
+          href="/projects"
           tone={k.overdueCount > 0 ? "warning" : "default"}
           delay={0.18}
         />

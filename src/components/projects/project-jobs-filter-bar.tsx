@@ -16,11 +16,9 @@ import {
 import { projectTypeLabel } from "@/components/forms/project-type-field";
 import { WORK_PHASES } from "@/lib/project-work-phase";
 import {
-  DEFAULT_PROJECT_JOB_COLLECTED,
   DEFAULT_PROJECT_JOB_SORT,
   hasActiveProjectJobFilters,
   type ProjectJobArchiveFilter,
-  type ProjectJobCollectedFilter,
   type ProjectJobListFilters,
   type ProjectJobSort,
   type ProjectJobViewMode,
@@ -35,7 +33,6 @@ type Props = {
   clientNames?: string[];
   /** Custom project types found on jobs (shown in type filter). */
   extraProjectTypes?: string[];
-  onCollectedChange: (v: ProjectJobCollectedFilter) => void;
   onTypeChange: (v: ProjectType | "all") => void;
   onSortChange: (v: ProjectJobSort) => void;
   onClientChange: (v: string) => void;
@@ -60,7 +57,6 @@ export function ProjectJobsFilterBar({
   filters,
   clientNames = [],
   extraProjectTypes = [],
-  onCollectedChange,
   onTypeChange,
   onSortChange,
   onClientChange,
@@ -75,7 +71,6 @@ export function ProjectJobsFilterBar({
 }: Props) {
   const t = useTranslations("projects");
 
-  const collected = filters.collected ?? DEFAULT_PROJECT_JOB_COLLECTED;
   const projectType = (filters.projectType ?? "all") as ProjectType | "all";
   const sort = filters.sort ?? DEFAULT_PROJECT_JOB_SORT;
   const client = filters.client ?? "";
@@ -97,7 +92,6 @@ export function ProjectJobsFilterBar({
   }, [searchDraft, q, onSearchChange]);
 
   const hasActive = hasActiveProjectJobFilters(filters);
-  const showCollected = collected !== "pending";
 
   const typeOptions = useMemo(() => {
     const extras = Array.from(
@@ -163,15 +157,6 @@ export function ProjectJobsFilterBar({
     [t]
   );
 
-  const collectedModeOptions = useMemo(
-    () =>
-      (["all", "collected"] as const).map((key) => ({
-        value: key,
-        label: t(`filterCollected_${key}`),
-      })),
-    [t]
-  );
-
   return (
     <div className="relative z-10 rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -223,33 +208,6 @@ export function ProjectJobsFilterBar({
             </Button>
           ) : null}
         </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
-        <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-          <input
-            type="checkbox"
-            className="size-4 accent-primary"
-            checked={showCollected}
-            onChange={(e) =>
-              onCollectedChange(e.target.checked ? "all" : "pending")
-            }
-          />
-          <span className="font-medium text-foreground">{t("filterShowCollected")}</span>
-        </label>
-        <span className="text-xs text-muted-foreground">{t("filterShowCollectedHint")}</span>
-        {showCollected ? (
-          <div className="ms-auto w-full min-w-[10rem] sm:w-auto sm:min-w-[12rem]">
-            <FilterNativeSelect
-              id="project-filter-collected-mode"
-              label={t("filterCollectedMode")}
-              value={collected === "collected" ? "collected" : "all"}
-              options={collectedModeOptions}
-              onChange={(v) => onCollectedChange(v as ProjectJobCollectedFilter)}
-              active={collected === "collected"}
-            />
-          </div>
-        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
