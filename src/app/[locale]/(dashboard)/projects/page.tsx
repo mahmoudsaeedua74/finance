@@ -38,6 +38,7 @@ import {
   downloadStatementPdf,
 } from "@/lib/project-document-actions";
 import { canDeleteProjectJob } from "@/lib/project-job-rules";
+import { playProjectActionSound } from "@/lib/project-action-sound";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import { defaultFormDateYmd, toLocalYmd } from "@/lib/ymd";
@@ -375,6 +376,7 @@ export default function ProjectsPage() {
       { loading: tC("saving"), success: t("jobCreated") },
       {
         onSuccess: () => {
+          playProjectActionSound();
           setAddOpen(false);
           resetAddForm();
           invalidateProjects();
@@ -412,6 +414,7 @@ export default function ProjectsPage() {
       { loading: tC("savingChanges"), success: t("jobUpdated") },
       {
         onSuccess: () => {
+          playProjectActionSound();
           setEditJob(null);
           invalidateProjects();
           void qc.invalidateQueries({ queryKey: ["client-options"] });
@@ -437,6 +440,7 @@ export default function ProjectsPage() {
       { loading: t("loadingCollect"), success: t("collectedOk") },
       {
         onSuccess: () => {
+          playProjectActionSound();
           setCollectJob(null);
           setCollectPayoutId(undefined);
           invalidateProjects();
@@ -554,6 +558,7 @@ export default function ProjectsPage() {
       }),
     onMutate: () => ({ toastId: toast.loading(t("loadingBulkCollect")) }),
     onSuccess: (res, _v, ctx) => {
+      playProjectActionSound();
       const msg = t("bulkCollectOk", { ok: res.data.okCount, failed: res.data.failed });
       if (ctx?.toastId != null) toast.success(msg, { id: ctx.toastId });
       else toast.success(msg);

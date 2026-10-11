@@ -1,3 +1,5 @@
+import { shouldSuppressNotificationChime } from "@/lib/project-action-sound";
+
 const STORAGE = "notif-sound-on";
 
 export function isNotificationSoundEnabled() {
@@ -12,9 +14,11 @@ export function setNotificationSoundEnabled(on: boolean) {
 
 /**
  * Short non-intrusive chime (Web Audio). Fails quietly if not allowed.
+ * Skipped briefly after project create/edit/collect so those use the project MP3 only.
  */
 export function playNotificationChime() {
   if (typeof window === "undefined" || !isNotificationSoundEnabled()) return;
+  if (shouldSuppressNotificationChime()) return;
   try {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();

@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { jsonFetch } from "@/lib/fetcher";
+import { playProjectActionSound } from "@/lib/project-action-sound";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import { defaultFormDateYmd } from "@/lib/ymd";
 import type { ProjectJobDto } from "@/types/project-job";
@@ -120,6 +121,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
       { loading: t("loadingCollect"), success: t("collectedOk") },
       {
         onSuccess: () => {
+          playProjectActionSound();
           setCollectOpen(false);
           setCollectPayoutId(undefined);
           invalidateProjects();
