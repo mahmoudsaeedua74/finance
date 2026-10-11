@@ -99,6 +99,7 @@ export default function ProjectsPage() {
     jobs,
     meta,
     totals,
+    setCollected,
     setProjectType: setFilterProjectType,
     setSort,
     setClient,
@@ -736,6 +737,7 @@ export default function ProjectsPage() {
         extraProjectTypes={jobs
           .map((j) => j.projectType)
           .filter((x): x is string => typeof x === "string" && x.length > 0)}
+        onCollectedChange={setCollected}
         onTypeChange={setFilterProjectType}
         onSortChange={setSort}
         onClientChange={setClient}

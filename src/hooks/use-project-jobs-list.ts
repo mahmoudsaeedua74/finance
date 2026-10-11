@@ -11,6 +11,7 @@ import {
   parseProjectJobListFilters,
   PROJECT_JOBS_PAGE_SIZE,
   type ProjectJobArchiveFilter,
+  type ProjectJobCollectedFilter,
   type ProjectJobListFilters,
   type ProjectJobListMeta,
   type ProjectJobSort,
@@ -43,6 +44,13 @@ export function useProjectJobsList() {
       router.replace(qs ? `${pathname}${qs}` : pathname, { scroll: false });
     },
     [pathname, router]
+  );
+
+  const setCollected = useCallback(
+    (collected: ProjectJobCollectedFilter) => {
+      replaceFilters({ ...filters, collected });
+    },
+    [filters, replaceFilters]
   );
 
   const setProjectType = useCallback(
@@ -141,6 +149,7 @@ export function useProjectJobsList() {
     jobs,
     meta,
     totals,
+    setCollected,
     setProjectType,
     setSort,
     setClient,

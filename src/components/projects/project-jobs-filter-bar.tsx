@@ -16,9 +16,11 @@ import {
 import { projectTypeLabel } from "@/components/forms/project-type-field";
 import { WORK_PHASES } from "@/lib/project-work-phase";
 import {
+  DEFAULT_PROJECT_JOB_COLLECTED,
   DEFAULT_PROJECT_JOB_SORT,
   hasActiveProjectJobFilters,
   type ProjectJobArchiveFilter,
+  type ProjectJobCollectedFilter,
   type ProjectJobListFilters,
   type ProjectJobSort,
   type ProjectJobViewMode,
@@ -33,6 +35,7 @@ type Props = {
   clientNames?: string[];
   /** Custom project types found on jobs (shown in type filter). */
   extraProjectTypes?: string[];
+  onCollectedChange: (v: ProjectJobCollectedFilter) => void;
   onTypeChange: (v: ProjectType | "all") => void;
   onSortChange: (v: ProjectJobSort) => void;
   onClientChange: (v: string) => void;
@@ -57,6 +60,7 @@ export function ProjectJobsFilterBar({
   filters,
   clientNames = [],
   extraProjectTypes = [],
+  onCollectedChange,
   onTypeChange,
   onSortChange,
   onClientChange,
@@ -71,6 +75,7 @@ export function ProjectJobsFilterBar({
 }: Props) {
   const t = useTranslations("projects");
 
+  const collected = filters.collected ?? DEFAULT_PROJECT_JOB_COLLECTED;
   const projectType = (filters.projectType ?? "all") as ProjectType | "all";
   const sort = filters.sort ?? DEFAULT_PROJECT_JOB_SORT;
   const client = filters.client ?? "";
@@ -157,6 +162,15 @@ export function ProjectJobsFilterBar({
     [t]
   );
 
+  const collectedOptions = useMemo(
+    () =>
+      (["pending", "all"] as const).map((key) => ({
+        value: key,
+        label: t(`filterCollected_${key}`),
+      })),
+    [t]
+  );
+
   return (
     <div className="relative z-10 rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -231,6 +245,15 @@ export function ProjectJobsFilterBar({
           options={clientOptions}
           onChange={onClientChange}
           active={Boolean(client)}
+        />
+
+        <FilterNativeSelect
+          id="project-filter-collected"
+          label={t("filterCollected")}
+          value={collected}
+          options={collectedOptions}
+          onChange={(v) => onCollectedChange(v as ProjectJobCollectedFilter)}
+          active={collected !== DEFAULT_PROJECT_JOB_COLLECTED}
         />
 
         <FilterNativeSelect
