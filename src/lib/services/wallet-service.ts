@@ -65,16 +65,19 @@ export async function upsertWalletOpening(
 ) {
   const uid = new mongoose.Types.ObjectId(userId);
   const update: { openingCash?: number; openingCard?: number } = {};
-  if (input.openingCash != null && Number.isFinite(input.openingCash)) {
-    update.openingCash = Math.max(0, Number(input.openingCash));
+  // Opening is an offset (can be negative) so “update current balance” can
+  // land below the sum of cash/card movements without getting clamped away.
+  if (input.openingCash != null && Number.isFinite(Number(input.openingCash))) {
+    update.openingCash = Number(input.openingCash);
   }
-  if (input.openingCard != null && Number.isFinite(input.openingCard)) {
-    update.openingCard = Math.max(0, Number(input.openingCard));
+  if (input.openingCard != null && Number.isFinite(Number(input.openingCard))) {
+    update.openingCard = Number(input.openingCard);
   }
+  if (Object.keys(update).length === 0) return UserWallet.findOne({ userId: uid });
   const doc = await UserWallet.findOneAndUpdate(
     { userId: uid },
     { $set: update, $setOnInsert: { userId: uid } },
-    { upsert: true, new: true }
+    { upsert: true, new: true, runValidators: true }
   );
   return doc;
 }
@@ -84,8 +87,10 @@ export async function setWalletCurrentBalances(
   userId: string,
   input: { cashBalance: number; cardBalance: number }
 ): Promise<WalletSummary> {
-  const cashTarget = Math.max(0, Number(input.cashBalance) || 0);
-  const cardTarget = Math.max(0, Number(input.cardBalance) || 0);
+  const cashTarget = Number(input.cashBalance);
+  const cardTarget = Number(input.cardBalance);
+  const cashSafe = Number.isFinite(cashTarget) ? cashTarget : 0;
+  const cardSafe = Number.isFinite(cardTarget) ? cardTarget : 0;
   const uid = new mongoose.Types.ObjectId(userId);
 
   const [incomes, expenses, payouts] = await Promise.all([
@@ -104,8 +109,8 @@ export async function setWalletCurrentBalances(
     sumByMethod(expenses, "card", -1);
 
   await upsertWalletOpening(userId, {
-    openingCash: cashTarget - cashFromTx,
-    openingCard: cardTarget - cardFromTx,
+    openingCash: cashSafe - cashFromTx,
+    openingCard: cardSafe - cardFromTx,
   });
 
   return computeWalletSummary(userId);

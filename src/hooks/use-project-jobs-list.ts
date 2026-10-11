@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { jsonFetch } from "@/lib/fetcher";
@@ -126,6 +126,8 @@ export function useProjectJobsList() {
     },
     getNextPageParam: (last) =>
       last.hasMore && last.nextOffset != null ? last.nextOffset : undefined,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   const jobs = useMemo(
@@ -136,6 +138,10 @@ export function useProjectJobsList() {
   const isListLoading =
     query.isPending ||
     (query.isFetching && !query.isFetchingNextPage && jobs.length === 0);
+
+  /** Filter/refetch in flight while previous page stays visible (keepPreviousData). */
+  const isFilterRefreshing =
+    query.isFetching && !query.isFetchingNextPage && !isListLoading;
 
   const meta = query.data?.pages[0]?.meta;
   const totals = meta?.totals ?? {
@@ -162,6 +168,7 @@ export function useProjectJobsList() {
     setView,
     clearFilters,
     isListLoading,
+    isFilterRefreshing,
     ...query,
   };
 }

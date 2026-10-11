@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import {
   Dialog,
   DialogContent,
@@ -40,16 +41,17 @@ function KaratSelect({
   id?: string;
 }) {
   return (
-    <select
+    <AppSelect
       id={id}
-      className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
       value={String(value)}
-      onChange={(e) => onChange(Number(e.target.value) as 18 | 21 | 24)}
-    >
-      <option value="24">24K</option>
-      <option value="21">21K</option>
-      <option value="18">18K</option>
-    </select>
+      onValueChange={(v) => onChange(Number(v) as 18 | 21 | 24)}
+      aria-label="Karat"
+      options={[
+        { value: "24", label: "24K" },
+        { value: "21", label: "21K" },
+        { value: "18", label: "18K" },
+      ]}
+    />
   );
 }
 
@@ -329,7 +331,7 @@ export default function GoldPage() {
               <KaratSelect id="edit-gold-karat" value={editKarat} onChange={setEditKarat} />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setEdit(null)}>
               {tC("cancel")}
             </Button>

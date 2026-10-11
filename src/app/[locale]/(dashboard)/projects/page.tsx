@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
-import { WalletAccountPanel } from "@/components/wallet/wallet-account-panel";
 import { ProjectJobsFilterBar } from "@/components/projects/project-jobs-filter-bar";
 import { ProjectCollectionsBanner } from "@/components/projects/project-collections-banner";
 import { ProjectNormalBanner } from "@/components/projects/project-normal-banner";
@@ -112,6 +111,7 @@ export default function ProjectsPage() {
     setView,
     clearFilters,
     isListLoading,
+    isFilterRefreshing,
     error,
     fetchNextPage,
     hasNextPage,
@@ -297,7 +297,7 @@ export default function ProjectsPage() {
     setEditClientPhone("");
   }, []);
 
-  const openDetail = useCallback((job: ProjectJobDto) => {
+  const hydrateDetailFields = useCallback((job: ProjectJobDto) => {
     setDetailJob(job);
     setDetailScopeItems(job.scopeItems ?? []);
     setDetailClientName(job.clientName ?? "");
@@ -311,6 +311,21 @@ export default function ProjectsPage() {
       )
     );
   }, []);
+
+  const openDetail = useCallback(
+    (job: ProjectJobDto) => {
+      // List rows omit payouts/costs for speed — show card data first, then hydrate.
+      hydrateDetailFields(job);
+      void jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${job.id}`)
+        .then((res) => {
+          if (res.data) hydrateDetailFields(res.data);
+        })
+        .catch(() => {
+          /* keep list snapshot if detail fetch fails */
+        });
+    },
+    [hydrateDetailFields]
+  );
 
   const createJob = useMutation({
     mutationFn: () =>
@@ -645,9 +660,19 @@ export default function ProjectsPage() {
   const openDetailById = useCallback(
     (id: string) => {
       const job = jobs.find((j) => j.id === id);
-      if (job) openDetail(job);
+      if (job) {
+        openDetail(job);
+        return;
+      }
+      void jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${id}`)
+        .then((res) => {
+          if (res.data) hydrateDetailFields(res.data);
+        })
+        .catch(() => {
+          /* ignore */
+        });
     },
-    [jobs, openDetail]
+    [jobs, openDetail, hydrateDetailFields]
   );
 
   const openCollect = useCallback(
@@ -685,7 +710,6 @@ export default function ProjectsPage() {
     <div className="store-section w-full space-y-4">
       <PageHeader
         title={t("title")}
-        description={t("descFreelance")}
         icon={<FolderKanban className="size-5" />}
         action={
           <Button type="button" className="h-11" onClick={() => { resetAddForm(); setAddOpen(true); }}>
@@ -696,8 +720,6 @@ export default function ProjectsPage() {
       />
 
       {error && <QueryErrorAlert error={error} />}
-
-      <WalletAccountPanel variant="compact" />
 
       <ProjectCollectionsBanner onOpenJob={openDetailById} />
 
@@ -710,6 +732,9 @@ export default function ProjectsPage() {
       <ProjectJobsFilterBar
         filters={filters}
         clientNames={clientNames}
+        extraProjectTypes={jobs
+          .map((j) => j.projectType)
+          .filter((x): x is string => typeof x === "string" && x.length > 0)}
         onCollectedChange={setCollected}
         onBillingChange={setBilling}
         onTypeChange={setFilterProjectType}
@@ -722,7 +747,7 @@ export default function ProjectsPage() {
         onClearFilters={clearFilters}
         shown={jobs.length}
         total={listMeta.total}
-        loading={isListLoading}
+        loading={isListLoading || isFilterRefreshing}
       />
 
       <ProjectBulkActionBar
@@ -832,14 +857,14 @@ export default function ProjectsPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader className="text-start">
             <DialogTitle>{t("addJob")}</DialogTitle>
-            <DialogDescription className="text-start leading-relaxed">
-              {t("addJobDescShort")}
-            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <ProjectTypeField
               id="job-type"
               value={projectType}
+              extraTypes={jobs
+                .map((j) => j.projectType)
+                .filter((x): x is string => typeof x === "string" && x.length > 0)}
               onChange={(v) => {
                 setProjectType(v);
                 if (v === "normal") setCreateScopeItems([]);
@@ -874,7 +899,6 @@ export default function ProjectsPage() {
                     if (!v.trim() || Number(v) <= 0) setIsCollected(false);
                   }}
                 />
-                <p className="text-xs text-muted-foreground">{t("agreedAmountHint")}</p>
               </div>
               <ProjectCurrencyField
                 id="job-currency"
@@ -971,14 +995,7 @@ export default function ProjectsPage() {
                       }
                       onChange={(e) => setIsCollected(e.target.checked)}
                     />
-                    <span>
-                      <span className="font-medium">{t("collectedNow")}</span>
-                      {!isCollected && (
-                        <span className="mt-1 block text-xs text-muted-foreground leading-snug">
-                          {t("pendingHint")}
-                        </span>
-                      )}
-                    </span>
+                    <span className="font-medium">{t("collectedNow")}</span>
                   </label>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1013,7 +1030,6 @@ export default function ProjectsPage() {
                     onChange={(e) => setNotes(e.target.value)}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{t("costLaterHint")}</p>
                 {!isCollected && (
                   <div className="space-y-2 rounded-lg border border-dashed border-border/60 p-3">
                     <div className="flex items-center justify-between gap-2">
@@ -1034,7 +1050,6 @@ export default function ProjectsPage() {
                         {t("addInstallmentLine")}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">{t("installmentsPlanHint")}</p>
                     {installmentRows.map((row, idx) => (
                       <div key={idx} className="grid gap-2 sm:grid-cols-3">
                         <Input
@@ -1194,6 +1209,9 @@ export default function ProjectsPage() {
             <ProjectTypeField
               id="edit-type"
               value={editProjectType}
+              extraTypes={jobs
+                .map((j) => j.projectType)
+                .filter((x): x is string => typeof x === "string" && x.length > 0)}
               onChange={setEditProjectType}
               compact
             />

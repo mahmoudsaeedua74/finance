@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatMoney } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -106,12 +106,13 @@ export function WalletAccountPanel({ variant = "strip" }: { variant?: Variant })
   const [cash, setCash] = useState("");
   const [card, setCard] = useState("");
 
-  useEffect(() => {
-    if (summary && editOpen) {
+  const openEditor = () => {
+    if (summary) {
       setCash(String(summary.cashBalance));
       setCard(String(summary.cardBalance));
     }
-  }, [summary, editOpen]);
+    setEditOpen(true);
+  };
 
   const editTotal = useMemo(() => {
     const c = Number(cash) || 0;
@@ -121,16 +122,19 @@ export function WalletAccountPanel({ variant = "strip" }: { variant?: Variant })
 
   const save = useMutation({
     mutationFn: () =>
-      jsonFetch("/api/wallet", {
+      jsonFetch<{ data: WalletSummary }>("/api/wallet", {
         method: "PUT",
         body: JSON.stringify({
           cashBalance: Number(cash) || 0,
           cardBalance: Number(card) || 0,
         }),
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success(t("saved"));
       setEditOpen(false);
+      if (res?.data) {
+        qc.setQueryData(["wallet"], res);
+      }
       void qc.invalidateQueries({ queryKey: ["wallet"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -148,7 +152,7 @@ export function WalletAccountPanel({ variant = "strip" }: { variant?: Variant })
       variant={variant === "card" ? "outline" : "ghost"}
       size="sm"
       className={cn("gap-1.5", variant === "strip" && "h-8 text-xs text-muted-foreground")}
-      onClick={() => setEditOpen(true)}
+      onClick={openEditor}
     >
       <Pencil className="size-3.5" />
       {t("updateBalance")}

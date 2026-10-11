@@ -1,0 +1,29 @@
+---
+description: Mahmoud Saeed PDF brand for finance app (proposals, statements, monthly)
+globs:
+  - "**/project-document-html.ts"
+  - "**/project-document-pdf.ts"
+  - "**/monthly-report-pdf.ts"
+  - "**/export-pdf.ts"
+alwaysApply: false
+---
+
+# Finance PDF Brand (locked)
+
+Same system as `upWord/css/_reports` / albihani client reports.
+
+## Brand
+- **MAHMOUD SAEED** — blue `#4E45E4` / dark `#4237CA` / soft `#EEEDFC`
+- **Never** red `#ae1e17` or the old teal monthly-report green
+- Font (HTML): **IBM Plex Sans Arabic**
+
+## Chrome
+- Every page: top identity `MAHMOUD SAEED` + blue rule + doc label; page number at bottom
+- Last page only: Magdy-style `.end-footer` (who + about)
+
+## Code
+- Proposal / statement HTML: `src/lib/project-document-html.ts` (`DOC_BRAND`, `wrapDocument`)
+- HTML → PDF: `src/lib/project-document-pdf.ts`
+- Monthly jsPDF: `src/lib/monthly-report-pdf.ts`
+
+Any new PDF must reuse these tokens and chrome — do not invent a parallel look.

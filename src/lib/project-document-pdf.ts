@@ -25,10 +25,10 @@ function mountHtmlDocument(html: string): HTMLIFrameElement {
 
 async function ensureArabicFonts(doc: Document) {
   const specs = [
-    '400 13px "Noto Sans Arabic"',
-    '500 13px "Noto Sans Arabic"',
-    '600 11px "Noto Sans Arabic"',
-    '700 22px "Noto Sans Arabic"',
+    '400 13px "IBM Plex Sans Arabic"',
+    '500 13px "IBM Plex Sans Arabic"',
+    '600 11px "IBM Plex Sans Arabic"',
+    '700 20px "IBM Plex Sans Arabic"',
   ];
   await Promise.all(specs.map((spec) => doc.fonts.load(spec).catch(() => undefined)));
   await doc.fonts.ready;
@@ -62,7 +62,7 @@ export async function downloadHtmlAsPdf(html: string, filename: string): Promise
       onclone: (clonedDoc) => {
         clonedDoc.documentElement.setAttribute("dir", "rtl");
         clonedDoc.documentElement.setAttribute("lang", "ar");
-        clonedDoc.body.style.fontFamily = '"Noto Sans Arabic","Segoe UI",Tahoma,sans-serif';
+        clonedDoc.body.style.fontFamily = '"IBM Plex Sans Arabic",Tahoma,sans-serif';
         clonedDoc.body.style.letterSpacing = "0";
       },
     });

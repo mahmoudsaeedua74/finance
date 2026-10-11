@@ -5,9 +5,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { useMonth } from "@/context/month-context";
 import { monthLabel } from "@/lib/format";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const years = (() => {
@@ -25,14 +25,12 @@ function monthLocaleOptions(locale: string) {
 
 export function MonthSwitcher({ className }: { className?: string }) {
   const t = useTranslations("month");
+  const tC = useTranslations("common");
   const locale = useLocale();
   const { year, month, setYearMonth, nextMonth, prevMonth } = useMonth();
   const months = monthLocaleOptions(locale);
   return (
-    <div
-      className={cn("flex flex-col gap-2", className)}
-      dir="ltr"
-    >
+    <div className={cn("flex flex-col gap-2", className)} dir="ltr">
       <div className="flex items-center justify-between gap-1">
         <Button
           type="button"
@@ -59,36 +57,20 @@ export function MonthSwitcher({ className }: { className?: string }) {
         </Button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Select
+        <AppSelect
           value={String(month)}
-          onValueChange={(v) => v && setYearMonth(year, Number(v))}
-        >
-          <SelectTrigger className="h-11 min-h-11 w-full text-sm data-[size=default]:h-11 md:h-8 md:min-h-8 md:data-[size=default]:h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {months.map((m) => (
-              <SelectItem key={m.v} value={String(m.v)}>
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
+          onValueChange={(v) => setYearMonth(year, Number(v))}
+          options={months.map((m) => ({ value: String(m.v), label: m.label }))}
+          triggerClassName="h-11 min-h-11 md:h-8 md:min-h-8"
+          aria-label={tC("month")}
+        />
+        <AppSelect
           value={String(year)}
-          onValueChange={(v) => v && setYearMonth(Number(v), month)}
-        >
-          <SelectTrigger className="h-11 min-h-11 w-full text-sm data-[size=default]:h-11 md:h-8 md:min-h-8 md:data-[size=default]:h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onValueChange={(v) => setYearMonth(Number(v), month)}
+          options={years.map((y) => ({ value: String(y), label: String(y) }))}
+          triggerClassName="h-11 min-h-11 md:h-8 md:min-h-8"
+          aria-label={tC("year")}
+        />
       </div>
     </div>
   );

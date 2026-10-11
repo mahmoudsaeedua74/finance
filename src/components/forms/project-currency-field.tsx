@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
+import { AppSelect } from "@/components/ui/app-select";
 import type { ProjectCurrency } from "@/lib/currency";
 import { PROJECT_CURRENCIES } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -19,18 +20,16 @@ export function ProjectCurrencyField({ id, value, onChange, className }: Props) 
   return (
     <div className={cn("space-y-2", className)}>
       <Label htmlFor={id}>{t("currency")}</Label>
-      <select
+      <AppSelect
         id={id}
-        className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
         value={value}
-        onChange={(e) => onChange(e.target.value as ProjectCurrency)}
-      >
-        {PROJECT_CURRENCIES.map((c) => (
-          <option key={c} value={c}>
-            {c === "SAR" ? t("currencySar") : t("currencyEgp")}
-          </option>
-        ))}
-      </select>
+        onValueChange={(v) => onChange(v as ProjectCurrency)}
+        aria-label={t("currency")}
+        options={PROJECT_CURRENCIES.map((c) => ({
+          value: c,
+          label: c === "SAR" ? t("currencySar") : t("currencyEgp"),
+        }))}
+      />
     </div>
   );
 }

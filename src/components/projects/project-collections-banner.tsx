@@ -32,8 +32,9 @@ type Props = {
 export function ProjectCollectionsBanner({ onOpenJob, variant = "preview" }: Props) {
   const t = useTranslations("projects");
 
-  const { data: countData } = useQuery({
-    queryKey: ["project-attention", "collections-count"],
+  // Single request (preview + collections previously hit the same scan twice).
+  const { data, isLoading } = useQuery({
+    queryKey: ["project-attention", "collections"],
     queryFn: () =>
       jsonFetch<{ data: ProjectAttentionItem[] }>(
         "/api/project-jobs/attention?scope=collections"
@@ -41,18 +42,8 @@ export function ProjectCollectionsBanner({ onOpenJob, variant = "preview" }: Pro
     staleTime: 60_000,
   });
 
-  const { data: previewData, isLoading } = useQuery({
-    queryKey: ["project-attention", "preview"],
-    queryFn: () =>
-      jsonFetch<{ data: ProjectAttentionItem[] }>(
-        "/api/project-jobs/attention?scope=preview"
-      ),
-    staleTime: 60_000,
-    enabled: variant === "preview",
-  });
-
-  const total = countData?.data?.length ?? 0;
-  const preview = previewData?.data ?? [];
+  const total = data?.data?.length ?? 0;
+  const preview = (data?.data ?? []).slice(0, 6);
 
   if (isLoading && variant === "preview") {
     return <div className="h-12 animate-pulse rounded-xl bg-muted/20" />;

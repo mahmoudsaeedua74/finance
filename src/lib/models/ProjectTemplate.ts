@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
 import type { PaymentMethod } from "@/lib/payment-method";
-import { PROJECT_TYPES, type ProjectType } from "@/lib/project-type";
+import type { ProjectType } from "@/lib/project-type";
 import type { ProjectScopeItem } from "@/lib/project-scope";
 import type { WorkPhase } from "@/lib/project-work-phase";
 
@@ -21,7 +21,7 @@ const ProjectTemplateSchema = new Schema<IProjectTemplate>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true },
-    projectType: { type: String, enum: PROJECT_TYPES, default: "normal" },
+    projectType: { type: String, trim: true, default: "normal" },
     expectedPaymentMethod: {
       type: String,
       enum: ["cash", "card", "unspecified"],

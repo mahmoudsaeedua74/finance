@@ -1,6 +1,9 @@
 import mongoose, { Schema, type Model } from "mongoose";
 
-/** Manual opening balances; transaction totals are added on top via wallet-service. */
+/**
+ * Opening offsets for cash/card. May be negative when the user sets a current
+ * balance lower than the sum of tagged transactions (manual correction).
+ */
 export interface IUserWallet {
   _id: string;
   userId: mongoose.Types.ObjectId;
@@ -13,11 +16,18 @@ export interface IUserWallet {
 const UserWalletSchema = new Schema<IUserWallet>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
-    openingCash: { type: Number, default: 0, min: 0 },
-    openingCard: { type: Number, default: 0, min: 0 },
+    openingCash: { type: Number, default: 0 },
+    openingCard: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-export const UserWallet: Model<IUserWallet> =
-  mongoose.models.UserWallet || mongoose.model<IUserWallet>("UserWallet", UserWalletSchema);
+// Next.js HMR can keep an older schema (with min: 0) — drop so the update applies.
+if (mongoose.models.UserWallet) {
+  delete mongoose.models.UserWallet;
+}
+
+export const UserWallet: Model<IUserWallet> = mongoose.model<IUserWallet>(
+  "UserWallet",
+  UserWalletSchema
+);

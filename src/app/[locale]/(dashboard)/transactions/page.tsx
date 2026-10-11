@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { AppSelect } from "@/components/ui/app-select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { formatDateMedium, formatMoney } from "@/lib/format";
 import { exportTransactionsExcel } from "@/lib/export-excel";
 import { labelExpenseCategory } from "@/lib/expense-categories";
+import { toLocalYmd } from "@/lib/ymd";
 import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
 import {
   Briefcase,
@@ -50,8 +52,19 @@ import {
 
 const PAGE_SIZE = 40;
 
-const toolbarSelectClass =
-  "h-11 w-full rounded-xl border border-border/80 bg-background px-3 text-sm shadow-sm outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35 lg:h-10 lg:min-w-[10rem] lg:max-w-[12rem] lg:w-auto";
+type PeriodFilter = "month" | "lastMonth" | "year" | "all" | "custom";
+
+const toolbarSelectWrapClass =
+  "w-full min-w-0 lg:min-w-[10.5rem] lg:max-w-[14rem] lg:w-auto";
+
+const toolbarSelectTriggerClass = "h-10 min-h-10 lg:h-10 lg:min-h-10";
+
+const toolbarDateClass = cn(
+  "h-11 w-full min-w-0 rounded-xl border border-border/80 bg-background px-3 text-sm shadow-sm",
+  "outline-none transition-[box-shadow,border-color]",
+  "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+  "lg:h-10 lg:w-[9.5rem]",
+);
 
 type IncomeRow = {
   _id: string;
@@ -122,7 +135,12 @@ export default function TransactionsPage() {
   const [tab, setTab] = useState<"all" | "income" | "expense" | "recurring">("all");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const [period, setPeriod] = useState<"all" | "month" | "lastMonth" | "year">("month");
+  const [period, setPeriod] = useState<PeriodFilter>("month");
+  const [customFrom, setCustomFrom] = useState(() => {
+    const now = new Date();
+    return toLocalYmd(new Date(now.getFullYear(), now.getMonth(), 1));
+  });
+  const [customTo, setCustomTo] = useState(() => toLocalYmd(new Date()));
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [txEdit, setTxEdit] = useState<TxEditOpen>(null);
@@ -231,6 +249,10 @@ export default function TransactionsPage() {
     const startThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const startThisYear = new Date(now.getFullYear(), 0, 1);
+    const customStart = customFrom
+      ? new Date(`${customFrom}T00:00:00`)
+      : null;
+    const customEnd = customTo ? new Date(`${customTo}T23:59:59.999`) : null;
 
     return rows.filter((r) => {
       const d = new Date(r.date);
@@ -253,9 +275,14 @@ export default function TransactionsPage() {
       if (period === "all") return true;
       if (period === "year") return d >= startThisYear;
       if (period === "lastMonth") return d >= startLastMonth && d < startThisMonth;
+      if (period === "custom") {
+        if (customStart && d < customStart) return false;
+        if (customEnd && d > customEnd) return false;
+        return true;
+      }
       return d >= startThisMonth;
     });
-  }, [rows, tab, query, category, period]);
+  }, [rows, tab, query, category, period, customFrom, customTo]);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.category))).sort((a, b) => a.localeCompare(b)),
@@ -418,7 +445,12 @@ export default function TransactionsPage() {
 
       <Card className="border-border/70 shadow-md shadow-black/[0.04] ring-1 ring-border/40 dark:shadow-black/30">
         <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:flex-nowrap lg:items-center lg:gap-4">
+          <div
+            className={cn(
+              "flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:gap-3",
+              period === "custom" ? "lg:items-end" : "lg:items-center",
+            )}
+          >
             <div className="flex shrink-0 flex-wrap gap-1.5 rounded-xl border border-border/60 bg-muted/35 p-1.5 shadow-inner shadow-black/[0.03] dark:bg-muted/25">
               {(["all", "income", "expense", "recurring"] as const).map((k) => (
                 <Button
@@ -463,31 +495,64 @@ export default function TransactionsPage() {
               />
             </div>
 
-            <select
-              className={toolbarSelectClass}
+            <AppSelect
+              className={toolbarSelectWrapClass}
+              triggerClassName={toolbarSelectTriggerClass}
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              aria-label={t("allCategories")}
-            >
-              <option value="all">{t("allCategories")}</option>
-              {categoryOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              onValueChange={setCategory}
+              aria-label={t("categoryAria")}
+              options={[
+                { value: "all", label: t("allCategories") },
+                ...categoryOptions.map((c) => ({
+                  value: c,
+                  label: labelExpenseCategory(c, tCat),
+                })),
+              ]}
+            />
 
-            <select
-              className={toolbarSelectClass}
+            <AppSelect
+              className={toolbarSelectWrapClass}
+              triggerClassName={toolbarSelectTriggerClass}
               value={period}
-              onChange={(e) => setPeriod(e.target.value as typeof period)}
+              onValueChange={(v) => setPeriod(v as PeriodFilter)}
               aria-label={t("periodAria")}
-            >
-              <option value="month">{t("period.month")}</option>
-              <option value="lastMonth">{t("period.lastMonth")}</option>
-              <option value="year">{t("period.year")}</option>
-              <option value="all">{t("period.all")}</option>
-            </select>
+              options={[
+                { value: "month", label: t("period.month") },
+                { value: "lastMonth", label: t("period.lastMonth") },
+                { value: "year", label: t("period.year") },
+                { value: "all", label: t("period.all") },
+                { value: "custom", label: t("period.custom") },
+              ]}
+            />
+
+            {period === "custom" ? (
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">
+                <label className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[11rem]">
+                  <span className="text-[0.7rem] font-medium text-muted-foreground">
+                    {t("customFrom")}
+                  </span>
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className={toolbarDateClass}
+                    aria-label={t("customFrom")}
+                  />
+                </label>
+                <label className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-[11rem]">
+                  <span className="text-[0.7rem] font-medium text-muted-foreground">
+                    {t("customTo")}
+                  </span>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className={toolbarDateClass}
+                    aria-label={t("customTo")}
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

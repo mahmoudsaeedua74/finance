@@ -39,13 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSelect } from "@/components/ui/app-select";
 import type { MonthlyReportDto } from "@/types/report";
 
 type Row = {
@@ -482,20 +476,17 @@ export default function IncomeListPage() {
             />
             <div className="space-y-1">
               <Label className="text-xs">{t("recurringType")}</Label>
-              <Select
+              <AppSelect
                 value={rIncomeType}
-                onValueChange={(v) => v != null && setRIncomeType(v)}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="salary">{t("types.salary")}</SelectItem>
-                  <SelectItem value="freelance">{t("types.freelance")}</SelectItem>
-                  <SelectItem value="gam3eya">{t("types.gam3eya")}</SelectItem>
-                  <SelectItem value="other">{t("types.other")}</SelectItem>
-                </SelectContent>
-              </Select>
+                onValueChange={setRIncomeType}
+                aria-label={t("recurringType")}
+                options={[
+                  { value: "salary", label: t("types.salary") },
+                  { value: "freelance", label: t("types.freelance") },
+                  { value: "gam3eya", label: t("types.gam3eya") },
+                  { value: "other", label: t("types.other") },
+                ]}
+              />
             </div>
             {rf === "monthly" ? (
               <div className="space-y-1">
@@ -530,15 +521,16 @@ export default function IncomeListPage() {
                 onChange={(e) => setRe(e.target.value)}
               />
             </div>
-            <Select value={rf} onValueChange={(v) => v && setRf(v as "monthly" | "weekly")}>
-              <SelectTrigger className="h-11 sm:col-span-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
-                <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <AppSelect
+              value={rf}
+              onValueChange={(v) => setRf(v as "monthly" | "weekly")}
+              aria-label={t("recurringSchedule")}
+              className="sm:col-span-2"
+              options={[
+                { value: "monthly", label: t("freqMonthly") },
+                { value: "weekly", label: t("freqWeekly") },
+              ]}
+            />
             <Button
               type="button"
               className="h-11 w-full min-[500px]:w-auto"
@@ -661,17 +653,17 @@ export default function IncomeListPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label>{t("recurringType")}</Label>
-              <Select value={eit} onValueChange={(v) => v != null && setEit(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="salary">{t("types.salary")}</SelectItem>
-                  <SelectItem value="freelance">{t("types.freelance")}</SelectItem>
-                  <SelectItem value="gam3eya">{t("types.gam3eya")}</SelectItem>
-                  <SelectItem value="other">{t("types.other")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <AppSelect
+                value={eit}
+                onValueChange={setEit}
+                aria-label={t("recurringType")}
+                options={[
+                  { value: "salary", label: t("types.salary") },
+                  { value: "freelance", label: t("types.freelance") },
+                  { value: "gam3eya", label: t("types.gam3eya") },
+                  { value: "other", label: t("types.other") },
+                ]}
+              />
             </div>
             {ef === "monthly" ? (
               <div className="flex flex-col gap-2">
@@ -697,15 +689,16 @@ export default function IncomeListPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label>{t("recurringSchedule")}</Label>
-              <Select value={ef} onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">{t("freqMonthly")}</SelectItem>
-                  <SelectItem value="weekly">{t("freqWeekly")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <AppSelect
+              value={ef}
+              onValueChange={(v) => setEf(v as "monthly" | "weekly")}
+              aria-label={t("recurringSchedule")}
+              className="sm:col-span-2"
+              options={[
+                { value: "monthly", label: t("freqMonthly") },
+                { value: "weekly", label: t("freqWeekly") },
+              ]}
+            />
             </div>
           </div>
           <DialogFooter>
@@ -758,17 +751,17 @@ export default function IncomeListPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label>{tC("type")}</Label>
-              <Select value={ty} onValueChange={(v) => v && setTy(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="salary">{t("types.salary")}</SelectItem>
-                  <SelectItem value="freelance">{t("types.freelance")}</SelectItem>
-                  <SelectItem value="gam3eya">{t("types.gam3eya")}</SelectItem>
-                  <SelectItem value="other">{t("types.other")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <AppSelect
+                value={ty}
+                onValueChange={setTy}
+                aria-label={t("recurringType")}
+                options={[
+                  { value: "salary", label: t("types.salary") },
+                  { value: "freelance", label: t("types.freelance") },
+                  { value: "gam3eya", label: t("types.gam3eya") },
+                  { value: "other", label: t("types.other") },
+                ]}
+              />
             </div>
           </div>
           <DialogFooter>

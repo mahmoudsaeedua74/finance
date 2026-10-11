@@ -1,21 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { buildProjectTypeMongoFilter, normalizeProjectType } from "@/lib/project-type";
+import {
+  buildProjectTypeMongoFilter,
+  isPresetProjectType,
+  normalizeProjectType,
+} from "@/lib/project-type";
 
 describe("buildProjectTypeMongoFilter", () => {
-  it("treats missing/legacy values as normal via $nin non-normal types", () => {
+  it("matches missing/empty/normal as normal", () => {
     expect(buildProjectTypeMongoFilter("normal")).toEqual({
-      projectType: {
-        $nin: ["css", "sdk", "frontend", "backend", "full-stack", "identity", "logo", "banners"],
-      },
+      $or: [
+        { projectType: { $exists: false } },
+        { projectType: null },
+        { projectType: "" },
+        { projectType: "normal" },
+      ],
     });
   });
 
-  it("matches explicit non-normal types exactly", () => {
+  it("matches explicit types exactly", () => {
     expect(buildProjectTypeMongoFilter("css")).toEqual({ projectType: "css" });
+    expect(buildProjectTypeMongoFilter("متجر مخصص")).toEqual({
+      projectType: "متجر مخصص",
+    });
   });
 
-  it("normalizeProjectType maps unknown to normal", () => {
+  it("normalizeProjectType keeps custom labels", () => {
     expect(normalizeProjectType(undefined)).toBe("normal");
-    expect(normalizeProjectType("nope")).toBe("normal");
+    expect(normalizeProjectType("")).toBe("normal");
+    expect(normalizeProjectType("nope")).toBe("nope");
+    expect(normalizeProjectType("  css  ")).toBe("css");
+  });
+
+  it("isPresetProjectType", () => {
+    expect(isPresetProjectType("normal")).toBe(true);
+    expect(isPresetProjectType("متجر")).toBe(false);
   });
 });

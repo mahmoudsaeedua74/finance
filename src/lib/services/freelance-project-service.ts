@@ -25,34 +25,53 @@ import {
 
 export type { ProjectJobDto };
 
-async function sumCollectedForJob(userId: string, jobId: mongoose.Types.ObjectId) {
-  const rows = await Project.find({
-    userId,
-    freelanceProjectId: jobId,
-    $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
-  }).lean();
-  return rows.reduce((s, p) => s + p.amount, 0);
-}
-
-/** Sync stored status + workPhase from actual payout rows. */
+/**
+ * Sync stored status + workPhase from payout totals (batched — not N+1).
+ * Prefer calling from write paths; list GET no longer awaits this.
+ */
 export async function repairAllProjectJobStates(userId: string) {
   const uid = new mongoose.Types.ObjectId(userId);
   const jobs = await FreelanceProject.find({ userId: uid })
     .select("_id agreedAmount status workPhase")
     .lean();
+  if (jobs.length === 0) return;
+
+  const jobIds = jobs.map((j) =>
+    typeof j._id === "string" ? new mongoose.Types.ObjectId(j._id) : j._id
+  );
+  const payoutAgg = await Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+    {
+      $match: {
+        userId: uid,
+        freelanceProjectId: { $in: jobIds },
+        $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+      },
+    },
+    { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+  ]);
+  const collectedMap = new Map(payoutAgg.map((r) => [String(r._id), r.total]));
+
+  const ops = [];
 
   for (const job of jobs) {
-    const jobId =
-      typeof job._id === "string" ? new mongoose.Types.ObjectId(job._id) : job._id;
-    const collected = await sumCollectedForJob(userId, jobId);
+    const collected = collectedMap.get(String(job._id)) ?? 0;
     const status = derivePaymentStatus(job.agreedAmount, collected);
     const workPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collected);
     const patch: Partial<{ status: FreelanceProjectStatus; workPhase: WorkPhase }> = {};
     if (job.status !== status) patch.status = status;
     if (normalizeWorkPhase(job.workPhase) !== workPhase) patch.workPhase = workPhase;
     if (Object.keys(patch).length > 0) {
-      await FreelanceProject.updateOne({ _id: job._id }, { $set: patch });
+      ops.push({
+        updateOne: {
+          filter: { _id: String(job._id) },
+          update: { $set: patch },
+        },
+      });
     }
+  }
+
+  if (ops.length > 0) {
+    await FreelanceProject.bulkWrite(ops, { ordered: false });
   }
 }
 
@@ -323,6 +342,108 @@ export async function buildProjectJobDto(
   };
 }
 
+/** Lightweight list rows: 2 aggregates for the page, no per-job payout/cost lists. */
+async function buildProjectJobListDtos(
+  jobs: (IFreelanceProject & { _id: mongoose.Types.ObjectId | string })[],
+  userId: string
+): Promise<ProjectJobDto[]> {
+  if (jobs.length === 0) return [];
+  const uid = new mongoose.Types.ObjectId(userId);
+  const jobIds = jobs.map((j) =>
+    typeof j._id === "string" ? new mongoose.Types.ObjectId(j._id) : j._id
+  );
+
+  const [payoutAgg, expenseAgg] = await Promise.all([
+    Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+      {
+        $match: {
+          userId: uid,
+          freelanceProjectId: { $in: jobIds },
+          $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+        },
+      },
+      { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+    ]),
+    Expense.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+      {
+        $match: {
+          userId: uid,
+          isTemplate: false,
+          freelanceProjectId: { $in: jobIds },
+        },
+      },
+      { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+    ]),
+  ]);
+
+  const collectedMap = new Map(payoutAgg.map((r) => [String(r._id), r.total]));
+  const spentMap = new Map(expenseAgg.map((r) => [String(r._id), r.total]));
+
+  return jobs.map((job) => {
+    const collectedAmount = collectedMap.get(String(job._id)) ?? 0;
+    const spentAmount = spentMap.get(String(job._id)) ?? 0;
+    const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount);
+    const derivedWorkPhase = effectiveWorkPhase(
+      job.workPhase,
+      job.agreedAmount,
+      collectedAmount
+    );
+    const currency = job.currency === "SAR" ? "SAR" : "EGP";
+    const originalAmount =
+      typeof job.originalAmount === "number" && Number.isFinite(job.originalAmount)
+        ? job.originalAmount
+        : job.agreedAmount;
+    const exchangeRateToEgp =
+      typeof job.exchangeRateToEgp === "number" &&
+      Number.isFinite(job.exchangeRateToEgp) &&
+      job.exchangeRateToEgp > 0
+        ? job.exchangeRateToEgp
+        : 1;
+
+    return {
+      id: String(job._id),
+      name: job.name,
+      agreedAmount: job.agreedAmount,
+      currency,
+      originalAmount,
+      exchangeRateToEgp,
+      billingStatus: job.billingStatus === "billed" ? "billed" : "unbilled",
+      invoiceId: job.invoiceId ? String(job.invoiceId) : null,
+      status: job.status === "cancelled" ? "cancelled" : derivedStatus,
+      workPhase: derivedWorkPhase,
+      cancellationReason: job.cancellationReason?.trim() ?? "",
+      isArchived: Boolean(job.isArchived),
+      archivedAt: job.archivedAt ? job.archivedAt.toISOString() : null,
+      profitMarginPct:
+        collectedAmount > 0.005
+          ? Math.round(((collectedAmount - spentAmount) / collectedAmount) * 1000) / 10
+          : null,
+      notes: job.notes?.trim() ?? "",
+      startDate: job.startDate.toISOString(),
+      createdAt: job.createdAt.toISOString(),
+      expectedPaymentDate: job.expectedPaymentDate
+        ? job.expectedPaymentDate.toISOString()
+        : null,
+      expectedPaymentMethod: normalizePaymentMethod(job.expectedPaymentMethod),
+      projectType: normalizeProjectType(job.projectType),
+      clientName: job.clientName?.trim() ?? "",
+      scopeItems: (job.scopeItems ?? []).map((item) => ({
+        title: item.title,
+        description: item.description?.trim() ?? "",
+        amount: item.amount,
+        complexity: item.complexity,
+        tech: item.tech?.trim() ?? "",
+      })),
+      collectedAmount,
+      pendingAmount: Math.max(0, job.agreedAmount - collectedAmount),
+      spentAmount,
+      netCollected: collectedAmount - spentAmount,
+      payouts: [],
+      costs: [],
+    };
+  });
+}
+
 export async function listProjectJobs(
   userId: string,
   filters?: ProjectJobListFilters,
@@ -334,8 +455,6 @@ export async function listProjectJobs(
   const limit = pagination?.limit ?? PROJECT_JOBS_PAGE_SIZE;
   const offset = pagination?.offset ?? 0;
 
-  await repairAllProjectJobStates(userId);
-
   const [filteredTotal, totalAll, jobDocs, totals] = await Promise.all([
     FreelanceProject.countDocuments(query),
     FreelanceProject.countDocuments({ userId: uid }),
@@ -344,7 +463,7 @@ export async function listProjectJobs(
   ]);
 
   const paginated = toPaginatedBodyFromExtraRow(jobDocs, offset, limit);
-  const rows = await Promise.all(paginated.data.map((j) => buildProjectJobDto(j, userId)));
+  const rows = await buildProjectJobListDtos(paginated.data as never, userId);
 
   const meta: ProjectJobListMeta = {
     total: filteredTotal,

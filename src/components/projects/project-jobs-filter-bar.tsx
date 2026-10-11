@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Filter, LayoutGrid, Columns3, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,12 @@ import { FilterNativeSelect } from "@/components/ui/filter-native-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PROJECT_TYPES, type ProjectType } from "@/lib/project-type";
+import {
+  PROJECT_TYPES,
+  isPresetProjectType,
+  type ProjectType,
+} from "@/lib/project-type";
+import { projectTypeLabel } from "@/components/forms/project-type-field";
 import { WORK_PHASES } from "@/lib/project-work-phase";
 import {
   DEFAULT_PROJECT_JOB_COLLECTED,
@@ -24,9 +29,13 @@ import {
 } from "@/lib/project-job-filters";
 import { cn } from "@/lib/utils";
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 type Props = {
   filters: ProjectJobListFilters;
   clientNames?: string[];
+  /** Custom project types found on jobs (shown in type filter). */
+  extraProjectTypes?: string[];
   onCollectedChange: (v: ProjectJobCollectedFilter) => void;
   onBillingChange: (v: ProjectJobBillingFilter) => void;
   onTypeChange: (v: ProjectType | "all") => void;
@@ -52,6 +61,7 @@ const SORT_OPTIONS: ProjectJobSort[] = [
 export function ProjectJobsFilterBar({
   filters,
   clientNames = [],
+  extraProjectTypes = [],
   onCollectedChange,
   onBillingChange,
   onTypeChange,
@@ -78,19 +88,52 @@ export function ProjectJobsFilterBar({
   const archive = filters.archive ?? "active";
   const view = filters.view ?? "list";
 
+  const [searchDraft, setSearchDraft] = useState(q);
+  const [clientDraft, setClientDraft] = useState(client);
+
+  useEffect(() => {
+    setSearchDraft(q);
+  }, [q]);
+
+  useEffect(() => {
+    setClientDraft(client);
+  }, [client]);
+
+  useEffect(() => {
+    if (searchDraft === q) return;
+    const id = window.setTimeout(() => onSearchChange(searchDraft), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [searchDraft, q, onSearchChange]);
+
+  useEffect(() => {
+    if (clientDraft === client) return;
+    const id = window.setTimeout(() => onClientChange(clientDraft), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [clientDraft, client, onClientChange]);
+
   const hasActive = hasActiveProjectJobFilters(filters);
   const showCollected = collected !== "pending";
 
-  const typeOptions = useMemo(
-    () => [
+  const typeOptions = useMemo(() => {
+    const extras = Array.from(
+      new Set(
+        extraProjectTypes
+          .map((x) => x.trim())
+          .filter((x) => x && !isPresetProjectType(x)),
+      ),
+    ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    return [
       { value: "all", label: t("filterTypeAll") },
       ...PROJECT_TYPES.map((type) => ({
         value: type,
-        label: t(`type.${type}`),
+        label: projectTypeLabel(type, t),
       })),
-    ],
-    [t]
-  );
+      ...extras.map((type) => ({
+        value: type,
+        label: projectTypeLabel(type, t),
+      })),
+    ];
+  }, [t, extraProjectTypes]);
 
   const billingOptions = useMemo(
     () =>
@@ -226,10 +269,10 @@ export function ProjectJobsFilterBar({
           </Label>
           <Input
             id="project-filter-search"
-            value={q}
+            value={searchDraft}
             placeholder={t("filterSearchPh")}
             className="h-10"
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => setSearchDraft(e.target.value)}
           />
         </div>
 
@@ -240,10 +283,10 @@ export function ProjectJobsFilterBar({
           <Input
             id="project-filter-client"
             list={clientListId}
-            value={client}
+            value={clientDraft}
             placeholder={t("filterClientPh")}
             className="h-10"
-            onChange={(e) => onClientChange(e.target.value)}
+            onChange={(e) => setClientDraft(e.target.value)}
           />
           <datalist id={clientListId}>
             {clientNames.map((name) => (

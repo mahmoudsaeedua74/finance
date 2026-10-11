@@ -41,6 +41,7 @@
     "addExpense": "Add expense",
     "theme": "Theme",
     "month": "Month",
+    "year": "Year",
     "noneInView": "None in this view.",
     "savingChanges": "Saving changes…",
     "savingIncome": "Saving income…",
@@ -234,11 +235,15 @@
       "recurring": "Recurring"
     },
     "periodAria": "Period filter",
+    "categoryAria": "Category filter",
+    "customFrom": "From",
+    "customTo": "To",
     "period": {
       "month": "This month",
       "lastMonth": "Last month",
       "year": "This year",
-      "all": "All time"
+      "all": "All time",
+      "custom": "Custom dates"
     },
     "kinds": {
       "variable": "Variable",
@@ -592,6 +597,8 @@
     "jobUpdated": "Project updated",
     "costOptionalHint": "Costs are optional — use «Add cost» on the card or in details.",
     "projectType": "Project type",
+    "typeAdd": "Add project type",
+    "typeAddPh": "e.g. store theme, landing…",
     "filtersTitle": "Filter projects",
     "filtersResult": "{shown} of {total} projects",
     "clearFilters": "Clear filters",
@@ -860,7 +867,7 @@
     "openingCash": "Opening cash",
     "openingCard": "Opening card",
     "updateBalance": "Update balance",
-    "updateHint": "Enter how much you have right now in cash and on your card. Future income and expenses tagged cash or card will adjust these totals.",
+    "updateHint": "Enter how much you have right now in cash and on your card — save applies immediately. Later income/expenses tagged cash or card will adjust from there.",
     "currentCash": "Cash now",
     "currentCard": "Card / Visa now",
     "accountsTitle": "My accounts",

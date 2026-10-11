@@ -45,6 +45,8 @@ const ProjectSchema = new Schema<IProject>(
 
 ProjectSchema.index({ userId: 1, date: -1 });
 ProjectSchema.index({ userId: 1, isCollected: 1, date: -1 });
+/** List/totals: sum collected by freelance job ids */
+ProjectSchema.index({ userId: 1, freelanceProjectId: 1, isCollected: 1 });
 
 export const Project: Model<IProject> =
   mongoose.models.Project ||

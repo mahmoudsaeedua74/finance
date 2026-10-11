@@ -14,7 +14,7 @@ export type ProjectJobSort = `${ProjectJobSortBy}_${ProjectJobSortOrder}`;
 export const DEFAULT_PROJECT_JOB_SORT: ProjectJobSort = "createdAt_desc";
 /** Hide fully collected jobs by default — turn on “show collected” to see them. */
 export const DEFAULT_PROJECT_JOB_COLLECTED: ProjectJobCollectedFilter = "pending";
-export const PROJECT_JOBS_PAGE_SIZE = 50;
+export const PROJECT_JOBS_PAGE_SIZE = 24;
 export const PROJECT_JOBS_MAX_PAGE_SIZE = 100;
 
 export type ProjectJobWorkPhaseFilter = "all" | "quote" | "in_progress" | "delivered";

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AppSelect } from "@/components/ui/app-select";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import {
@@ -28,9 +29,8 @@ import { useMonth } from "@/context/month-context";
 const filterLabelClass = "text-xs font-medium text-foreground/80";
 const filterLabelSlotClass = "flex min-h-9 flex-col justify-end";
 
-const nativeSelectClass = cn(
-  "h-11 w-full min-w-0 rounded-xl border border-border/80 bg-background px-3 text-left text-sm shadow-sm transition-[box-shadow,background-color,border-color] hover:border-border hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/40",
-);
+const filterSelectTriggerClass = "h-11 min-h-11";
+const filterSelectTriggerSidebarClass = "h-11 min-h-11 rounded-lg";
 
 type ReportFiltersPanelProps = {
   raw: MonthlyReportDto | undefined;
@@ -149,33 +149,27 @@ export function ReportFiltersPanel({
             </p>
           </div>
         )}
-        <select
+        <AppSelect
           id="filter-expense-cat"
-          className={cn(
-            nativeSelectClass,
-            variant === "sidebar" && "rounded-lg",
-          )}
           value={filter.expenseCategory}
-          onChange={(e) =>
-            setFilter((f) => ({ ...f, expenseCategory: e.target.value }))
+          onValueChange={(v) =>
+            setFilter((f) => ({ ...f, expenseCategory: v }))
           }
-        >
-          <option value="all">{t("allCats")}</option>
-          {EXPENSE_CATEGORY_PRESETS.map((c) => (
-            <option key={c} value={c}>
-              {labelExpenseCategory(c, tCat)}
-            </option>
-          ))}
-          {extraCategoryKeys.length > 0 && (
-            <optgroup label={t("otherCatsThisMonth")}>
-              {extraCategoryKeys.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+          aria-label={t("expCat")}
+          triggerClassName={
+            variant === "sidebar"
+              ? filterSelectTriggerSidebarClass
+              : filterSelectTriggerClass
+          }
+          options={[
+            { value: "all", label: t("allCats") },
+            ...EXPENSE_CATEGORY_PRESETS.map((c) => ({
+              value: c,
+              label: labelExpenseCategory(c, tCat),
+            })),
+            ...extraCategoryKeys.map((c) => ({ value: c, label: c })),
+          ]}
+        />
       </div>
       <div
         className={cn(
@@ -195,24 +189,24 @@ export function ReportFiltersPanel({
             </p>
           </div>
         )}
-        <select
+        <AppSelect
           id="filter-project"
-          className={cn(
-            nativeSelectClass,
-            variant === "sidebar" && "rounded-lg",
-          )}
           value={filter.projectId}
-          onChange={(e) =>
-            setFilter((f) => ({ ...f, projectId: e.target.value }))
+          onValueChange={(v) => setFilter((f) => ({ ...f, projectId: v }))}
+          aria-label={t("projInc")}
+          triggerClassName={
+            variant === "sidebar"
+              ? filterSelectTriggerSidebarClass
+              : filterSelectTriggerClass
           }
-        >
-          <option value="all">{t("allProjs")}</option>
-          {projectOptions.map((p) => (
-            <option key={p._id} value={p._id}>
-              {p.name} ({formatMoney(p.amount)})
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "all", label: t("allProjs") },
+            ...projectOptions.map((p) => ({
+              value: p._id,
+              label: `${p.name} (${formatMoney(p.amount)})`,
+            })),
+          ]}
+        />
       </div>
       <div
         className={cn(
@@ -232,28 +226,29 @@ export function ReportFiltersPanel({
             </p>
           </div>
         )}
-        <select
+        <AppSelect
           id="filter-income-src"
-          className={cn(
-            nativeSelectClass,
-            variant === "sidebar" && "rounded-lg",
-          )}
           value={filter.incomeSource}
-          onChange={(e) =>
+          onValueChange={(v) =>
             setFilter((f) => ({
               ...f,
-              incomeSource: e.target
-                .value as ReportFilterState["incomeSource"],
+              incomeSource: v as ReportFilterState["incomeSource"],
             }))
           }
-        >
-          <option value="all">{t("allIncSources")}</option>
-          {INCOME_TYPES.map((key) => (
-            <option key={key} value={key}>
-              {tInc(key)}
-            </option>
-          ))}
-        </select>
+          aria-label={t("incSource")}
+          triggerClassName={
+            variant === "sidebar"
+              ? filterSelectTriggerSidebarClass
+              : filterSelectTriggerClass
+          }
+          options={[
+            { value: "all", label: t("allIncSources") },
+            ...INCOME_TYPES.map((key) => ({
+              value: key,
+              label: tInc(key),
+            })),
+          ]}
+        />
       </div>
     </>
   );
@@ -301,18 +296,17 @@ export function ReportFiltersPanel({
             {range === "yearly" && (
               <div className="space-y-2">
                 <span className={sidebarUppercaseLabel}>{t("yearLabel")}</span>
-                <select
+                <AppSelect
                   id={yearFieldId}
-                  className={cn(nativeSelectClass, "rounded-lg")}
-                  value={year}
-                  onChange={(e) => setYearMonth(Number(e.target.value), month)}
-                >
-                  {yearChoices.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
+                  value={String(year)}
+                  onValueChange={(v) => setYearMonth(Number(v), month)}
+                  aria-label={t("yearLabel")}
+                  triggerClassName={filterSelectTriggerSidebarClass}
+                  options={yearChoices.map((y) => ({
+                    value: String(y),
+                    label: String(y),
+                  }))}
+                />
               </div>
             )}
           </div>

@@ -93,7 +93,6 @@ export function TransactionIncomeCreateForm({
   onCancel: () => void;
 }) {
   const tInc = useTranslations("income");
-  const tTx = useTranslations("transactions");
   const tC = useTranslations("common");
   const { invalidateIncomes } = useFinanceInvalidation();
 
@@ -254,12 +253,9 @@ export function TransactionIncomeCreateForm({
           </div>
         )}
 
-        {schedule === "recurring" ? (
-          <p className="text-xs leading-relaxed text-muted-foreground">{tTx("recurringIncomeNote")}</p>
-        ) : null}
       </div>
 
-      <DialogFooter className="gap-2 sm:gap-0">
+      <DialogFooter>
         <Button type="button" variant="outline" className="rounded-xl" onClick={onCancel}>
           {tC("cancel")}
         </Button>
@@ -388,15 +384,12 @@ export function TransactionExpenseCreateForm({
               className={cn(fieldClass, "font-mono tabular-nums")}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="txn-exp-cat">{tC("category")}</Label>
-            <ExpenseCategoryField
-              id="txn-exp-cat"
-              value={category}
-              onCategoryChange={setCategory}
-              className={fieldClass}
-            />
-          </div>
+          <ExpenseCategoryField
+            id="txn-exp-cat"
+            value={category}
+            onCategoryChange={setCategory}
+            showLabel
+          />
         </div>
 
         {schedule === "once" ? (
@@ -454,7 +447,7 @@ export function TransactionExpenseCreateForm({
         ) : null}
       </div>
 
-      <DialogFooter className="gap-2 sm:gap-0">
+      <DialogFooter>
         <Button type="button" variant="outline" className="rounded-xl" onClick={onCancel}>
           {tC("cancel")}
         </Button>

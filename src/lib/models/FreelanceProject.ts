@@ -3,7 +3,6 @@ import type { ProjectCurrency } from "@/lib/currency";
 import { PROJECT_CURRENCIES } from "@/lib/currency";
 import type { PaymentMethod } from "@/lib/payment-method";
 import type { ProjectType } from "@/lib/project-type";
-import { PROJECT_TYPES } from "@/lib/project-type";
 import type { ProjectScopeItem } from "@/lib/project-scope";
 import type { WorkPhase } from "@/lib/project-work-phase";
 
@@ -83,7 +82,7 @@ const FreelanceProjectSchema = new Schema<IFreelanceProject>(
     },
     projectType: {
       type: String,
-      enum: PROJECT_TYPES,
+      trim: true,
       default: "normal",
     },
     clientName: { type: String, trim: true, default: "" },
@@ -113,6 +112,9 @@ const FreelanceProjectSchema = new Schema<IFreelanceProject>(
 FreelanceProjectSchema.index({ userId: 1, startDate: -1 });
 FreelanceProjectSchema.index({ userId: 1, createdAt: -1 });
 FreelanceProjectSchema.index({ userId: 1, clientName: 1 });
+/** Default projects list: active + newest */
+FreelanceProjectSchema.index({ userId: 1, isArchived: 1, createdAt: -1 });
+FreelanceProjectSchema.index({ userId: 1, isArchived: 1, status: 1, createdAt: -1 });
 
 export const FreelanceProject: Model<IFreelanceProject> =
   mongoose.models.FreelanceProject ||

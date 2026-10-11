@@ -10,20 +10,13 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSelect } from "@/components/ui/app-select";
 import { ExpenseEditForm } from "@/components/expense/expense-edit-form";
 import { CategorySelectField } from "@/components/categories/category-select-field";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
@@ -338,9 +331,6 @@ export function TransactionsEditDialogs({
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{isIncomeCreate ? tTx("addIncome") : tInc("editTitle")}</DialogTitle>
-            {isIncomeCreate ? (
-              <DialogDescription>{tTx("createIncomeDesc")}</DialogDescription>
-            ) : null}
           </DialogHeader>
           {isIncomeCreate ? (
             <TransactionIncomeCreateForm onSuccess={onClose} onCancel={onClose} />
@@ -365,7 +355,7 @@ export function TransactionsEditDialogs({
                 incomeCategory={incomeCategory}
                 setIncomeCategory={setIncomeCategory}
               />
-              <DialogFooter className="gap-2 sm:gap-0">
+              <DialogFooter>
                 <Button type="button" variant="outline" className="rounded-xl" onClick={onClose}>
                   {tC("cancel")}
                 </Button>
@@ -408,9 +398,6 @@ export function TransactionsEditDialogs({
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>{isExpenseCreate ? tTx("addExpense") : tExp("editTitle")}</DialogTitle>
-            {isExpenseCreate ? (
-              <DialogDescription>{tTx("createExpenseDesc")}</DialogDescription>
-            ) : null}
           </DialogHeader>
           {isExpenseCreate ? (
             <TransactionExpenseCreateForm onSuccess={handleExpenseDone} onCancel={onClose} />
@@ -454,17 +441,17 @@ export function TransactionsEditDialogs({
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tInc("recurringType")}</Label>
-                  <Select value={eit} onValueChange={(v) => v != null && setEit(v)}>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="salary">{tInc("types.salary")}</SelectItem>
-                      <SelectItem value="freelance">{tInc("types.freelance")}</SelectItem>
-                      <SelectItem value="gam3eya">{tInc("types.gam3eya")}</SelectItem>
-                      <SelectItem value="other">{tInc("types.other")}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <AppSelect
+                    value={eit}
+                    onValueChange={setEit}
+                    aria-label={tInc("recurringType")}
+                    options={[
+                      { value: "salary", label: tInc("types.salary") },
+                      { value: "freelance", label: tInc("types.freelance") },
+                      { value: "gam3eya", label: tInc("types.gam3eya") },
+                      { value: "other", label: tInc("types.other") },
+                    ]}
+                  />
                 </div>
                 {ef === "monthly" ? (
                   <div className="flex flex-col gap-2">
@@ -501,15 +488,15 @@ export function TransactionsEditDialogs({
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>{tInc("recurringSchedule")}</Label>
-                  <Select value={ef} onValueChange={(v) => v && setEf(v as "monthly" | "weekly")}>
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">{tInc("freqMonthly")}</SelectItem>
-                      <SelectItem value="weekly">{tInc("freqWeekly")}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <AppSelect
+                    value={ef}
+                    onValueChange={(v) => setEf(v as "monthly" | "weekly")}
+                    aria-label={tInc("recurringSchedule")}
+                    options={[
+                      { value: "monthly", label: tInc("freqMonthly") },
+                      { value: "weekly", label: tInc("freqWeekly") },
+                    ]}
+                  />
                 </div>
               </div>
               <DialogFooter>
