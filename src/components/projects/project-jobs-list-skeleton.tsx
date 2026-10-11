@@ -53,9 +53,9 @@ export function ProjectJobsTotalsSkeleton() {
   );
 }
 
-export function ProjectJobsListSkeleton({ count = 6 }: { count?: number }) {
+export function ProjectJobsListSkeleton({ count = 8 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
       {Array.from({ length: count }).map((_, i) => (
         <ProjectJobCardSkeleton key={i} />
       ))}

@@ -136,12 +136,6 @@ function buildProjectJobsMongoQuery(
     query.status = { $in: ["pending", "partial"] };
   }
 
-  if (filters?.billing === "billed") {
-    query.billingStatus = "billed";
-  } else if (filters?.billing === "unbilled") {
-    query.billingStatus = { $ne: "billed" };
-  }
-
   if (filters?.projectType && filters.projectType !== "all") {
     Object.assign(query, buildProjectTypeMongoFilter(normalizeProjectType(filters.projectType)));
   }

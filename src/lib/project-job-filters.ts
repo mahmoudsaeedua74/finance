@@ -1,7 +1,5 @@
 export type ProjectJobCollectedFilter = "all" | "collected" | "pending";
 
-export type ProjectJobBillingFilter = "all" | "unbilled" | "billed";
-
 export type ProjectJobArchiveFilter = "active" | "archived" | "all";
 
 export type ProjectJobViewMode = "list" | "kanban";
@@ -21,7 +19,6 @@ export type ProjectJobWorkPhaseFilter = "all" | "quote" | "in_progress" | "deliv
 
 export type ProjectJobListFilters = {
   collected?: ProjectJobCollectedFilter;
-  billing?: ProjectJobBillingFilter;
   projectType?: string;
   sort?: ProjectJobSort;
   client?: string;
@@ -75,10 +72,6 @@ export function parseProjectJobListFilters(
       ? collectedRaw
       : DEFAULT_PROJECT_JOB_COLLECTED;
 
-  const billingRaw = searchParams.get("billing");
-  const billing: ProjectJobBillingFilter =
-    billingRaw === "unbilled" || billingRaw === "billed" ? billingRaw : "all";
-
   const typeRaw = searchParams.get("type")?.trim();
   const projectType = typeRaw && typeRaw !== "all" ? typeRaw : "all";
 
@@ -103,7 +96,7 @@ export function parseProjectJobListFilters(
   const viewRaw = searchParams.get("view");
   const view: ProjectJobViewMode = viewRaw === "kanban" ? "kanban" : "list";
 
-  return { collected, billing, projectType, sort, client, workPhase, q, archive, view };
+  return { collected, projectType, sort, client, workPhase, q, archive, view };
 }
 
 export function parseProjectJobPagination(
@@ -127,9 +120,6 @@ export function parseProjectJobPagination(
 function appendFilterParams(p: URLSearchParams, filters: ProjectJobListFilters) {
   if (filters.collected && filters.collected !== DEFAULT_PROJECT_JOB_COLLECTED) {
     p.set("collected", filters.collected);
-  }
-  if (filters.billing && filters.billing !== "all") {
-    p.set("billing", filters.billing);
   }
   if (filters.projectType && filters.projectType !== "all") {
     p.set("type", filters.projectType);
@@ -180,7 +170,6 @@ export function buildProjectJobsQueryString(
 export function hasActiveProjectJobFilters(filters: ProjectJobListFilters): boolean {
   return (
     (filters.collected != null && filters.collected !== DEFAULT_PROJECT_JOB_COLLECTED) ||
-    (filters.billing != null && filters.billing !== "all") ||
     (filters.projectType != null && filters.projectType !== "all") ||
     (filters.sort != null && filters.sort !== DEFAULT_PROJECT_JOB_SORT) ||
     Boolean(filters.client?.trim()) ||

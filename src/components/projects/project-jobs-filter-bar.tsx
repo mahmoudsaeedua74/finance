@@ -21,7 +21,6 @@ import {
   hasActiveProjectJobFilters,
   type ProjectJobArchiveFilter,
   type ProjectJobCollectedFilter,
-  type ProjectJobBillingFilter,
   type ProjectJobListFilters,
   type ProjectJobSort,
   type ProjectJobViewMode,
@@ -37,7 +36,6 @@ type Props = {
   /** Custom project types found on jobs (shown in type filter). */
   extraProjectTypes?: string[];
   onCollectedChange: (v: ProjectJobCollectedFilter) => void;
-  onBillingChange: (v: ProjectJobBillingFilter) => void;
   onTypeChange: (v: ProjectType | "all") => void;
   onSortChange: (v: ProjectJobSort) => void;
   onClientChange: (v: string) => void;
@@ -63,7 +61,6 @@ export function ProjectJobsFilterBar({
   clientNames = [],
   extraProjectTypes = [],
   onCollectedChange,
-  onBillingChange,
   onTypeChange,
   onSortChange,
   onClientChange,
@@ -79,7 +76,6 @@ export function ProjectJobsFilterBar({
   const t = useTranslations("projects");
 
   const collected = filters.collected ?? DEFAULT_PROJECT_JOB_COLLECTED;
-  const billing = filters.billing ?? "all";
   const projectType = (filters.projectType ?? "all") as ProjectType | "all";
   const sort = filters.sort ?? DEFAULT_PROJECT_JOB_SORT;
   const client = filters.client ?? "";
@@ -89,27 +85,16 @@ export function ProjectJobsFilterBar({
   const view = filters.view ?? "list";
 
   const [searchDraft, setSearchDraft] = useState(q);
-  const [clientDraft, setClientDraft] = useState(client);
 
   useEffect(() => {
     setSearchDraft(q);
   }, [q]);
 
   useEffect(() => {
-    setClientDraft(client);
-  }, [client]);
-
-  useEffect(() => {
     if (searchDraft === q) return;
     const id = window.setTimeout(() => onSearchChange(searchDraft), SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [searchDraft, q, onSearchChange]);
-
-  useEffect(() => {
-    if (clientDraft === client) return;
-    const id = window.setTimeout(() => onClientChange(clientDraft), SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(id);
-  }, [clientDraft, client, onClientChange]);
 
   const hasActive = hasActiveProjectJobFilters(filters);
   const showCollected = collected !== "pending";
@@ -135,14 +120,19 @@ export function ProjectJobsFilterBar({
     ];
   }, [t, extraProjectTypes]);
 
-  const billingOptions = useMemo(
-    () =>
-      (["all", "unbilled", "billed"] as const).map((key) => ({
-        value: key,
-        label: t(`filterBilling_${key}`),
-      })),
-    [t]
-  );
+  const clientOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        [...clientNames, client]
+          .map((n) => n.trim())
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    return [
+      { value: "", label: t("filterClientAll") },
+      ...names.map((name) => ({ value: name, label: name })),
+    ];
+  }, [t, clientNames, client]);
 
   const sortOptions = useMemo(
     () =>
@@ -182,16 +172,14 @@ export function ProjectJobsFilterBar({
     [t]
   );
 
-  const clientListId = "project-client-suggestions";
-
   return (
-    <div className="relative z-10 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+    <div className="relative z-10 rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Filter className="size-4" />
+        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Filter className="size-4" aria-hidden />
           </span>
-          <p>
+          <p className="min-w-0 truncate" aria-live="polite">
             {loading ? (
               <Skeleton className="inline-block h-4 w-36 align-middle" />
             ) : (
@@ -204,9 +192,10 @@ export function ProjectJobsFilterBar({
             type="button"
             size="sm"
             variant={view === "list" ? "secondary" : "ghost"}
-            className="h-8 px-2"
+            className="size-9 p-0"
             onClick={() => onViewChange("list")}
             aria-label={t("viewList")}
+            aria-pressed={view === "list"}
           >
             <LayoutGrid className="size-4" />
           </Button>
@@ -214,9 +203,10 @@ export function ProjectJobsFilterBar({
             type="button"
             size="sm"
             variant={view === "kanban" ? "secondary" : "ghost"}
-            className="h-8 px-2"
+            className="size-9 p-0"
             onClick={() => onViewChange("kanban")}
             aria-label={t("viewKanban")}
+            aria-pressed={view === "kanban"}
           >
             <Columns3 className="size-4" />
           </Button>
@@ -225,7 +215,7 @@ export function ProjectJobsFilterBar({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
+              className="min-h-9 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
               onClick={onClearFilters}
             >
               <X className="size-3.5" />
@@ -276,24 +266,14 @@ export function ProjectJobsFilterBar({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="project-filter-client" className="text-xs text-muted-foreground">
-            {t("filterClient")}
-          </Label>
-          <Input
-            id="project-filter-client"
-            list={clientListId}
-            value={clientDraft}
-            placeholder={t("filterClientPh")}
-            className="h-10"
-            onChange={(e) => setClientDraft(e.target.value)}
-          />
-          <datalist id={clientListId}>
-            {clientNames.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-        </div>
+        <FilterNativeSelect
+          id="project-filter-client"
+          label={t("filterClient")}
+          value={client}
+          options={clientOptions}
+          onChange={onClientChange}
+          active={Boolean(client)}
+        />
 
         <FilterNativeSelect
           id="project-filter-archive"
@@ -311,15 +291,6 @@ export function ProjectJobsFilterBar({
           options={phaseOptions}
           onChange={(v) => onWorkPhaseChange(v as ProjectJobWorkPhaseFilter)}
           active={workPhase !== "all"}
-        />
-
-        <FilterNativeSelect
-          id="project-filter-billing"
-          label={t("filterBilling")}
-          value={billing}
-          options={billingOptions}
-          onChange={(v) => onBillingChange(v as ProjectJobBillingFilter)}
-          active={billing !== "all"}
         />
 
         <FilterNativeSelect

@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
-import { Expense, FreelanceProject, Income, Invoice } from "@/lib/models";
-import { listNormalBillingGroups } from "@/lib/services/invoice-service";
+import { Expense, FreelanceProject, Income } from "@/lib/models";
 import {
   COLLECTION_ATTENTION_KINDS,
   getProjectAttentionItems,
@@ -32,11 +31,7 @@ export async function buildLocalProjectsInsights(
   const uid = new mongoose.Types.ObjectId(userId);
   const ar = locale === "ar";
 
-  const [groups, openInvoices, attention, byType] = await Promise.all([
-    listNormalBillingGroups(userId),
-    Invoice.find({ userId: uid, status: { $in: ["draft", "issued"] } })
-      .select("clientName totalEgp jobIds")
-      .lean(),
+  const [attention, byType, activeCount] = await Promise.all([
     getProjectAttentionItems(userId, "collections"),
     FreelanceProject.aggregate([
       {
@@ -55,16 +50,12 @@ export async function buildLocalProjectsInsights(
       },
       { $sort: { agreedEgp: -1 } },
     ]),
+    FreelanceProject.countDocuments({
+      userId: uid,
+      isArchived: { $ne: true },
+      status: { $nin: ["cancelled", "collected"] },
+    }),
   ]);
-
-  const withClient = groups.filter((g) => g.hasClient).sort((a, b) => b.count - a.count);
-  const noClientCount = groups.filter((g) => !g.hasClient).reduce((s, g) => s + g.count, 0);
-  const normalJobs = withClient.reduce((s, g) => s + g.count, 0);
-  const normalPoolEgp = roundMoney(withClient.reduce((s, g) => s + g.totalEgp, 0));
-  /** Money you could put on invoices right now if you bill the suggested ~10 per client. */
-  const invoiceableNowEgp = roundMoney(
-    withClient.reduce((s, g) => s + g.suggestTotalEgp, 0)
-  );
 
   const collectionKinds = new Set(COLLECTION_ATTENTION_KINDS);
   const unpaid = attention.filter((i) => collectionKinds.has(i.kind));
@@ -80,89 +71,20 @@ export async function buildLocalProjectsInsights(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
 
-  const openInvEgp = roundMoney(openInvoices.reduce((s, i) => s + (i.totalEgp ?? 0), 0));
   const lines: string[] = [];
 
-  // —— Snapshot ——
   lines.push(ar ? "📊 صورة سريعة" : "📊 Snapshot");
   lines.push(
     ar
-      ? `• Normal جاهز للتجميع: ${normalJobs} مشروع = ${money(normalPoolEgp)}`
-      : `• Normal ready to group: ${normalJobs} jobs = ${money(normalPoolEgp)}`
-  );
-  lines.push(
-    ar
-      ? `• لو عملت فاتورة بالـ ~10 المقترحة دلوقتي: حوالي ${money(invoiceableNowEgp)}`
-      : `• If you invoice the suggested ~10 now: about ${money(invoiceableNowEgp)}`
+      ? `• مشاريع نشطة: ${activeCount}`
+      : `• Active projects: ${activeCount}`
   );
   lines.push(
     ar
       ? `• فلوس لسه متتحصّلتش: ${money(unpaidEgp)} على ${unpaidJobs} مشروع`
       : `• Still uncollected: ${money(unpaidEgp)} across ${unpaidJobs} jobs`
   );
-  if (openInvoices.length) {
-    lines.push(
-      ar
-        ? `• فواتير مفتوحة: ${openInvoices.length} مجموعها ${money(openInvEgp)}`
-        : `• Open invoices: ${openInvoices.length} totaling ${money(openInvEgp)}`
-    );
-  }
 
-  // —— Invoice priority ——
-  lines.push("");
-  lines.push(ar ? "✅ أولوية الفاتورة (Normal)" : "✅ Invoice priority (Normal)");
-
-  const ready = withClient.filter((g) => g.count >= 10);
-  const warming = withClient.filter((g) => g.count > 0 && g.count < 10);
-
-  if (ready.length) {
-    for (const g of ready.slice(0, 4)) {
-      const left = g.count - g.suggestCount;
-      if (ar) {
-        const priceBit =
-          g.samePrice && g.unitAmount != null
-            ? ` × ${money(g.unitAmount)}`
-            : "";
-        lines.push(
-          `• «${g.clientName}»: ${g.count} مشروع${priceBit} → لمّ ${g.suggestCount} = ${money(g.suggestTotalEgp)}${left > 0 ? ` (يفضل ${left})` : ""}`
-        );
-      } else {
-        const priceBit =
-          g.samePrice && g.unitAmount != null ? ` × ${money(g.unitAmount)}` : "";
-        lines.push(
-          `• “${g.clientName}”: ${g.count} jobs${priceBit} → pick ${g.suggestCount} = ${money(g.suggestTotalEgp)}${left > 0 ? ` (${left} left)` : ""}`
-        );
-      }
-    }
-    lines.push(
-      ar
-        ? "→ افتح تجميع الـ Normal فوق، اختَر العميل، اعمل فاتورة."
-        : "→ Open Normal billing above, pick the client, create the invoice."
-    );
-  } else if (warming.length) {
-    const top = warming[0];
-    lines.push(
-      ar
-        ? `• أقرب عميل: «${top.clientName}» — ${top.count}/10 مشروع = ${money(top.totalEgp)}. تقدر تعمل فاتورة دلوقتي بأي عدد.`
-        : `• Closest: “${top.clientName}” — ${top.count}/10 jobs = ${money(top.totalEgp)}. You can invoice any count now.`
-    );
-  } else {
-    lines.push(
-      ar
-        ? "• مفيش Normal جاهز باسم عميل دلوقتي."
-        : "• No Normal jobs ready with a client name."
-    );
-  }
-
-  if (noClientCount > 0) {
-    lines.push(
-      ar
-        ? `⚠ ${noClientCount} مشروع من غير اسم عميل — حط الاسم عشان يدخلوا التجميع.`
-        : `⚠ ${noClientCount} jobs have no client name — add names so they can be grouped.`
-    );
-  }
-
-  // —— Collection priority ——
   if (unpaidEgp > 0.5 && topPending.length) {
     lines.push("");
     lines.push(ar ? "💰 أولوية التحصيل" : "💰 Collection priority");
@@ -171,13 +93,12 @@ export async function buildLocalProjectsInsights(
     }
     lines.push(
       ar
-        ? "→ صفحة التحصيل تورّيك التفاصيل مشروع بمشروع."
-        : "→ Collections page shows this job by job."
+        ? "→ حدّد المشاريع واعمل تحصيل جماعي، أو افتح صفحة التحصيلات."
+        : "→ Multi-select and bulk-collect, or open the collections page."
     );
   }
 
-  // —— Work mix (compact) ——
-  if (byType.length > 1) {
+  if (byType.length > 0) {
     lines.push("");
     lines.push(ar ? "📁 توزيع الشغل النشط" : "📁 Active work mix");
     lines.push(
@@ -187,7 +108,7 @@ export async function buildLocalProjectsInsights(
           (r: { _id: string; count: number; agreedEgp: number }) =>
             `${typeLabel(String(r._id))}: ${r.count} · ${money(r.agreedEgp)}`
         )
-        .join(ar ? "  |  " : "  |  ")
+        .join("  |  ")
     );
   }
 

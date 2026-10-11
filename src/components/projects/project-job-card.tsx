@@ -78,6 +78,7 @@ export function ProjectJobCard({
   const collectionPct =
     job.agreedAmount > 0 ? Math.min(100, (job.collectedAmount / job.agreedAmount) * 100) : 0;
   const deletable = canDeleteProjectJob(job);
+  const canCollect = job.status !== "cancelled" && job.pendingAmount > 0.005;
 
   const phaseLabel =
     phase === "delivered"
@@ -98,33 +99,37 @@ export function ProjectJobCard({
   return (
     <Card
       className={cn(
-        "group overflow-hidden border-border/50 bg-card/80 shadow-sm transition-all hover:border-border hover:shadow-md",
+        "group overflow-hidden border-border/50 bg-card/80 shadow-sm transition-[border-color,box-shadow,transform] duration-200",
+        "hover:border-border hover:shadow-md",
+        "motion-safe:active:scale-[0.99]",
         selected && "border-primary/40 ring-2 ring-primary/20",
         job.isArchived && "opacity-80",
         compact && "text-xs"
       )}
     >
-      <CardContent className={cn("space-y-2.5", compact ? "p-2.5" : "p-3")}>
+      <CardContent className={cn("space-y-2", compact ? "p-2.5" : "p-3")}>
         <div className="flex items-start gap-2">
           {canSelectProjectJob(job) && onToggleSelected && (
-            <input
-              type="checkbox"
-              className="mt-1 size-4 shrink-0 accent-primary"
-              checked={selected}
-              onChange={() => onToggleSelected(job.id)}
-              aria-label={t("bulkSelectOne")}
-            />
+            <label className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-muted/60">
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={selected}
+                onChange={() => onToggleSelected(job.id)}
+                aria-label={t("bulkSelectOne")}
+              />
+            </label>
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-1">
               <button
                 type="button"
-                className="min-w-0 flex-1 text-start"
+                className="min-w-0 flex-1 cursor-pointer rounded-md text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40"
                 onClick={() => onOpenDetail(job)}
               >
                 <p
                   className={cn(
-                    "truncate font-semibold leading-snug text-foreground",
+                    "line-clamp-2 font-semibold leading-snug text-foreground",
                     compact ? "text-xs" : "text-sm"
                   )}
                 >
@@ -139,13 +144,13 @@ export function ProjectJobCard({
                 <DropdownMenuTrigger
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "icon" }),
-                    "size-7 shrink-0 text-muted-foreground"
+                    "size-9 shrink-0 text-muted-foreground"
                   )}
                   aria-label={t("cardMenu")}
                 >
                   <EllipsisVertical className="size-4" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuItem onClick={() => onPdfClient(job)}>
                     <FileText className="size-3.5" />
                     {t("pdfForClient")}
@@ -187,10 +192,10 @@ export function ProjectJobCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1">
           <span
             className={cn(
-              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+              "inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
               phaseTone(phase)
             )}
           >
@@ -198,7 +203,7 @@ export function ProjectJobCard({
           </span>
           <span
             className={cn(
-              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+              "inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
               payTone(job.status)
             )}
           >
@@ -209,26 +214,24 @@ export function ProjectJobCard({
               {t("archivedBadge")}
             </Badge>
           )}
-          <Badge
-            variant="outline"
-            className={cn(
-              "h-5 px-1.5 text-[10px]",
-              job.billingStatus === "billed"
-                ? "border-sky-500/40 text-sky-700 dark:text-sky-300"
-                : "border-amber-500/40 text-amber-700 dark:text-amber-300"
-            )}
-          >
-            {job.billingStatus === "billed" ? t("billingBilled") : t("billingUnbilled")}
-          </Badge>
           {!compact && (
-            <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+            <Badge
+              variant="outline"
+              className="hidden h-5 px-1.5 text-[10px] font-normal sm:inline-flex"
+            >
               {projectTypeLabel(job.projectType ?? "normal", t)}
             </Badge>
           )}
         </div>
 
         {job.agreedAmount > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[10px] text-muted-foreground">{t("pendingAmount")}</span>
+              <span className="font-mono text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                {formatMoney(job.pendingAmount)}
+              </span>
+            </div>
             {job.currency === "SAR" && (
               <p className="text-[10px] text-muted-foreground">
                 <span className="font-mono tabular-nums">{formatMoney(job.originalAmount, "SAR")}</span>
@@ -237,19 +240,26 @@ export function ProjectJobCard({
                 </span>
               </p>
             )}
-            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-              <span>{formatMoney(job.collectedAmount)}</span>
-              <span className="font-mono tabular-nums">{Math.round(collectionPct)}%</span>
-              <span>{formatMoney(job.agreedAmount)}</span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-muted/80">
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-muted/80"
+              role="progressbar"
+              aria-valuenow={Math.round(collectionPct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t("collectionProgress")}
+            >
               <div
                 className={cn(
-                  "h-full rounded-full transition-all",
+                  "h-full rounded-full transition-[width] duration-300",
                   job.status === "collected" ? "bg-emerald-500" : "bg-primary/70"
                 )}
                 style={{ width: `${collectionPct}%` }}
               />
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+              <span className="font-mono tabular-nums">{formatMoney(job.collectedAmount)}</span>
+              <span className="font-mono tabular-nums">{Math.round(collectionPct)}%</span>
+              <span className="font-mono tabular-nums">{formatMoney(job.agreedAmount)}</span>
             </div>
           </div>
         ) : (
@@ -258,24 +268,15 @@ export function ProjectJobCard({
           </p>
         )}
 
-        {!compact && (
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/20 px-2 py-1.5 text-[11px]">
-            <span className="text-muted-foreground">{t("pendingAmount")}</span>
-            <span className="font-mono font-semibold tabular-nums text-amber-600 dark:text-amber-400">
-              {formatMoney(job.pendingAmount)}
-            </span>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-1 pt-0.5">
-          {job.status !== "cancelled" && job.pendingAmount > 0.005 && (
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {canCollect && (
             <Button
               type="button"
               size="sm"
-              className={cn("h-7 gap-1 px-2.5 text-xs", compact && "h-6 px-2 text-[11px]")}
+              className={cn("min-h-9 flex-1 gap-1 px-2.5 text-xs sm:flex-none", compact && "min-h-8")}
               onClick={() => onCollect(job)}
             >
-              <CheckCircle2 className="size-3" />
+              <CheckCircle2 className="size-3.5 shrink-0" />
               {t("collectBtn")}
             </Button>
           )}
@@ -283,21 +284,22 @@ export function ProjectJobCard({
             type="button"
             size="sm"
             variant="outline"
-            className={cn("h-7 gap-1 px-2.5 text-xs", compact && "h-6 px-2 text-[11px]")}
+            className={cn("min-h-9 gap-1 px-2.5 text-xs", compact && "min-h-8", !canCollect && "flex-1 sm:flex-none")}
             onClick={() => onOpenDetail(job)}
           >
-            <FileText className="size-3" />
-            {t("detailsBtn")}
+            <FileText className="size-3.5 shrink-0" />
+            <span className="truncate">{t("detailsBtn")}</span>
           </Button>
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className={cn("h-7 gap-1 px-2.5 text-xs", compact && "h-6 px-2 text-[11px]")}
+            className={cn("min-h-9 gap-1 px-2 text-xs", compact && "min-h-8")}
             onClick={() => onClone(job)}
+            aria-label={t("cloneBtn")}
           >
-            <Copy className="size-3" />
-            {t("cloneBtn")}
+            <Copy className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">{t("cloneBtn")}</span>
           </Button>
         </div>
       </CardContent>

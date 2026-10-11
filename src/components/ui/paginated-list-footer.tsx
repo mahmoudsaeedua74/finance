@@ -9,7 +9,8 @@ type Props = {
   onLoadMore: () => void;
   labelLoadMore: string;
   labelLoading: string;
-  labelEnd: string;
+  /** @deprecated End-of-list copy is no longer shown. */
+  labelEnd?: string;
   /** If true, auto-fetch when the sentinel scrolls into view. */
   infiniteScroll?: boolean;
 };
@@ -20,7 +21,6 @@ export function PaginatedListFooter({
   onLoadMore,
   labelLoadMore,
   labelLoading,
-  labelEnd,
   infiniteScroll = true,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -39,15 +39,18 @@ export function PaginatedListFooter({
   }, [infiniteScroll, hasNextPage, isFetchingNextPage, onLoadMore]);
 
   if (!hasNextPage && !isFetchingNextPage) {
-    return <p className="pt-2 text-center text-xs text-muted-foreground">{labelEnd}</p>;
+    return null;
   }
+
   return (
     <div className="flex flex-col items-center gap-2 pt-3">
       <div ref={ref} className="h-1 w-full shrink-0" aria-hidden />
       {isFetchingNextPage ? (
-        <p className="text-center text-xs text-muted-foreground">{labelLoading}</p>
+        <p className="text-center text-xs text-muted-foreground" role="status">
+          {labelLoading}
+        </p>
       ) : (
-        <Button type="button" variant="secondary" size="sm" onClick={() => onLoadMore()}>
+        <Button type="button" variant="secondary" size="sm" className="min-h-10 px-4" onClick={() => onLoadMore()}>
           {labelLoadMore}
         </Button>
       )}

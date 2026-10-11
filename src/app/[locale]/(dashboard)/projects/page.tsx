@@ -6,9 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ProjectJobsFilterBar } from "@/components/projects/project-jobs-filter-bar";
-import { ProjectCollectionsBanner } from "@/components/projects/project-collections-banner";
 import { ProjectNormalBanner } from "@/components/projects/project-normal-banner";
-import { NormalBillingBasketPanel } from "@/components/projects/normal-billing-basket";
 import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
 import {
   ProjectJobsKanbanSkeleton,
@@ -47,7 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -72,7 +70,9 @@ import {
   Clock,
   Pencil,
   ChevronDown,
+  ArrowUpRight,
 } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 
@@ -101,7 +101,6 @@ export default function ProjectsPage() {
     meta,
     totals,
     setCollected,
-    setBilling,
     setProjectType: setFilterProjectType,
     setSort,
     setClient,
@@ -721,13 +720,9 @@ export default function ProjectsPage() {
 
       {error && <QueryErrorAlert error={error} />}
 
-      <ProjectCollectionsBanner onOpenJob={openDetailById} />
-
       <ProjectNormalBanner onOpenJob={openDetailById} />
 
       <AiInsightPanel surface="projects" />
-
-      <NormalBillingBasketPanel onChanged={() => invalidateProjects()} />
 
       <ProjectJobsFilterBar
         filters={filters}
@@ -736,7 +731,6 @@ export default function ProjectsPage() {
           .map((j) => j.projectType)
           .filter((x): x is string => typeof x === "string" && x.length > 0)}
         onCollectedChange={setCollected}
-        onBillingChange={setBilling}
         onTypeChange={setFilterProjectType}
         onSortChange={setSort}
         onClientChange={setClient}
@@ -820,9 +814,36 @@ export default function ProjectsPage() {
       {isListLoading ? (
         viewMode === "kanban" ? <ProjectJobsKanbanSkeleton /> : <ProjectJobsListSkeleton />
       ) : jobs.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {hasActiveFilters ? t("noJobsFiltered") : t("noJobs")}
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FolderKanban className="size-6" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                {hasActiveFilters ? t("noJobsFiltered") : t("noJobs")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {hasActiveFilters ? t("noJobsFilteredHint") : t("noJobsHint")}
+              </p>
+            </div>
+            {hasActiveFilters ? (
+              <Button type="button" variant="outline" className="min-h-10" onClick={clearFilters}>
+                {t("clearFilters")}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="min-h-10"
+                onClick={() => {
+                  resetAddForm();
+                  setAddOpen(true);
+                }}
+              >
+                <Plus className="me-2 size-4" />
+                {t("addJob")}
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : viewMode === "kanban" ? (
@@ -832,22 +853,23 @@ export default function ProjectsPage() {
           {...jobCardHandlers}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {jobs.map((job) => (
-            <ProjectJobCard
-              key={job.id}
-              job={job}
-              selected={selectedIds.has(job.id)}
-              {...jobCardHandlers}
-            />
-          ))}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
+            {jobs.map((job) => (
+              <ProjectJobCard
+                key={job.id}
+                job={job}
+                selected={selectedIds.has(job.id)}
+                {...jobCardHandlers}
+              />
+            ))}
+          </div>
           <PaginatedListFooter
             hasNextPage={!!hasNextPage}
             isFetchingNextPage={isFetchingNextPage}
             onLoadMore={() => void fetchNextPage()}
             labelLoadMore={tC("loadMore")}
             labelLoading={tC("loadingMore")}
-            labelEnd={tC("endOfList")}
           />
         </div>
       )}
@@ -1412,6 +1434,13 @@ export default function ProjectsPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/projects/${detailJob.id}`}
+                  className={cn(buttonVariants({ size: "sm", variant: "default" }))}
+                >
+                  <ArrowUpRight className="me-1.5 size-3.5" />
+                  {t("openProjectPage")}
+                </Link>
                 <Button
                   type="button"
                   size="sm"

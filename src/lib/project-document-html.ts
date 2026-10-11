@@ -322,6 +322,10 @@ export type ProposalDocInput = {
   currency?: string;
   items: ProjectScopeItem[];
   audience: DocumentAudience;
+  /** Internal-only payment summary. */
+  collected?: number;
+  pending?: number;
+  statusLabel?: string;
   issuerName?: string;
   footerNote?: string;
 };
@@ -343,6 +347,7 @@ export type StatementDocInput = {
 };
 
 export function buildProposalHtml(input: ProposalDocInput): string {
+  const isClient = (input.audience ?? "client") === "client";
   const cur = input.currency === "SAR" ? "SAR" : "EGP";
   const items = input.items.length
     ? input.items
@@ -356,8 +361,10 @@ export function buildProposalHtml(input: ProposalDocInput): string {
     .map((item, i) => {
       const bits: string[] = [];
       if (item.description) bits.push(esc(item.description));
-      if (item.tech) bits.push(esc(item.tech));
-      if (item.complexity) bits.push(COMPLEXITY_AR[item.complexity] ?? item.complexity);
+      if (!isClient) {
+        if (item.tech) bits.push(esc(item.tech));
+        if (item.complexity) bits.push(COMPLEXITY_AR[item.complexity] ?? item.complexity);
+      }
       const meta = bits.length
         ? `<br /><span style="color:${DOC_BRAND.muted};font-size:10px">${bits.join(" · ")}</span>`
         : "";
@@ -370,6 +377,15 @@ export function buildProposalHtml(input: ProposalDocInput): string {
     })
     .join("");
 
+  const paymentMeta =
+    !isClient &&
+    (input.collected != null || input.pending != null || input.statusLabel)
+      ? `
+        <div class="row"><span>المحصّل</span><strong>${formatMoney(input.collected ?? 0, cur)}</strong></div>
+        <div class="row"><span>المتبقي</span><strong>${formatMoney(input.pending ?? 0, cur)}</strong></div>
+        <div class="row"><span>الحالة</span><strong>${esc(input.statusLabel || "—")}</strong></div>`
+      : "";
+
   const bodyHtml = `
       <div class="doc-head">
         <h1>${esc(input.title)}</h1>
@@ -380,8 +396,9 @@ export function buildProposalHtml(input: ProposalDocInput): string {
         <div class="row"><span>العميل</span><strong>${esc(input.clientName || "—")}</strong></div>
         <div class="row"><span>الإجمالي</span><strong class="brand">${totalFmt}</strong></div>
         <div class="row"><span>عدد البنود</span><strong>${items.length}</strong></div>
+        ${paymentMeta}
       </div>
-      <h2>بنود العرض</h2>
+      <h2>${isClient ? "بنود العرض" : "بنود العرض (داخلي)"}</h2>
       <table>
         <thead><tr><th style="width:8%">#</th><th style="width:66%">البند / الوصف</th><th style="width:26%">المبلغ</th></tr></thead>
         <tbody>${bodyRows}</tbody>
@@ -390,7 +407,7 @@ export function buildProposalHtml(input: ProposalDocInput): string {
 
   return wrapDocument({
     title: input.title,
-    docLabel: "عرض سعر",
+    docLabel: isClient ? "عرض سعر" : "عرض سعر (داخلي)",
     bodyHtml,
     footerNote: input.footerNote,
   });

@@ -43,9 +43,16 @@ export async function downloadProposalPdf(
     currency,
     items: job.scopeItems,
     audience,
-    footerNote: t("docFooterProposalClient"),
+    collected: job.collectedAmount,
+    pending: job.pendingAmount,
+    statusLabel: statusLabel(job, t),
+    footerNote:
+      audience === "client" ? t("docFooterProposalClient") : t("docFooterProposalInternal"),
   });
-  const filename = pdfFilename(job.name, "proposal");
+  const filename = pdfFilename(
+    job.name,
+    audience === "client" ? "proposal" : "proposal-internal"
+  );
   await downloadHtmlAsPdf(html, filename);
   return filename;
 }
