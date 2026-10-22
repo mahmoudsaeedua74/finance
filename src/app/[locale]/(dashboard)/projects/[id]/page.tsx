@@ -5,13 +5,12 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowLeft,
   Banknote,
-  CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Clock,
   FileText,
   FolderKanban,
   Loader2,
-  Pencil,
   Plus,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -44,7 +43,6 @@ import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCallback, useState } from "react";
-import { ProjectCollectionsBanner } from "@/components/projects/project-collections-banner";
 import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
 
 type Props = { params: { id: string } };
@@ -77,6 +75,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [supportDate, setSupportDate] = useState(() => defaultFormDateYmd());
   const [supportNote, setSupportNote] = useState("");
   const [supportMethod, setSupportMethod] = useState<PaymentMethod>("cash");
+  const [installmentsOpen, setInstallmentsOpen] = useState(false);
+  const [supportListOpen, setSupportListOpen] = useState(false);
 
   const openCollect = useCallback(
     (payout?: ProjectJobDto["payouts"][number]) => {
@@ -225,13 +225,6 @@ export default function ProjectJobDetailPage({ params }: Props) {
           <ArrowLeft className="size-4 rtl:rotate-180" />
           {t("collectionsBack")}
         </Link>
-        <Link
-          href="/projects/collections"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
-        >
-          <CalendarClock className="size-3.5" />
-          {t("collectionsPageTitle")}
-        </Link>
       </div>
 
       <PageHeader
@@ -239,8 +232,6 @@ export default function ProjectJobDetailPage({ params }: Props) {
         description={job.clientName || job.notes || t("detailsDesc")}
         icon={<FolderKanban className="size-5" />}
       />
-
-      <ProjectCollectionsBanner variant="link" />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border/60 bg-card p-3">
@@ -335,19 +326,21 @@ export default function ProjectJobDetailPage({ params }: Props) {
           <FileText className="me-1.5 size-3.5" />
           {t("pdfWithDetails")}
         </Button>
-        <Link
-          href="/projects"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
-        >
-          <Pencil className="size-3.5" />
-          {t("editOnProjectsList")}
-        </Link>
       </div>
 
       {job.payouts.some((p) => p.lineKind !== "support") && (
         <div className="rounded-xl border border-border/60 bg-card p-3">
-          <p className="mb-2 font-medium text-sm">{t("installmentsList")}</p>
-          <ul className="space-y-2">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 text-start"
+            aria-expanded={installmentsOpen}
+            onClick={() => setInstallmentsOpen((open) => !open)}
+          >
+            <span className="font-medium text-sm">{t("installmentsList")}</span>
+            <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition", installmentsOpen && "rotate-180")} />
+          </button>
+          {installmentsOpen && (
+          <ul className="mt-2 space-y-2">
             {job.payouts.filter((p) => p.lineKind !== "support").map((p) => (
               <li
                 key={p.id}
@@ -385,12 +378,21 @@ export default function ProjectJobDetailPage({ params }: Props) {
               </li>
             ))}
           </ul>
+          )}
         </div>
       )}
 
       <div className="rounded-xl border border-border/60 bg-card p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="font-medium text-sm">{t("supportSection")}</p>
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center justify-between gap-2 text-start"
+            aria-expanded={supportListOpen}
+            onClick={() => setSupportListOpen((open) => !open)}
+          >
+            <span className="font-medium text-sm">{t("supportSection")}</span>
+            <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition", supportListOpen && "rotate-180")} />
+          </button>
           {job.status !== "cancelled" && (
             <Button type="button" size="sm" variant="outline" onClick={() => setSupportOpen(true)}>
               <Plus className="me-1.5 size-3.5" />
@@ -398,7 +400,9 @@ export default function ProjectJobDetailPage({ params }: Props) {
             </Button>
           )}
         </div>
-        <p className="mb-3 text-xs text-muted-foreground">{t("supportSectionHint")}</p>
+        {supportListOpen && (
+        <>
+        <p className="mb-3 mt-2 text-xs text-muted-foreground">{t("supportSectionHint")}</p>
         {job.payouts.some((p) => p.lineKind === "support") ? (
           <ul className="space-y-2">
             {job.payouts.filter((p) => p.lineKind === "support").map((p) => (
@@ -418,6 +422,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">{t("supportEmpty")}</p>
+        )}
+        </>
         )}
       </div>
 

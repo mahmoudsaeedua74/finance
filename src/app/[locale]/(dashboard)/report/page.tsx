@@ -6,9 +6,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useMonth } from "@/context/month-context";
 import { jsonFetch } from "@/lib/fetcher";
-import { monthLabel, formatMoney, formatDateLong } from "@/lib/format";
+import { monthLabel, formatMoney, formatDateDayMonth } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LedgerTable } from "@/components/shared/ledger-table";
 import type { MonthlyReportDto } from "@/types/report";
 import { exportMonthlyReportPdf } from "@/lib/export-pdf";
 import { exportMonthlyReportExcel } from "@/lib/export-excel";
@@ -17,7 +17,6 @@ import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { ReportChartsLazy } from "@/components/dashboard/report-charts-lazy";
 import { InsightsPanel } from "@/components/dashboard/insights-panel";
 import { AiInsightPanel } from "@/components/ai/ai-insight-panel";
-import { Badge } from "@/components/ui/badge";
 import {
   applyReportFilters,
   getDefaultReportFilters,
@@ -33,12 +32,16 @@ import { ReportRangeToolbar } from "@/components/report/report-range-toolbar";
 import type { ReportFilterType } from "@/hooks/use-reports";
 import { queryKeys } from "@/features/_lib/query-keys";
 
+function byDateDesc<T extends { date: string | Date }>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+}
+
 export default function ReportPage() {
   const t = useTranslations("report");
   const tC = useTranslations("common");
   const tCat = useTranslations("expense.categories");
-  const tInc = useTranslations("income");
-  const tProj = useTranslations("projects");
   const tW = useTranslations("wallet");
   const locale = useLocale();
   const { year, month } = useMonth();
@@ -98,11 +101,6 @@ export default function ReportPage() {
   const suffix = isReportFilterDefault(filter) ? "" : "-filtered";
   const pdfName = `${filenameBase}${suffix}.pdf`;
   const xlsxName = `${filenameBase}${suffix}.xlsx`;
-
-  const incomeTypeLabel = (v: string) =>
-    v === "salary" || v === "freelance" || v === "gam3eya" || v === "other"
-      ? tInc(`types.${v}`)
-      : v;
 
   const emailMut = useMutation({
     mutationFn: () =>
@@ -242,48 +240,31 @@ export default function ReportPage() {
                   {report.expenseLineItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t("noRows")}</p>
                   ) : (
-                    <div className="min-w-0 max-w-full overflow-x-auto rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{tC("date")}</TableHead>
-                            <TableHead>{tC("title")}</TableHead>
-                            <TableHead>{tC("category")}</TableHead>
-                            <TableHead>{t("table.type")}</TableHead>
-                            <TableHead className="hidden sm:table-cell">{t("expenseProject")}</TableHead>
-                            <TableHead>{tW("methodLabel")}</TableHead>
-                            <TableHead className="text-end">{tC("amount")}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {report.expenseLineItems.map((e) => (
-                            <TableRow key={e._id + e.source + String(e.date)}>
-                              <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                                {formatDateLong(new Date(e.date), locale)}
-                              </TableCell>
-                              <TableCell className="font-medium">{e.title}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {labelExpenseCategory(e.category, tCat)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-sm capitalize">
-                                {t(`lineSource.${e.source}`)}
-                              </TableCell>
-                              <TableCell className="hidden max-w-[10rem] truncate text-sm text-muted-foreground sm:table-cell">
-                                {e.projectName?.trim() || "—"}
-                              </TableCell>
-                              <TableCell>
-                                <PaymentMethodLabel method={e.paymentMethod} />
-                              </TableCell>
-                              <TableCell className="text-end tabular-nums">
-                                {formatMoney(e.amount)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <LedgerTable
+                      caption={t("expLines")}
+                      columns={[
+                        { id: "date", header: tC("date"), width: "22%", tone: "muted" },
+                        { id: "title", header: tC("title"), width: "28%", tone: "strong" },
+                        { id: "category", header: tC("category"), width: "16%" },
+                        { id: "method", header: tW("methodLabel"), width: "18%" },
+                        { id: "amount", header: tC("amount"), width: "16%", align: "end", tone: "strong" },
+                      ]}
+                      rows={byDateDesc(report.expenseLineItems).map((e) => ({
+                        id: e._id + e.source + String(e.date),
+                        cells: {
+                          date: formatDateDayMonth(new Date(e.date), locale),
+                          title: e.title,
+                          category: labelExpenseCategory(e.category, tCat),
+                          method: (
+                            <PaymentMethodLabel
+                              method={e.paymentMethod}
+                              className="text-sm text-foreground"
+                            />
+                          ),
+                          amount: formatMoney(e.amount),
+                        },
+                      }))}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -298,76 +279,58 @@ export default function ReportPage() {
                   {report.incomeLineItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{tC("noneInView")}</p>
                   ) : (
-                    <div className="min-w-0 max-w-full overflow-x-auto rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{tC("date")}</TableHead>
-                            <TableHead>{tC("title")}</TableHead>
-                            <TableHead>{tC("type")}</TableHead>
-                            <TableHead>{tW("methodLabel")}</TableHead>
-                            <TableHead className="text-end">{tC("amount")}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {report.incomeLineItems.map((r) => (
-                            <TableRow key={r._id}>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {formatDateLong(new Date(r.date), locale)}
-                              </TableCell>
-                              <TableCell>{r.title}</TableCell>
-                              <TableCell className="text-sm">
-                                {incomeTypeLabel(r.incomeType)}
-                              </TableCell>
-                              <TableCell>
-                                <PaymentMethodLabel method={r.paymentMethod} />
-                              </TableCell>
-                              <TableCell className="text-end tabular-nums">
-                                {formatMoney(r.amount)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <LedgerTable
+                      caption={t("genInc")}
+                      columns={[
+                        { id: "date", header: tC("date"), width: "22%", tone: "muted" },
+                        { id: "title", header: tC("title"), width: "34%", tone: "strong" },
+                        { id: "method", header: tW("methodLabel"), width: "22%" },
+                        { id: "amount", header: tC("amount"), width: "22%", align: "end", tone: "strong" },
+                      ]}
+                      rows={byDateDesc(report.incomeLineItems).map((r) => ({
+                        id: r._id,
+                        cells: {
+                          date: formatDateDayMonth(new Date(r.date), locale),
+                          title: r.title,
+                          method: (
+                            <PaymentMethodLabel
+                              method={r.paymentMethod}
+                              className="text-sm text-foreground"
+                            />
+                          ),
+                          amount: formatMoney(r.amount),
+                        },
+                      }))}
+                    />
                   )}
 
                   <h3 className="text-sm font-medium">{t("projPay")}</h3>
                   {report.projectLineItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{tC("noneInView")}</p>
                   ) : (
-                    <div className="min-w-0 max-w-full overflow-x-auto rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{tC("date")}</TableHead>
-                            <TableHead>{tC("project")}</TableHead>
-                            <TableHead className="hidden sm:table-cell">{tProj("lineNote")}</TableHead>
-                            <TableHead>{tW("methodLabel")}</TableHead>
-                            <TableHead className="text-end">{tC("amount")}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {report.projectLineItems.map((r) => (
-                            <TableRow key={r._id}>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {formatDateLong(new Date(r.date), locale)}
-                              </TableCell>
-                              <TableCell>{r.name}</TableCell>
-                              <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:table-cell">
-                                {r.note?.trim() || "—"}
-                              </TableCell>
-                              <TableCell>
-                                <PaymentMethodLabel method={r.paymentMethod} />
-                              </TableCell>
-                              <TableCell className="text-end tabular-nums">
-                                {formatMoney(r.amount)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <LedgerTable
+                      caption={t("projPay")}
+                      columns={[
+                        { id: "date", header: tC("date"), width: "22%", tone: "muted" },
+                        { id: "project", header: tC("project"), width: "34%", tone: "strong" },
+                        { id: "method", header: tW("methodLabel"), width: "22%" },
+                        { id: "amount", header: tC("amount"), width: "22%", align: "end", tone: "strong" },
+                      ]}
+                      rows={byDateDesc(report.projectLineItems).map((r) => ({
+                        id: r._id,
+                        cells: {
+                          date: formatDateDayMonth(new Date(r.date), locale),
+                          project: r.name,
+                          method: (
+                            <PaymentMethodLabel
+                              method={r.paymentMethod}
+                              className="text-sm text-foreground"
+                            />
+                          ),
+                          amount: formatMoney(r.amount),
+                        },
+                      }))}
+                    />
                   )}
                 </CardContent>
               </Card>

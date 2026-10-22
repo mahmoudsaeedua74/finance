@@ -5,6 +5,7 @@ import { Expense, FreelanceProject, Project } from "@/lib/models";
 import {
   buildProjectJobDto,
   listProjectJobs,
+  listProjectPayoutLines,
   syncJobStatus,
 } from "@/lib/services/freelance-project-service";
 import { isWalletPaymentMethod, parsePaymentMethodBody } from "@/lib/payment-method";
@@ -29,6 +30,10 @@ export async function GET(req: Request) {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const filters = parseProjectJobListFilters(searchParams);
+    if (searchParams.get("lines") === "payouts") {
+      const data = await listProjectPayoutLines(user.id, filters);
+      return NextResponse.json({ data });
+    }
     const { offset, limit } = parseProjectJobPagination(searchParams);
     const { rows, meta, hasMore, nextOffset } = await listProjectJobs(user.id, filters, {
       offset,

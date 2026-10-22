@@ -39,6 +39,12 @@ export function formatDateLong(d: Date, localeCode = "en") {
   return dformat(d, "PP", { locale: dfLocale(localeCode) });
 }
 
+/** Day and month only, e.g. "21 أكتوبر" / "21 October". */
+export function formatDateDayMonth(d: Date, localeCode = "en") {
+  if (Number.isNaN(d.getTime())) return "—";
+  return dformat(d, "d MMMM", { locale: dfLocale(localeCode) });
+}
+
 export function formatDateMedium(d: Date, localeCode = "en") {
   return dformat(d, "MMM d, yyyy", { locale: dfLocale(localeCode) });
 }

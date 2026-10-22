@@ -35,6 +35,30 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * html2canvas splits an RTL text node on every space, then draws each Arabic
+ * letter alone. Words lose their spaces and their letters disconnect.
+ * One inline-block per word keeps a single shaped run, and a gap between them.
+ * A Latin-leading line stays one LTR run so "ATHAR & nfas" is not reversed.
+ */
+function rtlHtml(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+  const firstStrong = s.match(/[A-Za-z\u0600-\u06FF]/);
+  const arabicFirst = !firstStrong || /[\u0600-\u06FF]/.test(firstStrong[0]);
+  if (!arabicFirst) return `<bdi class="tok" dir="ltr">${esc(s)}</bdi>`;
+  return s
+    .split(/\s+/)
+    .map((part) => {
+      const safe = esc(part);
+      if (/[A-Za-z0-9]/.test(part) && !/[\u0600-\u06FF]/.test(part)) {
+        return `<bdi class="tok" dir="ltr">${safe}</bdi>`;
+      }
+      return `<span class="tok">${safe}</span>`;
+    })
+    .join("");
+}
+
 function docFontLinks(): string {
   return `
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -69,9 +93,20 @@ function docStyles(): string {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       font-synthesis: none;
-      text-rendering: geometricPrecision;
+      text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
+      direction: rtl;
+      letter-spacing: 0;
     }
+
+    .tok {
+      display: inline-block;
+      white-space: nowrap;
+      letter-spacing: 0;
+      unicode-bidi: isolate;
+    }
+    .tok + .tok { margin-inline-start: 0.35em; }
+    bdi.tok { direction: ltr; }
 
     .sheet {
       width: 210mm;
@@ -112,7 +147,6 @@ function docStyles(): string {
       color: var(--ink);
       margin-bottom: 4px;
       line-height: 1.45;
-      word-break: break-word;
     }
     .doc-head .sub {
       font-size: 12px;
@@ -263,14 +297,14 @@ function docStyles(): string {
 
 function endFooterHtml(footerNote?: string): string {
   const note = footerNote
-    ? `<div class="note">${esc(footerNote)}</div>`
+    ? `<div class="note">${rtlHtml(footerNote)}</div>`
     : "";
   return `
     <div class="end-footer">
       <div>
         <div class="who">${DOC_BRAND.nameEn}</div>
-        <div>عروض أسعار وكشوف مشاريع</div>
-        <div>Personal Finance · مستندات العملاء</div>
+        <div>${rtlHtml("عروض أسعار وكشوف مشاريع")}</div>
+        <div>${rtlHtml("Personal Finance · مستندات العملاء")}</div>
         ${note}
       </div>
       <div style="text-align:left; direction:ltr;">
@@ -300,13 +334,13 @@ function wrapDocument(opts: {
   <section class="sheet">
     <div class="page-chrome">
       <span class="identity">${DOC_BRAND.nameEn}</span>
-      <span class="doc-label">${esc(opts.docLabel)}</span>
+      <span class="doc-label">${rtlHtml(opts.docLabel)}</span>
     </div>
     <div class="sheet-body">
       ${opts.bodyHtml}
     </div>
     ${endFooterHtml(opts.footerNote)}
-    <div class="page-num">صفحة 1</div>
+    <div class="page-num">${rtlHtml("صفحة 1")}</div>
   </section>
 </body>
 </html>`;
@@ -360,10 +394,10 @@ export function buildProposalHtml(input: ProposalDocInput): string {
   const bodyRows = items
     .map((item, i) => {
       const bits: string[] = [];
-      if (item.description) bits.push(esc(item.description));
+      if (item.description) bits.push(rtlHtml(item.description));
       if (!isClient) {
-        if (item.tech) bits.push(esc(item.tech));
-        if (item.complexity) bits.push(COMPLEXITY_AR[item.complexity] ?? item.complexity);
+        if (item.tech) bits.push(rtlHtml(item.tech));
+        if (item.complexity) bits.push(rtlHtml(COMPLEXITY_AR[item.complexity] ?? item.complexity));
       }
       const meta = bits.length
         ? `<br /><span style="color:${DOC_BRAND.muted};font-size:10px">${bits.join(" · ")}</span>`
@@ -371,7 +405,7 @@ export function buildProposalHtml(input: ProposalDocInput): string {
       const moneyCell = item.amount != null ? formatMoney(item.amount, cur) : "—";
       return `<tr>
         <td class="num">${i + 1}</td>
-        <td class="r"><strong>${esc(item.title)}</strong>${meta}</td>
+        <td class="r"><strong>${rtlHtml(item.title)}</strong>${meta}</td>
         <td class="amt">${moneyCell}</td>
       </tr>`;
     })
@@ -381,28 +415,28 @@ export function buildProposalHtml(input: ProposalDocInput): string {
     !isClient &&
     (input.collected != null || input.pending != null || input.statusLabel)
       ? `
-        <div class="row"><span>المحصّل</span><strong>${formatMoney(input.collected ?? 0, cur)}</strong></div>
-        <div class="row"><span>المتبقي</span><strong>${formatMoney(input.pending ?? 0, cur)}</strong></div>
-        <div class="row"><span>الحالة</span><strong>${esc(input.statusLabel || "—")}</strong></div>`
+        <div class="row"><span>${rtlHtml("المحصّل")}</span><strong>${formatMoney(input.collected ?? 0, cur)}</strong></div>
+        <div class="row"><span>${rtlHtml("المتبقي")}</span><strong>${formatMoney(input.pending ?? 0, cur)}</strong></div>
+        <div class="row"><span>${rtlHtml("الحالة")}</span><strong>${rtlHtml(input.statusLabel || "—")}</strong></div>`
       : "";
 
   const bodyHtml = `
       <div class="doc-head">
-        <h1>${esc(input.title)}</h1>
-        ${input.subtitle ? `<div class="sub">${esc(input.subtitle)}</div>` : ""}
-        <div class="byline">${esc(input.dateLabel)}</div>
+        <h1>${rtlHtml(input.title)}</h1>
+        ${input.subtitle ? `<div class="sub">${rtlHtml(input.subtitle)}</div>` : ""}
+        <div class="byline">${rtlHtml(input.dateLabel)}</div>
       </div>
       <div class="meta">
-        <div class="row"><span>العميل</span><strong>${esc(input.clientName || "—")}</strong></div>
-        <div class="row"><span>الإجمالي</span><strong class="brand">${totalFmt}</strong></div>
-        <div class="row"><span>عدد البنود</span><strong>${items.length}</strong></div>
+        <div class="row"><span>${rtlHtml("العميل")}</span><strong>${rtlHtml(input.clientName || "—")}</strong></div>
+        <div class="row"><span>${rtlHtml("الإجمالي")}</span><strong class="brand">${totalFmt}</strong></div>
+        <div class="row"><span>${rtlHtml("عدد البنود")}</span><strong>${items.length}</strong></div>
         ${paymentMeta}
       </div>
-      <h2>${isClient ? "بنود العرض" : "بنود العرض (داخلي)"}</h2>
+      <h2>${rtlHtml(isClient ? "بنود العرض" : "بنود العرض (داخلي)")}</h2>
       <table>
-        <thead><tr><th style="width:8%">#</th><th style="width:66%">البند / الوصف</th><th style="width:26%">المبلغ</th></tr></thead>
+        <thead><tr><th style="width:8%">#</th><th style="width:66%">${rtlHtml("البند / الوصف")}</th><th style="width:26%">${rtlHtml("المبلغ")}</th></tr></thead>
         <tbody>${bodyRows}</tbody>
-        <tfoot><tr><td colspan="2">الإجمالي</td><td class="amt">${totalFmt}</td></tr></tfoot>
+        <tfoot><tr><td colspan="2">${rtlHtml("الإجمالي")}</td><td class="amt">${totalFmt}</td></tr></tfoot>
       </table>`;
 
   return wrapDocument({
@@ -420,42 +454,42 @@ export function buildStatementHtml(input: StatementDocInput): string {
   const bodyRows = input.rows
     .map((r, i) => {
       if (isClient) {
-        return `<tr><td class="num">${i + 1}</td><td class="r">${esc(r.name)}</td><td class="amt">${formatMoney(r.amount)}</td></tr>`;
+        return `<tr><td class="num">${i + 1}</td><td class="r">${rtlHtml(r.name)}</td><td class="amt">${formatMoney(r.amount)}</td></tr>`;
       }
       return `<tr>
         <td class="num">${i + 1}</td>
-        <td class="r">${esc(r.name)}</td>
+        <td class="r">${rtlHtml(r.name)}</td>
         <td class="amt">${formatMoney(r.amount)}</td>
         <td class="amt">${formatMoney(r.collected ?? 0)}</td>
         <td class="amt">${formatMoney(r.pending ?? 0)}</td>
-        <td class="num">${esc(r.statusLabel ?? "—")}</td>
+        <td>${rtlHtml(r.statusLabel ?? "—")}</td>
       </tr>`;
     })
     .join("");
 
   const headerCols = isClient
-    ? `<th style="width:8%">#</th><th>المشروع</th><th style="width:22%">المبلغ</th>`
-    : `<th style="width:6%">#</th><th>المشروع</th><th style="width:14%">المتفق</th><th style="width:14%">المحصّل</th><th style="width:14%">المتبقي</th><th style="width:12%">الحالة</th>`;
+    ? `<th style="width:8%">#</th><th>${rtlHtml("المشروع")}</th><th style="width:22%">${rtlHtml("المبلغ")}</th>`
+    : `<th style="width:6%">#</th><th>${rtlHtml("المشروع")}</th><th style="width:14%">${rtlHtml("المتفق")}</th><th style="width:14%">${rtlHtml("المحصّل")}</th><th style="width:14%">${rtlHtml("المتبقي")}</th><th style="width:12%">${rtlHtml("الحالة")}</th>`;
 
   const footColspan = isClient ? 2 : 5;
   const docLabel = isClient ? "كشف حساب مشاريع" : "كشف تفصيلي (داخلي)";
 
   const bodyHtml = `
       <div class="doc-head">
-        <h1>${esc(input.title)}</h1>
-        <div class="sub">كشف مشاريع — ${esc(input.clientName || "عميل")}</div>
-        <div class="byline">${esc(input.dateLabel)}</div>
+        <h1>${rtlHtml(input.title)}</h1>
+        <div class="sub">${rtlHtml(`كشف مشاريع — ${input.clientName || "عميل"}`)}</div>
+        <div class="byline">${rtlHtml(input.dateLabel)}</div>
       </div>
       <div class="meta">
-        <div class="row"><span>العميل</span><strong>${esc(input.clientName || "—")}</strong></div>
-        <div class="row"><span>عدد المشاريع</span><strong>${input.rows.length}</strong></div>
-        <div class="row"><span>الإجمالي</span><strong class="brand">${totalFmt}</strong></div>
+        <div class="row"><span>${rtlHtml("العميل")}</span><strong>${rtlHtml(input.clientName || "—")}</strong></div>
+        <div class="row"><span>${rtlHtml("عدد المشاريع")}</span><strong>${input.rows.length}</strong></div>
+        <div class="row"><span>${rtlHtml("الإجمالي")}</span><strong class="brand">${totalFmt}</strong></div>
       </div>
-      <h2>${isClient ? "المشاريع" : "التفاصيل"}</h2>
+      <h2>${rtlHtml(isClient ? "المشاريع" : "التفاصيل")}</h2>
       <table>
         <thead><tr>${headerCols}</tr></thead>
         <tbody>${bodyRows}</tbody>
-        <tfoot><tr><td colspan="${footColspan}">الإجمالي</td><td class="amt">${totalFmt}</td></tr></tfoot>
+        <tfoot><tr><td colspan="${footColspan}">${rtlHtml("الإجمالي")}</td><td class="amt">${totalFmt}</td></tr></tfoot>
       </table>`;
 
   return wrapDocument({

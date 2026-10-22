@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { PaymentMethod } from "@/lib/payment-method";
+import { cn } from "@/lib/utils";
 
 export function paymentMethodText(
   method: PaymentMethod | string | null | undefined,
@@ -14,8 +15,10 @@ export function paymentMethodText(
 
 export function PaymentMethodLabel({
   method,
+  className,
 }: {
   method?: PaymentMethod | string | null;
+  className?: string;
 }) {
   const t = useTranslations("wallet");
   const text = paymentMethodText(method, {
@@ -23,5 +26,5 @@ export function PaymentMethodLabel({
     card: t("cardShort"),
     unspecified: "—",
   });
-  return <span className="text-xs text-muted-foreground">{text}</span>;
+  return <span className={cn("text-xs text-muted-foreground", className)}>{text}</span>;
 }

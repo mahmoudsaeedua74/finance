@@ -3,7 +3,7 @@ export type ProjectJobArchiveFilter = "active" | "archived" | "all";
 /** Default list = uncollected only; switch to `all` to include collected. */
 export type ProjectJobCollectedFilter = "pending" | "all";
 
-export type ProjectJobViewMode = "list" | "kanban";
+export type ProjectJobViewMode = "list" | "kanban" | "payouts";
 
 export type ProjectJobSortBy = "createdAt" | "startDate";
 export type ProjectJobSortOrder = "desc" | "asc";
@@ -92,7 +92,8 @@ export function parseProjectJobListFilters(
     archiveRaw === "archived" || archiveRaw === "all" ? archiveRaw : "active";
 
   const viewRaw = searchParams.get("view");
-  const view: ProjectJobViewMode = viewRaw === "kanban" ? "kanban" : "list";
+  const view: ProjectJobViewMode =
+    viewRaw === "kanban" ? "kanban" : viewRaw === "payouts" ? "payouts" : "list";
 
   return { collected, projectType, sort, client, workPhase, q, archive, view };
 }

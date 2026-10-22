@@ -63,7 +63,10 @@ export async function downloadHtmlAsPdf(html: string, filename: string): Promise
         clonedDoc.documentElement.setAttribute("dir", "rtl");
         clonedDoc.documentElement.setAttribute("lang", "ar");
         clonedDoc.body.style.fontFamily = '"IBM Plex Sans Arabic",Tahoma,sans-serif';
+        clonedDoc.body.style.direction = "rtl";
         clonedDoc.body.style.letterSpacing = "0";
+        clonedDoc.body.style.wordSpacing = "0";
+        clonedDoc.body.style.textRendering = "optimizeLegibility";
       },
     });
 

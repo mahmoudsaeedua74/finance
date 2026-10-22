@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ProjectJobsFilterBar } from "@/components/projects/project-jobs-filter-bar";
+import { ProjectPayoutsPanel } from "@/components/projects/project-payouts-panel";
 import { ProjectNormalBanner } from "@/components/projects/project-normal-banner";
 import {
   ProjectJobsKanbanSkeleton,
@@ -773,6 +774,7 @@ export default function ProjectsPage() {
         loading={isListLoading || isFilterRefreshing}
       />
 
+      {viewMode !== "payouts" && (
       <ProjectBulkActionBar
         count={selectedIds.size}
         onClear={() => setSelectedIds(new Set())}
@@ -796,6 +798,7 @@ export default function ProjectsPage() {
           pdfInternal: t("pdfWithDetails"),
         }}
       />
+      )}
 
       {isListLoading ? (
         <ProjectJobsTotalsSkeleton />
@@ -840,7 +843,9 @@ export default function ProjectsPage() {
       </div>
       )}
 
-      {isListLoading ? (
+      {viewMode === "payouts" ? (
+        <ProjectPayoutsPanel filters={filters} />
+      ) : isListLoading ? (
         viewMode === "kanban" ? <ProjectJobsKanbanSkeleton /> : <ProjectJobsListSkeleton />
       ) : jobs.length === 0 ? (
         <Card className="border-dashed">

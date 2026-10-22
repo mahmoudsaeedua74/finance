@@ -8,7 +8,7 @@ import {
 } from "@/lib/models";
 import { monthDateBoundsUTC } from "@/lib/db-month-filters";
 import { normalizeBillingMode } from "@/lib/billing-mode";
-import { normalizePaymentMethod } from "@/lib/payment-method";
+import { normalizePaymentMethod, type PaymentMethod } from "@/lib/payment-method";
 import { buildProjectTypeMongoFilter, normalizeProjectType } from "@/lib/project-type";
 import { normalizeWorkPhase, type WorkPhase } from "@/lib/project-work-phase";
 import type {
@@ -539,6 +539,91 @@ export async function listProjectJobs(
     nextOffset: paginated.nextOffset,
     meta,
   };
+}
+
+export type ProjectPayoutLine = {
+  id: string;
+  date: string;
+  projectName: string;
+  paymentMethod: PaymentMethod;
+  amount: number;
+};
+
+const COLLECTED_PAYOUT = {
+  $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+};
+
+/**
+ * Collected payout lines for the current project filters, newest date first.
+ * Job "uncollected" filter is not applied — a paid installment still belongs on this list.
+ */
+export async function listProjectPayoutLines(
+  userId: string,
+  filters?: ProjectJobListFilters
+): Promise<ProjectPayoutLine[]> {
+  const uid = new mongoose.Types.ObjectId(userId);
+  const jobs = await FreelanceProject.find(
+    buildProjectJobsMongoQuery(uid, { ...filters, collected: "all" })
+  )
+    .select("_id name")
+    .lean();
+
+  const nameById = new Map(jobs.map((j) => [String(j._id), j.name]));
+  const ids = jobs.map((j) => j._id);
+  const select = "name freelanceProjectId amount date paymentMethod";
+
+  const linked = ids.length
+    ? await Project.find({
+        userId: uid,
+        freelanceProjectId: { $in: ids },
+        ...COLLECTED_PAYOUT,
+      })
+        .select(select)
+        .lean()
+    : [];
+
+  const narrowed =
+    (filters?.projectType != null && filters.projectType !== "all") ||
+    Boolean(filters?.client?.trim()) ||
+    (filters?.workPhase != null && filters.workPhase !== "all") ||
+    filters?.archive === "archived";
+
+  const q = filters?.q?.trim();
+  const legacy = narrowed
+    ? []
+    : await Project.find({
+        userId: uid,
+        $and: [
+          COLLECTED_PAYOUT,
+          { $or: [{ freelanceProjectId: null }, { freelanceProjectId: { $exists: false } }] },
+          ...(q ? [{ name: { $regex: escapeRegex(q), $options: "i" } }] : []),
+        ],
+      })
+        .select(select)
+        .lean();
+
+  const seen = new Set<string>();
+  const lines: ProjectPayoutLine[] = [];
+  for (const p of [...linked, ...legacy]) {
+    const id = String(p._id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const jobName = p.freelanceProjectId ? nameById.get(String(p.freelanceProjectId)) : undefined;
+    lines.push({
+      id,
+      date: new Date(p.date).toISOString(),
+      projectName: (jobName || p.name || "").trim(),
+      paymentMethod: normalizePaymentMethod(p.paymentMethod),
+      amount: p.amount,
+    });
+  }
+
+  lines.sort((a, b) => {
+    const byDate = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (byDate !== 0) return byDate;
+    return a.projectName.localeCompare(b.projectName, "ar");
+  });
+  return lines;
 }
 
 export type NormalProjectPreview = {

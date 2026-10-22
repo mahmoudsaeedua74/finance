@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { MonthlyReportDto } from "@/types/report";
+import { toLocalYmd } from "@/lib/ymd";
 
 /**
  * Exports a monthly report workbook (.xlsx) in the browser.
@@ -20,35 +21,31 @@ export function exportMonthlyReportExcel(
   ];
 
   const incomeRows: (string | number)[][] = [
-    ["Date", "Title", "Type", "Method", "Amount"],
+    ["Date", "Title", "Method", "Amount"],
     ...data.incomeLineItems.map((i) => [
       new Date(i.date).toISOString().slice(0, 10),
       i.title,
-      i.incomeType,
       i.paymentMethod ?? "",
       i.amount,
     ]),
   ];
 
   const projectRows: (string | number)[][] = [
-    ["Date", "Project", "Amount", "Method", "Note"],
+    ["Date", "Project", "Method", "Amount"],
     ...data.projectLineItems.map((p) => [
       new Date(p.date).toISOString().slice(0, 10),
       p.name,
-      p.amount,
       p.paymentMethod ?? "",
-      p.note ?? "",
+      p.amount,
     ]),
   ];
 
   const expenseRows: (string | number)[][] = [
-    ["Date", "Title", "Category", "Type", "Project", "Method", "Amount"],
+    ["Date", "Title", "Category", "Method", "Amount"],
     ...data.expenseLineItems.map((e) => [
       new Date(e.date).toISOString().slice(0, 10),
       e.title,
       e.category,
-      e.source,
-      e.projectName ?? "",
       e.paymentMethod ?? "",
       e.amount,
     ]),
@@ -105,6 +102,52 @@ export function exportProjectListExcel(
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Projects");
   XLSX.writeFile(wb, filename);
+}
+
+export type PayoutLineExportRow = {
+  date: string;
+  projectName: string;
+  methodLabel: string;
+  amount: number;
+};
+
+/**
+ * One sheet: date, project, payment method, amount. Newest first, with a total.
+ */
+export function exportProjectPayoutLinesExcel(
+  rows: PayoutLineExportRow[],
+  options: {
+    filename?: string;
+    sheetName: string;
+    headers: { date: string; project: string; method: string; amount: string; total: string };
+    rtl?: boolean;
+  }
+) {
+  const headers = options.headers;
+  const aoa: (string | number)[][] = [
+    [headers.date, headers.project, headers.method, headers.amount],
+    ...rows.map((r) => [
+      toLocalYmd(new Date(r.date)),
+      r.projectName,
+      r.methodLabel,
+      r.amount,
+    ]),
+  ];
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  aoa.push(["", headers.total, "", total]);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 14 }, { wch: 36 }, { wch: 16 }, { wch: 16 }];
+  if (rows.length > 0) {
+    ws["!autofilter"] = { ref: `A1:D${rows.length + 1}` };
+  }
+  const wb = XLSX.utils.book_new();
+  if (options.rtl) {
+    wb.Workbook = { Views: [{ RTL: true }] };
+  }
+  const sheetName = options.sheetName.slice(0, 31) || "Payouts";
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, options.filename ?? "project-payouts.xlsx");
 }
 
 export type TransactionExportRow = {

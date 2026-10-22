@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Filter, LayoutGrid, Columns3, X } from "lucide-react";
+import { Filter, LayoutGrid, Columns3, List, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FilterNativeSelect } from "@/components/ui/filter-native-select";
 import { Input } from "@/components/ui/input";
@@ -186,12 +186,12 @@ export function ProjectJobsFilterBar({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant={view === "list" ? "secondary" : "ghost"}
-            className="size-9 p-0"
+            className="size-11 p-0"
             onClick={() => onViewChange("list")}
             aria-label={t("viewList")}
             aria-pressed={view === "list"}
@@ -202,19 +202,31 @@ export function ProjectJobsFilterBar({
             type="button"
             size="sm"
             variant={view === "kanban" ? "secondary" : "ghost"}
-            className="size-9 p-0"
+            className="size-11 p-0"
             onClick={() => onViewChange("kanban")}
             aria-label={t("viewKanban")}
             aria-pressed={view === "kanban"}
           >
             <Columns3 className="size-4" />
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={view === "payouts" ? "secondary" : "ghost"}
+            className="h-11 gap-1.5 px-3"
+            onClick={() => onViewChange("payouts")}
+            aria-label={t("viewPayouts")}
+            aria-pressed={view === "payouts"}
+          >
+            <List className="size-4" />
+            {t("viewPayouts")}
+          </Button>
           {hasActive ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="min-h-9 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
+              className="min-h-11 gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
               onClick={onClearFilters}
             >
               <X className="size-3.5" />
