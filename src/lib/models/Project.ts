@@ -15,6 +15,8 @@ export interface IProject {
   paymentMethod: PaymentMethod;
   /** Optional note (reason / details) for this payout line. */
   note?: string;
+  /** Contract installment, or monthly support kept on the same project. */
+  lineKind: "installment" | "support";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +41,11 @@ const ProjectSchema = new Schema<IProject>(
       default: "unspecified",
     },
     note: { type: String, trim: true, default: "" },
+    lineKind: {
+      type: String,
+      enum: ["installment", "support"],
+      default: "installment",
+    },
   },
   { timestamps: true }
 );

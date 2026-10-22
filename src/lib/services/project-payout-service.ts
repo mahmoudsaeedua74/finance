@@ -21,6 +21,7 @@ async function sumCollected(userId: string, jobId: mongoose.Types.ObjectId) {
     userId,
     freelanceProjectId: jobId,
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+    lineKind: { $ne: "support" },
   }).lean();
   return rows.reduce((s, p) => s + p.amount, 0);
 }
@@ -42,6 +43,7 @@ export async function normalizePendingInstallments(
     userId: uid,
     freelanceProjectId: jobId,
     isCollected: false,
+    lineKind: { $ne: "support" },
   }).sort({ date: 1 });
 
   const pendingSum = pending.reduce((s, p) => s + p.amount, 0);
@@ -116,6 +118,7 @@ export async function addInstallment(
     collectedAt: null,
     paymentMethod: "unspecified",
     note: input.note?.trim().slice(0, 500) ?? "",
+    lineKind: "installment",
   });
 
   await normalizePendingInstallments(userId, job);

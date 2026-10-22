@@ -389,6 +389,50 @@ export async function POST(req: Request, { params }: Ctx) {
       return NextResponse.json({ data: dto }, { status: 201 });
     }
 
+    if (action === "add_support") {
+      const amount = Number(body?.amount);
+      const date = body?.date ? new Date(String(body.date)) : new Date();
+      const note = typeof body?.note === "string" ? body.note.trim().slice(0, 500) : "";
+      let paymentMethod;
+      try {
+        paymentMethod = resolveCollectPaymentMethod(
+          parsePaymentMethodBody(body?.paymentMethod),
+          job.expectedPaymentMethod
+        );
+      } catch (e) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : PAYMENT_METHOD_REQUIRED_MSG },
+          { status: 400 }
+        );
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+      }
+      if (Number.isNaN(date.getTime())) {
+        return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+      }
+      await Project.create({
+        userId: user.id,
+        freelanceProjectId: job._id,
+        name: job.name,
+        amount,
+        date,
+        isCollected: true,
+        collectedAt: date,
+        paymentMethod,
+        note,
+        lineKind: "support",
+      });
+      if (!isRetainerMode(job.billingMode)) {
+        job.billingMode = "retainer";
+        await job.save();
+      }
+      await syncJobStatus(String(job._id), user.id);
+      const refreshed = await FreelanceProject.findById(job._id);
+      const dto = await buildProjectJobDto((refreshed ?? job).toObject() as never, user.id);
+      return NextResponse.json({ data: dto }, { status: 201 });
+    }
+
     if (action === "add_payout") {
       const amount = Number(body?.amount);
       const isCollected = Boolean(body?.isCollected);

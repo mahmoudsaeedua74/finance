@@ -49,6 +49,7 @@ export type ProjectJobDto = {
     collectedAt: string | null;
     paymentMethod: PaymentMethod;
     note: string;
+    lineKind: "installment" | "support";
   }[];
   costs: {
     id: string;

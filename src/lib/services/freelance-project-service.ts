@@ -267,7 +267,7 @@ export async function buildProjectJobDto(
 
   const [payouts, costs, spentAgg] = await Promise.all([
     Project.find({ userId: uid, freelanceProjectId: jobId })
-      .select("amount date isCollected collectedAt paymentMethod note")
+      .select("amount date isCollected collectedAt paymentMethod note lineKind")
       .sort({ date: -1 })
       .lean(),
     Expense.find(costMatch)
@@ -286,7 +286,7 @@ export async function buildProjectJobDto(
     .reduce((s, p) => s + p.amount, 0);
   const spentAmount = spentAgg[0]?.total ?? 0;
   const uncollectedAmount = payouts
-    .filter((p) => p.isCollected === false)
+    .filter((p) => p.isCollected === false && p.lineKind !== "support")
     .reduce((s, p) => s + p.amount, 0);
   const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount, job.billingMode);
   const derivedWorkPhase = effectiveWorkPhase(
@@ -363,6 +363,7 @@ export async function buildProjectJobDto(
         collectedAt: p.collectedAt ? p.collectedAt.toISOString() : null,
         paymentMethod: normalizePaymentMethod(p.paymentMethod),
         note: p.isCollected !== false && p.note?.trim() === "Pending collection" ? "" : p.note?.trim() ?? "",
+        lineKind: (p.lineKind === "support" ? "support" : "installment") as "installment" | "support",
       }))
       .sort((a, b) => {
         if (a.isCollected !== b.isCollected) return a.isCollected ? 1 : -1;
@@ -407,6 +408,7 @@ async function buildProjectJobListDtos(
           userId: uid,
           freelanceProjectId: { $in: jobIds },
           isCollected: false,
+          lineKind: { $ne: "support" },
         },
       },
       { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },

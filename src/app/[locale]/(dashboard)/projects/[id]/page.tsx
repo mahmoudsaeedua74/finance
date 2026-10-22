@@ -72,6 +72,11 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [instAmount, setInstAmount] = useState("");
   const [instDue, setInstDue] = useState(() => defaultFormDateYmd());
   const [instNote, setInstNote] = useState("");
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportAmount, setSupportAmount] = useState("");
+  const [supportDate, setSupportDate] = useState(() => defaultFormDateYmd());
+  const [supportNote, setSupportNote] = useState("");
+  const [supportMethod, setSupportMethod] = useState<PaymentMethod>("cash");
 
   const openCollect = useCallback(
     (payout?: ProjectJobDto["payouts"][number]) => {
@@ -137,18 +142,27 @@ export default function ProjectJobDetailPage({ params }: Props) {
     ),
   });
 
-  const setRetainer = useMutation({
-    mutationFn: (on: boolean) => {
+  const addSupport = useMutation({
+    mutationFn: () => {
       if (!job) return Promise.reject(new Error("No job"));
       return jsonFetch(`/api/project-jobs/${job.id}`, {
-        method: "PUT",
-        body: JSON.stringify({ billingMode: on ? "retainer" : "fixed" }),
+        method: "POST",
+        body: JSON.stringify({
+          action: "add_support",
+          amount: Number(supportAmount),
+          date: new Date(supportDate).toISOString(),
+          note: supportNote,
+          paymentMethod: supportMethod,
+        }),
       });
     },
     ...mergeMutationToasts(
-      { loading: tC("saving"), success: t("billingModeSaved") },
+      { loading: tC("saving"), success: t("supportAdded") },
       {
         onSuccess: () => {
+          setSupportOpen(false);
+          setSupportAmount("");
+          setSupportNote("");
           invalidateProjects();
           void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
         },
@@ -228,22 +242,6 @@ export default function ProjectJobDetailPage({ params }: Props) {
 
       <ProjectCollectionsBanner variant="link" />
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card p-3 text-sm">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-          checked={job.billingMode === "retainer"}
-          disabled={setRetainer.isPending || job.status === "cancelled"}
-          onChange={(e) => setRetainer.mutate(e.target.checked)}
-        />
-        <span>
-          <span className="font-medium">{t("billingModeRetainer")}</span>
-          <span className="mt-1 block text-xs text-muted-foreground">{t("billingModeHint")}</span>
-        </span>
-      </label>
-
-      <ProjectPeriodReport payouts={job.payouts} costs={job.costs} />
-
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="text-xs text-muted-foreground">{t("agreedAmount")}</p>
@@ -302,6 +300,21 @@ export default function ProjectJobDetailPage({ params }: Props) {
             {t("addInstallmentBtn")}
           </Button>
         )}
+        {job.status !== "cancelled" && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setSupportDate(defaultFormDateYmd());
+              setSupportMethod(job.expectedPaymentMethod === "card" ? "card" : "cash");
+              setSupportOpen(true);
+            }}
+          >
+            <Plus className="me-1.5 size-3.5" />
+            {t("addSupportBtn")}
+          </Button>
+        )}
         <Button
           type="button"
           size="sm"
@@ -331,11 +344,11 @@ export default function ProjectJobDetailPage({ params }: Props) {
         </Link>
       </div>
 
-      {job.payouts.length > 0 && (
+      {job.payouts.some((p) => p.lineKind !== "support") && (
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="mb-2 font-medium text-sm">{t("installmentsList")}</p>
           <ul className="space-y-2">
-            {job.payouts.map((p) => (
+            {job.payouts.filter((p) => p.lineKind !== "support").map((p) => (
               <li
                 key={p.id}
                 className={cn(
@@ -375,6 +388,39 @@ export default function ProjectJobDetailPage({ params }: Props) {
         </div>
       )}
 
+      <div className="rounded-xl border border-border/60 bg-card p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="font-medium text-sm">{t("supportSection")}</p>
+          {job.status !== "cancelled" && (
+            <Button type="button" size="sm" variant="outline" onClick={() => setSupportOpen(true)}>
+              <Plus className="me-1.5 size-3.5" />
+              {t("addSupportBtn")}
+            </Button>
+          )}
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">{t("supportSectionHint")}</p>
+        {job.payouts.some((p) => p.lineKind === "support") ? (
+          <ul className="space-y-2">
+            {job.payouts.filter((p) => p.lineKind === "support").map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-semibold tabular-nums">{formatMoney(p.amount)}</span>
+                    <PaymentMethodLabel method={p.paymentMethod} />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDateLong(new Date(p.collectedAt || p.date), locale)}
+                    {p.note ? ` · ${p.note}` : ""}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t("supportEmpty")}</p>
+        )}
+      </div>
+
       {job.costs.length > 0 && (
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="mb-2 font-medium text-sm">{t("costsList")}</p>
@@ -391,6 +437,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
           </ul>
         </div>
       )}
+
+      <ProjectPeriodReport payouts={job.payouts} costs={job.costs} />
 
       <Dialog open={collectOpen} onOpenChange={(o) => { if (!o) { setCollectOpen(false); setCollectPayoutId(undefined); } }}>
         <DialogContent className="sm:max-w-md">
@@ -448,6 +496,40 @@ export default function ProjectJobDetailPage({ params }: Props) {
               onClick={() => addInstallment.mutate(undefined)}
             >
               {addInstallment.isPending ? <Loader2 className="size-4 animate-spin" /> : t("addInstallmentBtn")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("addSupportTitle")}</DialogTitle>
+            <DialogDescription>{t("supportSectionHint")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{tC("amount")}</Label>
+              <Input type="number" step="0.01" className="h-11" value={supportAmount} onChange={(e) => setSupportAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{tC("date")}</Label>
+              <Input type="date" className="h-11" value={supportDate} onChange={(e) => setSupportDate(e.target.value)} />
+            </div>
+            <PaymentMethodField value={supportMethod} onChange={setSupportMethod} optional={false} size="compact" />
+            <div className="space-y-2">
+              <Label>{t("installmentNote")}</Label>
+              <Input className="h-11" value={supportNote} onChange={(e) => setSupportNote(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setSupportOpen(false)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              disabled={addSupport.isPending || !Number.isFinite(Number(supportAmount)) || Number(supportAmount) <= 0}
+              onClick={() => addSupport.mutate(undefined)}
+            >
+              {addSupport.isPending ? <Loader2 className="size-4 animate-spin" /> : t("addSupportBtn")}
             </Button>
           </DialogFooter>
         </DialogContent>
