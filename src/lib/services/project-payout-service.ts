@@ -1,7 +1,14 @@
 import mongoose from "mongoose";
+import { isRetainerMode } from "@/lib/billing-mode";
 import { Project, type IFreelanceProject } from "@/lib/models";
 import { syncJobStatus } from "@/lib/services/freelance-project-service";
 import type { PaymentMethod } from "@/lib/payment-method";
+
+function collectedNote(note: string | null | undefined): string {
+  const trimmed = note?.trim() ?? "";
+  if (!trimmed || trimmed === "Pending collection") return "";
+  return trimmed.slice(0, 500);
+}
 
 export type InstallmentInput = {
   amount: number;
@@ -21,8 +28,10 @@ async function sumCollected(userId: string, jobId: mongoose.Types.ObjectId) {
 /** Keep pending installment rows aligned with agreed − collected. */
 export async function normalizePendingInstallments(
   userId: string,
-  job: Pick<IFreelanceProject, "_id" | "agreedAmount" | "name">
+  job: Pick<IFreelanceProject, "_id" | "agreedAmount" | "name" | "billingMode">
 ) {
+  if (isRetainerMode(job.billingMode)) return;
+
   const jobId =
     typeof job._id === "string" ? new mongoose.Types.ObjectId(job._id) : job._id;
   const uid = new mongoose.Types.ObjectId(userId);
@@ -89,10 +98,12 @@ export async function addInstallment(
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Invalid installment amount");
   }
-  const collected = await sumCollected(userId, job._id as unknown as mongoose.Types.ObjectId);
-  const remaining = job.agreedAmount - collected;
-  if (amount > remaining + 0.01) {
-    throw new Error("Installment exceeds remaining balance");
+  if (!isRetainerMode(job.billingMode)) {
+    const collected = await sumCollected(userId, job._id as unknown as mongoose.Types.ObjectId);
+    const remaining = job.agreedAmount - collected;
+    if (amount > remaining + 0.01) {
+      throw new Error("Installment exceeds remaining balance");
+    }
   }
 
   const doc = await Project.create({
@@ -134,9 +145,10 @@ export async function collectProjectPayment(
 ) {
   const jobId =
     typeof job._id === "string" ? new mongoose.Types.ObjectId(job._id) : job._id;
+  const retainer = isRetainerMode(job.billingMode);
   const collectedBefore = await sumCollected(userId, jobId);
   const remaining = Math.max(0, job.agreedAmount - collectedBefore);
-  if (remaining <= 0.005) {
+  if (!retainer && remaining <= 0.005) {
     throw new Error("Nothing left to collect");
   }
 
@@ -152,11 +164,12 @@ export async function collectProjectPayment(
     row.collectedAt = input.date;
     row.date = input.date;
     row.paymentMethod = input.paymentMethod;
+    row.note = collectedNote(row.note);
     await row.save();
   } else {
     let amount = input.amount != null ? Number(input.amount) : remaining;
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid amount");
-    amount = Math.min(amount, remaining);
+    if (!retainer) amount = Math.min(amount, remaining);
 
     const pending = await Project.findOne({
       userId,
@@ -209,7 +222,7 @@ export async function createInstallmentSchedule(
 ) {
   const uid = new mongoose.Types.ObjectId(userId);
   const total = installments.reduce((s, i) => s + i.amount, 0);
-  if (total > job.agreedAmount + 0.01) {
+  if (!isRetainerMode(job.billingMode) && total > job.agreedAmount + 0.01) {
     throw new Error("Installments exceed agreed amount");
   }
 

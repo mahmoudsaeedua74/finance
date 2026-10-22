@@ -7,6 +7,7 @@ import {
   type IFreelanceProject,
 } from "@/lib/models";
 import { monthDateBoundsUTC } from "@/lib/db-month-filters";
+import { normalizeBillingMode } from "@/lib/billing-mode";
 import { normalizePaymentMethod } from "@/lib/payment-method";
 import { buildProjectTypeMongoFilter, normalizeProjectType } from "@/lib/project-type";
 import { normalizeWorkPhase, type WorkPhase } from "@/lib/project-work-phase";
@@ -21,6 +22,7 @@ import type { ProjectJobDto } from "@/types/project-job";
 import {
   derivePaymentStatus,
   effectiveWorkPhase,
+  pendingAmountForJob,
 } from "@/lib/project-job-rules";
 
 export type { ProjectJobDto };
@@ -32,7 +34,7 @@ export type { ProjectJobDto };
 export async function repairAllProjectJobStates(userId: string) {
   const uid = new mongoose.Types.ObjectId(userId);
   const jobs = await FreelanceProject.find({ userId: uid })
-    .select("_id agreedAmount status workPhase")
+    .select("_id agreedAmount status workPhase billingMode")
     .lean();
   if (jobs.length === 0) return;
 
@@ -55,8 +57,8 @@ export async function repairAllProjectJobStates(userId: string) {
 
   for (const job of jobs) {
     const collected = collectedMap.get(String(job._id)) ?? 0;
-    const status = derivePaymentStatus(job.agreedAmount, collected);
-    const workPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collected);
+    const status = derivePaymentStatus(job.agreedAmount, collected, job.billingMode);
+    const workPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collected, job.billingMode);
     const patch: Partial<{ status: FreelanceProjectStatus; workPhase: WorkPhase }> = {};
     if (job.status !== status) patch.status = status;
     if (normalizeWorkPhase(job.workPhase) !== workPhase) patch.workPhase = workPhase;
@@ -174,7 +176,7 @@ function buildProjectJobsSort(filters?: ProjectJobListFilters) {
 }
 
 const LIST_JOB_SELECT =
-  "_id name clientName projectEmail projectPassword agreedAmount currency originalAmount exchangeRateToEgp billingStatus invoiceId status workPhase isArchived archivedAt startDate createdAt expectedPaymentDate expectedPaymentMethod projectType";
+  "_id name clientName projectEmail projectPassword agreedAmount currency originalAmount exchangeRateToEgp billingStatus billingMode invoiceId status workPhase isArchived archivedAt startDate createdAt expectedPaymentDate expectedPaymentMethod projectType";
 
 async function aggregateFilteredTotals(
   uid: mongoose.Types.ObjectId,
@@ -236,8 +238,8 @@ export async function syncJobStatus(jobId: string, userId: string) {
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
   }).lean();
   const collected = payouts.reduce((s, p) => s + p.amount, 0);
-  const status = derivePaymentStatus(job.agreedAmount, collected);
-  const workPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collected);
+  const status = derivePaymentStatus(job.agreedAmount, collected, job.billingMode);
+  const workPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collected, job.billingMode);
   await FreelanceProject.updateOne({ _id: job._id }, { $set: { status, workPhase } });
   return status;
 }
@@ -283,8 +285,16 @@ export async function buildProjectJobDto(
     .filter((p) => p.isCollected !== false)
     .reduce((s, p) => s + p.amount, 0);
   const spentAmount = spentAgg[0]?.total ?? 0;
-  const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount);
-  const derivedWorkPhase = effectiveWorkPhase(job.workPhase, job.agreedAmount, collectedAmount);
+  const uncollectedAmount = payouts
+    .filter((p) => p.isCollected === false)
+    .reduce((s, p) => s + p.amount, 0);
+  const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount, job.billingMode);
+  const derivedWorkPhase = effectiveWorkPhase(
+    job.workPhase,
+    job.agreedAmount,
+    collectedAmount,
+    job.billingMode
+  );
 
   const currency = job.currency === "SAR" ? "SAR" : "EGP";
   const originalAmount =
@@ -306,6 +316,7 @@ export async function buildProjectJobDto(
     originalAmount,
     exchangeRateToEgp,
     billingStatus: job.billingStatus === "billed" ? "billed" : "unbilled",
+    billingMode: normalizeBillingMode(job.billingMode),
     invoiceId: job.invoiceId ? String(job.invoiceId) : null,
     status: job.status === "cancelled" ? "cancelled" : derivedStatus,
     workPhase: derivedWorkPhase,
@@ -335,7 +346,12 @@ export async function buildProjectJobDto(
       tech: item.tech?.trim() ?? "",
     })),
     collectedAmount,
-    pendingAmount: Math.max(0, job.agreedAmount - collectedAmount),
+    pendingAmount: pendingAmountForJob(
+      job.agreedAmount,
+      collectedAmount,
+      uncollectedAmount,
+      job.billingMode
+    ),
     spentAmount,
     netCollected: collectedAmount - spentAmount,
     payouts: payouts
@@ -346,7 +362,7 @@ export async function buildProjectJobDto(
         isCollected: p.isCollected !== false,
         collectedAt: p.collectedAt ? p.collectedAt.toISOString() : null,
         paymentMethod: normalizePaymentMethod(p.paymentMethod),
-        note: p.note?.trim() ?? "",
+        note: p.isCollected !== false && p.note?.trim() === "Pending collection" ? "" : p.note?.trim() ?? "",
       }))
       .sort((a, b) => {
         if (a.isCollected !== b.isCollected) return a.isCollected ? 1 : -1;
@@ -374,13 +390,23 @@ async function buildProjectJobListDtos(
     typeof j._id === "string" ? new mongoose.Types.ObjectId(j._id) : j._id
   );
 
-  const [payoutAgg, expenseAgg] = await Promise.all([
+  const [payoutAgg, uncollectedAgg, expenseAgg] = await Promise.all([
     Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
       {
         $match: {
           userId: uid,
           freelanceProjectId: { $in: jobIds },
           $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+        },
+      },
+      { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
+    ]),
+    Project.aggregate<{ _id: mongoose.Types.ObjectId; total: number }>([
+      {
+        $match: {
+          userId: uid,
+          freelanceProjectId: { $in: jobIds },
+          isCollected: false,
         },
       },
       { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
@@ -398,16 +424,19 @@ async function buildProjectJobListDtos(
   ]);
 
   const collectedMap = new Map(payoutAgg.map((r) => [String(r._id), r.total]));
+  const uncollectedMap = new Map(uncollectedAgg.map((r) => [String(r._id), r.total]));
   const spentMap = new Map(expenseAgg.map((r) => [String(r._id), r.total]));
 
   return jobs.map((job) => {
     const collectedAmount = collectedMap.get(String(job._id)) ?? 0;
+    const uncollectedAmount = uncollectedMap.get(String(job._id)) ?? 0;
     const spentAmount = spentMap.get(String(job._id)) ?? 0;
-    const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount);
+    const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount, job.billingMode);
     const derivedWorkPhase = effectiveWorkPhase(
       job.workPhase,
       job.agreedAmount,
-      collectedAmount
+      collectedAmount,
+      job.billingMode
     );
     const currency = job.currency === "SAR" ? "SAR" : "EGP";
     const originalAmount =
@@ -429,6 +458,7 @@ async function buildProjectJobListDtos(
       originalAmount,
       exchangeRateToEgp,
       billingStatus: job.billingStatus === "billed" ? "billed" : "unbilled",
+      billingMode: normalizeBillingMode(job.billingMode),
       invoiceId: job.invoiceId ? String(job.invoiceId) : null,
       status: job.status === "cancelled" ? "cancelled" : derivedStatus,
       workPhase: derivedWorkPhase,
@@ -452,7 +482,12 @@ async function buildProjectJobListDtos(
       projectPassword: job.projectPassword?.trim() ?? "",
       scopeItems: [],
       collectedAmount,
-      pendingAmount: Math.max(0, job.agreedAmount - collectedAmount),
+      pendingAmount: pendingAmountForJob(
+        job.agreedAmount,
+        collectedAmount,
+        uncollectedAmount,
+        job.billingMode
+      ),
       spentAmount,
       netCollected: collectedAmount - spentAmount,
       payouts: [],

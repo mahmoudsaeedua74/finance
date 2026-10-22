@@ -12,6 +12,7 @@ import {
   FolderKanban,
   Loader2,
   Pencil,
+  Plus,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
@@ -35,6 +36,8 @@ import { defaultFormDateYmd } from "@/lib/ymd";
 import type { ProjectJobDto } from "@/types/project-job";
 import type { PaymentMethod } from "@/lib/payment-method";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
+import { PaymentMethodLabel } from "@/components/forms/payment-method-label";
+import { ProjectPeriodReport } from "@/components/projects/project-period-report";
 import { downloadProposalPdf } from "@/lib/project-document-actions";
 import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
@@ -65,6 +68,10 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [collectMethod, setCollectMethod] = useState<PaymentMethod>("cash");
   const [collectPayoutId, setCollectPayoutId] = useState<string | undefined>();
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [instOpen, setInstOpen] = useState(false);
+  const [instAmount, setInstAmount] = useState("");
+  const [instDue, setInstDue] = useState(() => defaultFormDateYmd());
+  const [instNote, setInstNote] = useState("");
 
   const openCollect = useCallback(
     (payout?: ProjectJobDto["payouts"][number]) => {
@@ -102,6 +109,52 @@ export default function ProjectJobDetailPage({ params }: Props) {
     },
     [pdfBusy, t]
   );
+
+  const addInstallment = useMutation({
+    mutationFn: () => {
+      if (!job) return Promise.reject(new Error("No job"));
+      return jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "add_installment",
+          amount: Number(instAmount),
+          dueDate: new Date(instDue).toISOString(),
+          note: instNote,
+        }),
+      });
+    },
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("installmentAdded") },
+      {
+        onSuccess: () => {
+          setInstOpen(false);
+          setInstAmount("");
+          setInstNote("");
+          invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+        },
+      }
+    ),
+  });
+
+  const setRetainer = useMutation({
+    mutationFn: (on: boolean) => {
+      if (!job) return Promise.reject(new Error("No job"));
+      return jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ billingMode: on ? "retainer" : "fixed" }),
+      });
+    },
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("billingModeSaved") },
+      {
+        onSuccess: () => {
+          invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+        },
+      }
+    ),
+  });
 
   const collectMutation = useMutation({
     mutationFn: () => {
@@ -175,6 +228,22 @@ export default function ProjectJobDetailPage({ params }: Props) {
 
       <ProjectCollectionsBanner variant="link" />
 
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 bg-card p-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+          checked={job.billingMode === "retainer"}
+          disabled={setRetainer.isPending || job.status === "cancelled"}
+          onChange={(e) => setRetainer.mutate(e.target.checked)}
+        />
+        <span>
+          <span className="font-medium">{t("billingModeRetainer")}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{t("billingModeHint")}</span>
+        </span>
+      </label>
+
+      <ProjectPeriodReport payouts={job.payouts} costs={job.costs} />
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="text-xs text-muted-foreground">{t("agreedAmount")}</p>
@@ -198,6 +267,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
         </div>
       </div>
 
+      {job.billingMode !== "retainer" && (
       <div className="space-y-1 rounded-xl border border-border/60 bg-muted/10 p-3">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>{t("collectionProgress")}</span>
@@ -207,6 +277,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
           <div className="h-full rounded-full bg-emerald-500" style={{ width: `${collectionPct}%` }} />
         </div>
       </div>
+      )}
 
       <ProjectCredentialChips email={job.projectEmail} password={job.projectPassword} />
 
@@ -215,6 +286,20 @@ export default function ProjectJobDetailPage({ params }: Props) {
           <Button type="button" size="sm" onClick={() => openCollect()}>
             <CheckCircle2 className="me-1.5 size-3.5" />
             {t("collectBtn")}
+          </Button>
+        )}
+        {job.status !== "cancelled" && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setInstDue(defaultFormDateYmd());
+              setInstOpen(true);
+            }}
+          >
+            <Plus className="me-1.5 size-3.5" />
+            {t("addInstallmentBtn")}
           </Button>
         )}
         <Button
@@ -268,6 +353,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
                       <Clock className="size-3.5 shrink-0 text-amber-600" />
                     )}
                     <span className="font-mono font-semibold tabular-nums">{formatMoney(p.amount)}</span>
+                    <PaymentMethodLabel method={p.paymentMethod} />
                     <Badge variant={p.isCollected ? "default" : "secondary"} className="text-[0.65rem]">
                       {p.isCollected ? t("statusCollected") : t("statusPending")}
                     </Badge>
@@ -296,7 +382,10 @@ export default function ProjectJobDetailPage({ params }: Props) {
             {job.costs.map((c) => (
               <li key={c.id} className="flex justify-between rounded-md bg-muted/20 px-2 py-1 text-sm">
                 <span>{c.title}</span>
-                <span className="font-mono tabular-nums">{formatMoney(c.amount)}</span>
+                <span className="flex items-center gap-2">
+                  <PaymentMethodLabel method={c.paymentMethod} />
+                  <span className="font-mono tabular-nums">{formatMoney(c.amount)}</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -326,6 +415,39 @@ export default function ProjectJobDetailPage({ params }: Props) {
             <Button type="button" variant="outline" onClick={() => setCollectOpen(false)}>{tC("cancel")}</Button>
             <Button type="button" disabled={collectMutation.isPending} onClick={() => collectMutation.mutate(undefined)}>
               {collectMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : t("collectBtn")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={instOpen} onOpenChange={setInstOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("addInstallmentTitle")}</DialogTitle>
+            <DialogDescription>{job.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t("installmentAmount")}</Label>
+              <Input type="number" step="0.01" className="h-11" value={instAmount} onChange={(e) => setInstAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("installmentDue")}</Label>
+              <Input type="date" className="h-11" value={instDue} onChange={(e) => setInstDue(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("installmentNote")}</Label>
+              <Input className="h-11" placeholder={t("installmentNotePh")} value={instNote} onChange={(e) => setInstNote(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setInstOpen(false)}>{tC("cancel")}</Button>
+            <Button
+              type="button"
+              disabled={addInstallment.isPending || !Number.isFinite(Number(instAmount)) || Number(instAmount) <= 0}
+              onClick={() => addInstallment.mutate(undefined)}
+            >
+              {addInstallment.isPending ? <Loader2 className="size-4 animate-spin" /> : t("addInstallmentBtn")}
             </Button>
           </DialogFooter>
         </DialogContent>

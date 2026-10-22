@@ -4,6 +4,7 @@ import { PROJECT_CURRENCIES } from "@/lib/currency";
 import type { PaymentMethod } from "@/lib/payment-method";
 import type { ProjectType } from "@/lib/project-type";
 import type { ProjectScopeItem } from "@/lib/project-scope";
+import type { BillingMode } from "@/lib/billing-mode";
 import type { WorkPhase } from "@/lib/project-work-phase";
 
 export type FreelanceProjectStatus = "pending" | "partial" | "collected" | "cancelled";
@@ -30,6 +31,8 @@ export interface IFreelanceProject {
   archivedAt: Date | null;
   /** How the client is expected to pay (cash / card). */
   expectedPaymentMethod: PaymentMethod;
+  /** Fixed contract closes when collected covers agreed. Retainer stays open for extra installments. */
+  billingMode: BillingMode;
   /** Job category: css, sdk, frontend, etc. */
   projectType: ProjectType;
   /** Client / customer name for statements & proposals */
@@ -83,6 +86,11 @@ const FreelanceProjectSchema = new Schema<IFreelanceProject>(
       type: String,
       enum: ["cash", "card", "unspecified"],
       default: "unspecified",
+    },
+    billingMode: {
+      type: String,
+      enum: ["fixed", "retainer"],
+      default: "fixed",
     },
     projectType: {
       type: String,

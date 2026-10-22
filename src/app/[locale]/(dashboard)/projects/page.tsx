@@ -17,6 +17,7 @@ import { ProjectJobCard } from "@/components/projects/project-job-card";
 import { ProjectBulkActionBar } from "@/components/projects/project-bulk-action-bar";
 import { ProjectScopeEditor } from "@/components/projects/project-scope-editor";
 import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
+import { PaymentMethodLabel } from "@/components/forms/payment-method-label";
 import { PaginatedListFooter } from "@/components/ui/paginated-list-footer";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { ProjectTypeField } from "@/components/forms/project-type-field";
@@ -177,6 +178,7 @@ export default function ProjectsPage() {
   const [editPaymentMethod, setEditPaymentMethod] = useState<PaymentMethod>("cash");
   const [editProjectType, setEditProjectType] = useState<ProjectType>("normal");
   const [editWorkPhase, setEditWorkPhase] = useState<WorkPhase>("in_progress");
+  const [editRetainer, setEditRetainer] = useState(false);
 
   const [collectAmount, setCollectAmount] = useState("");
   const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
@@ -303,6 +305,7 @@ export default function ProjectsPage() {
     setEditClientPhone("");
     setEditProjectEmail(job.projectEmail ?? "");
     setEditProjectPassword(job.projectPassword ?? "");
+    setEditRetainer(job.billingMode === "retainer");
   }, []);
 
   const hydrateDetailFields = useCallback((job: ProjectJobDto) => {
@@ -407,6 +410,7 @@ export default function ProjectsPage() {
           clientPhone: newClientPhonePayload(editClientName, editClientPhone, clientOptions),
           projectEmail: editProjectEmail,
           projectPassword: editProjectPassword,
+          billingMode: editRetainer ? "retainer" : "fixed",
         }),
       });
     },
@@ -1304,6 +1308,18 @@ export default function ProjectsPage() {
               <Label htmlFor="edit-notes">{t("lineNote")}</Label>
               <Textarea id="edit-notes" rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
             </div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                checked={editRetainer}
+                onChange={(e) => setEditRetainer(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">{t("billingModeRetainer")}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{t("billingModeHint")}</span>
+              </span>
+            </label>
             <PaymentMethodField
               id="edit-pay-method"
               value={editPaymentMethod}
@@ -1433,10 +1449,13 @@ export default function ProjectsPage() {
                 onChange={(e) => setInstNote(e.target.value)}
               />
             </div>
-            {installmentJob && (
+            {installmentJob && installmentJob.billingMode !== "retainer" && (
               <p className="text-xs text-muted-foreground">
                 {t("installmentRemaining", { amount: formatMoney(installmentJob.pendingAmount) })}
               </p>
+            )}
+            {installmentJob?.billingMode === "retainer" && (
+              <p className="text-xs text-muted-foreground">{t("billingModeHint")}</p>
             )}
           </div>
           <DialogFooter>
@@ -1661,7 +1680,10 @@ export default function ProjectsPage() {
                     {detailJob.costs.map((c) => (
                       <li key={c.id} className="flex justify-between rounded-md bg-muted/20 px-2 py-1">
                         <span>{c.title}</span>
-                        <span className="font-mono tabular-nums">{formatMoney(c.amount)}</span>
+                        <span className="flex items-center gap-2">
+                          <PaymentMethodLabel method={c.paymentMethod} />
+                          <span className="font-mono tabular-nums">{formatMoney(c.amount)}</span>
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -1689,6 +1711,7 @@ export default function ProjectsPage() {
                               <Clock className="size-3.5 shrink-0 text-amber-600" />
                             )}
                             <span className="font-mono font-semibold tabular-nums">{formatMoney(p.amount)}</span>
+                            <PaymentMethodLabel method={p.paymentMethod} />
                             <Badge variant={p.isCollected ? "default" : "secondary"} className="text-[0.65rem]">
                               {p.isCollected ? t("statusCollected") : t("statusPending")}
                             </Badge>

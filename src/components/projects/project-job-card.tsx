@@ -27,6 +27,7 @@ import { ProjectCredentialChips } from "@/components/projects/project-credential
 import { canSelectProjectJob } from "@/lib/project-document-actions";
 import { canDeleteProjectJob } from "@/lib/project-job-rules";
 import type { ProjectJobDto } from "@/types/project-job";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import type { WorkPhase } from "@/lib/project-work-phase";
 
@@ -89,13 +90,15 @@ export function ProjectJobCard({
         : t("workPhase_in_progress");
 
   const payLabel =
-    job.status === "collected"
-      ? t("statusCollected")
-      : job.status === "partial"
-        ? t("statusPartial")
-        : job.status === "cancelled"
-          ? t("statusCancelled")
-          : t("statusPending");
+    job.billingMode === "retainer"
+      ? t("statusRetainer")
+      : job.status === "collected"
+        ? t("statusCollected")
+        : job.status === "partial"
+          ? t("statusPartial")
+          : job.status === "cancelled"
+            ? t("statusCancelled")
+            : t("statusPending");
 
   return (
     <Card
@@ -231,7 +234,24 @@ export function ProjectJobCard({
           )}
         </div>
 
-        {job.agreedAmount > 0 ? (
+        {job.billingMode === "retainer" ? (
+          <div className="space-y-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[10px] text-muted-foreground">{t("totalCollected")}</span>
+              <span className="font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {formatMoney(job.collectedAmount)}
+              </span>
+            </div>
+            {job.pendingAmount > 0.005 && (
+              <div className="flex items-baseline justify-between gap-2 text-[10px] text-muted-foreground">
+                <span>{t("pendingAmount")}</span>
+                <span className="font-mono tabular-nums text-amber-600 dark:text-amber-400">
+                  {formatMoney(job.pendingAmount)}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : job.agreedAmount > 0 ? (
           <div className="space-y-1.5">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-[10px] text-muted-foreground">{t("pendingAmount")}</span>
@@ -287,16 +307,18 @@ export function ProjectJobCard({
               {t("collectBtn")}
             </Button>
           )}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className={cn("min-h-9 gap-1 px-2.5 text-xs", compact && "min-h-8", !canCollect && "flex-1 sm:flex-none")}
-            onClick={() => onOpenDetail(job)}
+          <Link
+            href={`/projects/${job.id}`}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "min-h-9 gap-1 px-2.5 text-xs",
+              compact && "min-h-8",
+              !canCollect && "flex-1 sm:flex-none"
+            )}
           >
             <FileText className="size-3.5 shrink-0" />
             <span className="truncate">{t("detailsBtn")}</span>
-          </Button>
+          </Link>
           <Button
             type="button"
             size="sm"

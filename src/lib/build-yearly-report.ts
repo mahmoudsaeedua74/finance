@@ -7,6 +7,7 @@ import {
 } from "@/lib/db-month-filters";
 import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
+import { normalizePaymentMethod } from "@/lib/payment-method";
 import type { MonthlyReportDto } from "@/types/report";
 
 /**
@@ -25,26 +26,26 @@ export async function buildYearlyReport(
 
   const [incomeRows, projectRows, expNon, expTpl] = await Promise.all([
     Income.find({ userId, date: { $gte: yStart, $lte: yEnd } })
-      .select("title amount date incomeType")
+      .select("title amount date incomeType paymentMethod")
       .lean(),
     Project.find({
       ...collectedFilter,
       date: { $gte: yStart, $lte: yEnd },
     })
-      .select("name amount date note")
+      .select("name amount date note paymentMethod")
       .lean(),
     Expense.find({
       userId,
       isTemplate: false,
       date: { $gte: yStart, $lte: yEnd },
     })
-      .select("title amount date category kind projectName isTemplate recurring")
+      .select("title amount date category kind projectName isTemplate recurring paymentMethod")
       .lean(),
     // Templates that overlap any month in the year
     Expense.find(
       expenseTemplatesApplyingInMonth(userId, janStart, decEnd)
     )
-      .select("title amount category projectName validFrom validTo isTemplate recurring kind")
+      .select("title amount category projectName validFrom validTo isTemplate recurring kind paymentMethod")
       .lean(),
   ]);
 
@@ -75,6 +76,7 @@ export async function buildYearlyReport(
       date: e.date instanceof Date ? e.date.toISOString() : String(e.date),
       category: e.category,
       source: e.kind === "fixed" ? "fixed_once" : "variable",
+      paymentMethod: normalizePaymentMethod(e.paymentMethod),
       ...(e.projectName?.trim() ? { projectName: e.projectName.trim() } : {}),
     });
   }
@@ -97,6 +99,7 @@ export async function buildYearlyReport(
         date: startOfMonth(new Date(year, month - 1, 1)).toISOString(),
         category: e.category,
         source: "recurring",
+        paymentMethod: normalizePaymentMethod(e.paymentMethod),
         ...(e.projectName?.trim() ? { projectName: e.projectName.trim() } : {}),
       });
     }
@@ -125,12 +128,14 @@ export async function buildYearlyReport(
       amount: i.amount,
       date: i.date instanceof Date ? i.date.toISOString() : String(i.date),
       incomeType: i.incomeType,
+      paymentMethod: normalizePaymentMethod(i.paymentMethod),
     })),
     projectLineItems: projectRows.map((p) => ({
       _id: String(p._id),
       name: p.name,
       amount: p.amount,
       date: p.date instanceof Date ? p.date.toISOString() : String(p.date),
+      paymentMethod: normalizePaymentMethod(p.paymentMethod),
       ...(p.note?.trim() ? { note: p.note.trim() } : {}),
     })),
     expenseLineItems,

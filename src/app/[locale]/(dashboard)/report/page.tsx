@@ -25,6 +25,7 @@ import {
   type ReportFilterState,
 } from "@/lib/report-filters";
 import { labelExpenseCategory } from "@/lib/expense-categories";
+import { PaymentMethodLabel } from "@/components/forms/payment-method-label";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { ReportFiltersPanel } from "@/components/report/report-filters-panel";
 import { ReportForecastCompare } from "@/components/report/report-forecast-compare";
@@ -38,6 +39,7 @@ export default function ReportPage() {
   const tCat = useTranslations("expense.categories");
   const tInc = useTranslations("income");
   const tProj = useTranslations("projects");
+  const tW = useTranslations("wallet");
   const locale = useLocale();
   const { year, month } = useMonth();
   const search = useSearchParams();
@@ -249,6 +251,7 @@ export default function ReportPage() {
                             <TableHead>{tC("category")}</TableHead>
                             <TableHead>{t("table.type")}</TableHead>
                             <TableHead className="hidden sm:table-cell">{t("expenseProject")}</TableHead>
+                            <TableHead>{tW("methodLabel")}</TableHead>
                             <TableHead className="text-end">{tC("amount")}</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -269,6 +272,9 @@ export default function ReportPage() {
                               </TableCell>
                               <TableCell className="hidden max-w-[10rem] truncate text-sm text-muted-foreground sm:table-cell">
                                 {e.projectName?.trim() || "—"}
+                              </TableCell>
+                              <TableCell>
+                                <PaymentMethodLabel method={e.paymentMethod} />
                               </TableCell>
                               <TableCell className="text-end tabular-nums">
                                 {formatMoney(e.amount)}
@@ -299,6 +305,7 @@ export default function ReportPage() {
                             <TableHead>{tC("date")}</TableHead>
                             <TableHead>{tC("title")}</TableHead>
                             <TableHead>{tC("type")}</TableHead>
+                            <TableHead>{tW("methodLabel")}</TableHead>
                             <TableHead className="text-end">{tC("amount")}</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -311,6 +318,9 @@ export default function ReportPage() {
                               <TableCell>{r.title}</TableCell>
                               <TableCell className="text-sm">
                                 {incomeTypeLabel(r.incomeType)}
+                              </TableCell>
+                              <TableCell>
+                                <PaymentMethodLabel method={r.paymentMethod} />
                               </TableCell>
                               <TableCell className="text-end tabular-nums">
                                 {formatMoney(r.amount)}
@@ -333,6 +343,7 @@ export default function ReportPage() {
                             <TableHead>{tC("date")}</TableHead>
                             <TableHead>{tC("project")}</TableHead>
                             <TableHead className="hidden sm:table-cell">{tProj("lineNote")}</TableHead>
+                            <TableHead>{tW("methodLabel")}</TableHead>
                             <TableHead className="text-end">{tC("amount")}</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -345,6 +356,9 @@ export default function ReportPage() {
                               <TableCell>{r.name}</TableCell>
                               <TableCell className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:table-cell">
                                 {r.note?.trim() || "—"}
+                              </TableCell>
+                              <TableCell>
+                                <PaymentMethodLabel method={r.paymentMethod} />
                               </TableCell>
                               <TableCell className="text-end tabular-nums">
                                 {formatMoney(r.amount)}

@@ -1,24 +1,44 @@
+import { isRetainerMode } from "@/lib/billing-mode";
 import type { FreelanceProjectStatus } from "@/lib/models/FreelanceProject";
 import { normalizeWorkPhase, type WorkPhase } from "@/lib/project-work-phase";
 import type { ProjectJobDto } from "@/types/project-job";
 
 export function derivePaymentStatus(
   agreed: number,
-  collected: number
+  collected: number,
+  billingMode?: unknown
 ): FreelanceProjectStatus {
+  if (isRetainerMode(billingMode)) {
+    if (collected <= 0) return "pending";
+    return "partial";
+  }
   if (collected <= 0) return "pending";
   if (collected + 0.005 >= agreed) return "collected";
   return "partial";
 }
 
-/** Work phase shown in UI — fully paid jobs are always delivered. */
+/** Work phase shown in UI — fully paid fixed jobs are always delivered. */
 export function effectiveWorkPhase(
   storedPhase: unknown,
   agreed: number,
-  collected: number
+  collected: number,
+  billingMode?: unknown
 ): WorkPhase {
-  if (derivePaymentStatus(agreed, collected) === "collected") return "delivered";
+  if (!isRetainerMode(billingMode) && derivePaymentStatus(agreed, collected) === "collected") {
+    return "delivered";
+  }
   return normalizeWorkPhase(storedPhase);
+}
+
+/** Fixed jobs: agreed − collected. Retainer jobs: sum of installments not yet collected. */
+export function pendingAmountForJob(
+  agreed: number,
+  collected: number,
+  uncollectedInstallments: number,
+  billingMode?: unknown
+): number {
+  if (isRetainerMode(billingMode)) return Math.max(0, uncollectedInstallments);
+  return Math.max(0, agreed - collected);
 }
 
 export function canDeleteProjectJob(

@@ -9,6 +9,7 @@ import {
 } from "@/lib/db-month-filters";
 import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
+import { normalizePaymentMethod } from "@/lib/payment-method";
 import { buildSmartInsights } from "@/lib/services/insight-service";
 
 export type MonthlyReportData = Awaited<ReturnType<typeof buildMonthlyReport>>;
@@ -19,16 +20,16 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
   const tq = expenseTemplatesApplyingInMonth(userId, mStart, mEnd);
   const [incomeRows, projectRows, expNon, expTpl] = await Promise.all([
     Income.find(incomeInMonth(userId, mStart, mEnd))
-      .select("title amount date incomeType")
+      .select("title amount date incomeType paymentMethod")
       .lean(),
     Project.find(projectPayoutInMonth(userId, mStart, mEnd))
-      .select("name amount date note")
+      .select("name amount date note paymentMethod")
       .lean(),
     Expense.find(nq)
-      .select("title amount date category kind projectName isTemplate recurring")
+      .select("title amount date category kind projectName isTemplate recurring paymentMethod")
       .lean(),
     Expense.find(tq)
-      .select("title amount date category kind projectName isTemplate recurring")
+      .select("title amount date category kind projectName isTemplate recurring paymentMethod")
       .lean(),
   ]);
   const expenses = [
@@ -61,6 +62,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
     category: string;
     source: "variable" | "recurring" | "fixed_once";
     projectName?: string;
+    paymentMethod: ReturnType<typeof normalizePaymentMethod>;
   }[] = [];
 
   for (const e of expenses) {
@@ -75,6 +77,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
         category: e.category,
         source: "recurring",
         projectName: e.projectName?.trim() || undefined,
+        paymentMethod: normalizePaymentMethod(e.paymentMethod),
       });
     } else if (!e.isTemplate) {
       totalExpenses += e.amount;
@@ -87,6 +90,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
         category: e.category,
         source: e.kind === "fixed" ? "fixed_once" : "variable",
         projectName: e.projectName?.trim() || undefined,
+        paymentMethod: normalizePaymentMethod(e.paymentMethod),
       });
     }
   }
@@ -128,12 +132,14 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       amount: i.amount,
       date: i.date,
       incomeType: i.incomeType,
+      paymentMethod: normalizePaymentMethod(i.paymentMethod),
     })),
     projectLineItems: projectRows.map((p) => ({
       _id: String(p._id),
       name: p.name,
       amount: p.amount,
       date: p.date,
+      paymentMethod: normalizePaymentMethod(p.paymentMethod),
       ...(p.note?.trim() ? { note: p.note.trim() } : {}),
     })),
     expenseLineItems: expenseLineItems.map((r) => ({
@@ -143,6 +149,7 @@ export async function buildMonthlyReport(year: number, month: number, userId: st
       date: r.date,
       category: r.category,
       source: r.source,
+      paymentMethod: r.paymentMethod,
       ...(r.projectName ? { projectName: r.projectName } : {}),
     })),
     insights,

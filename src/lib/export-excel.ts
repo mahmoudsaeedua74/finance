@@ -20,33 +20,36 @@ export function exportMonthlyReportExcel(
   ];
 
   const incomeRows: (string | number)[][] = [
-    ["Date", "Title", "Type", "Amount"],
+    ["Date", "Title", "Type", "Method", "Amount"],
     ...data.incomeLineItems.map((i) => [
       new Date(i.date).toISOString().slice(0, 10),
       i.title,
       i.incomeType,
+      i.paymentMethod ?? "",
       i.amount,
     ]),
   ];
 
   const projectRows: (string | number)[][] = [
-    ["Date", "Project", "Amount", "Note"],
+    ["Date", "Project", "Amount", "Method", "Note"],
     ...data.projectLineItems.map((p) => [
       new Date(p.date).toISOString().slice(0, 10),
       p.name,
       p.amount,
+      p.paymentMethod ?? "",
       p.note ?? "",
     ]),
   ];
 
   const expenseRows: (string | number)[][] = [
-    ["Date", "Title", "Category", "Type", "Project", "Amount"],
+    ["Date", "Title", "Category", "Type", "Project", "Method", "Amount"],
     ...data.expenseLineItems.map((e) => [
       new Date(e.date).toISOString().slice(0, 10),
       e.title,
       e.category,
       e.source,
       e.projectName ?? "",
+      e.paymentMethod ?? "",
       e.amount,
     ]),
   ];

@@ -3,6 +3,7 @@ import { Expense, Income, Project } from "@/lib/models";
 import { projectCollectedFilter } from "@/lib/db-month-filters";
 import { addToMap, topEntry } from "@/lib/monthly";
 import { chartKeyForIncomeType, INCOME_BY_TYPE_CHART_KEYS } from "@/lib/income-types";
+import { normalizePaymentMethod } from "@/lib/payment-method";
 import { sumRecurringThroughDate } from "@/lib/lifetime-ledger";
 import type { MonthlyReportDto } from "@/types/report";
 import { buildSmartInsights } from "@/lib/services/insight-service";
@@ -16,15 +17,15 @@ type ObjId = string | mongoose.Types.ObjectId;
 export async function buildLedgerReport(userId: ObjId) {
   const asOf = new Date();
   const [incomeRows, projectRows, expNon, templates] = await Promise.all([
-    Income.find({ userId }).select("title amount date incomeType").lean(),
+    Income.find({ userId }).select("title amount date incomeType paymentMethod").lean(),
     Project.find(projectCollectedFilter(String(userId)))
-      .select("name amount date note")
+      .select("name amount date note paymentMethod")
       .lean(),
     Expense.find({ userId, isTemplate: false })
-      .select("title amount date category kind projectName")
+      .select("title amount date category kind projectName paymentMethod")
       .lean(),
     Expense.find({ userId, isTemplate: true, recurring: true })
-      .select("title amount category projectName validFrom validTo")
+      .select("title amount category projectName validFrom validTo paymentMethod")
       .lean(),
   ]);
 
@@ -85,6 +86,7 @@ export async function buildLedgerReport(userId: ObjId) {
     amount: p.amount,
     date: p.date,
     ...(p.note?.trim() ? { note: p.note.trim() } : {}),
+    paymentMethod: normalizePaymentMethod(p.paymentMethod),
   }));
   const expenseLineItems: NonNullable<MonthlyReportDto["expenseLineItems"]> = [
     ...expNon.map((e) => ({
@@ -95,6 +97,7 @@ export async function buildLedgerReport(userId: ObjId) {
       category: e.category,
       source: (e.kind === "fixed" ? "fixed_once" : "variable") as "variable" | "fixed_once",
       projectName: e.projectName?.trim() || undefined,
+      paymentMethod: normalizePaymentMethod(e.paymentMethod),
     })),
     ...templates.map((e) => ({
       _id: String(e._id),
@@ -113,6 +116,7 @@ export async function buildLedgerReport(userId: ObjId) {
       category: e.category,
       source: "recurring" as const,
       projectName: e.projectName?.trim() || undefined,
+      paymentMethod: normalizePaymentMethod(e.paymentMethod),
     })),
   ];
 
@@ -135,12 +139,14 @@ export async function buildLedgerReport(userId: ObjId) {
       amount: i.amount,
       date: new Date(i.date).toISOString(),
       incomeType: i.incomeType,
+      paymentMethod: normalizePaymentMethod(i.paymentMethod),
     })),
     projectLineItems: projectLineItems.map((p) => ({
       _id: p._id,
       name: p.name,
       amount: p.amount,
       date: new Date(p.date).toISOString(),
+      paymentMethod: p.paymentMethod,
       ...(p.note ? { note: p.note } : {}),
     })),
     expenseLineItems,

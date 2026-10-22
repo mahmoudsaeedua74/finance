@@ -1,5 +1,6 @@
 import type { ProjectCurrency } from "@/lib/currency";
 import type { FreelanceProjectStatus } from "@/lib/models/FreelanceProject";
+import type { BillingMode } from "@/lib/billing-mode";
 import type { PaymentMethod } from "@/lib/payment-method";
 import type { ProjectType } from "@/lib/project-type";
 import type { ProjectScopeItem } from "@/lib/project-scope";
@@ -35,6 +36,7 @@ export type ProjectJobDto = {
   createdAt: string;
   expectedPaymentDate: string | null;
   expectedPaymentMethod: PaymentMethod;
+  billingMode: BillingMode;
   collectedAmount: number;
   pendingAmount: number;
   spentAmount: number;

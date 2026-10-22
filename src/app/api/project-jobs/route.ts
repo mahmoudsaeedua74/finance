@@ -9,6 +9,7 @@ import {
 } from "@/lib/services/freelance-project-service";
 import { isWalletPaymentMethod, parsePaymentMethodBody } from "@/lib/payment-method";
 import { PAYMENT_METHOD_REQUIRED_MSG } from "@/lib/project-job-lifecycle";
+import { normalizeBillingMode } from "@/lib/billing-mode";
 import { parseProjectTypeBody } from "@/lib/project-type";
 import { parseClientName, parseProjectCredential, parseScopeItems } from "@/lib/project-scope";
 import { defaultWorkPhaseForCreate, parseWorkPhaseBody } from "@/lib/project-work-phase";
@@ -135,6 +136,7 @@ export async function POST(req: Request) {
       projectPassword,
       scopeItems,
       workPhase,
+      billingMode: normalizeBillingMode(body?.billingMode),
       status: isCollected ? "collected" : "pending",
     });
 

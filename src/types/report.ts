@@ -2,6 +2,8 @@
  * Client-safe mirror of the monthly report JSON shape returned by
  * `GET /api/reports/monthly` (keeps the browser bundle free of server-only imports).
  */
+import type { PaymentMethod } from "@/lib/payment-method";
+
 export type MonthlyReportDto = {
   year: number;
   month: number;
@@ -23,6 +25,7 @@ export type MonthlyReportDto = {
     amount: number;
     date: string;
     incomeType: string;
+    paymentMethod?: PaymentMethod;
   }[];
   projectLineItems: {
     _id: string;
@@ -30,6 +33,7 @@ export type MonthlyReportDto = {
     amount: number;
     date: string;
     note?: string;
+    paymentMethod?: PaymentMethod;
   }[];
   expenseLineItems: {
     _id: string;
@@ -40,6 +44,7 @@ export type MonthlyReportDto = {
     source: "variable" | "recurring" | "fixed_once";
     /** Spend linked to a project name (optional). */
     projectName?: string;
+    paymentMethod?: PaymentMethod;
   }[];
   insights: {
     overspent: boolean;

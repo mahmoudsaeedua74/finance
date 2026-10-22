@@ -120,6 +120,7 @@ export async function cloneFreelanceProject(
     scopeItems: source.scopeItems ?? [],
     notes: source.notes?.trim() ?? "",
     expectedPaymentMethod: source.expectedPaymentMethod,
+    billingMode: source.billingMode === "retainer" ? "retainer" : "fixed",
     expectedPaymentDate: source.expectedPaymentDate,
     startDate: new Date(),
     workPhase: defaultWorkPhaseForCreate(false),

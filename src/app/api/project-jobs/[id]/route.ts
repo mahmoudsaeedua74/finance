@@ -7,6 +7,7 @@ import {
   syncJobStatus,
 } from "@/lib/services/freelance-project-service";
 import { isWalletPaymentMethod, normalizePaymentMethod, parsePaymentMethodBody, type PaymentMethod } from "@/lib/payment-method";
+import { isRetainerMode, normalizeBillingMode } from "@/lib/billing-mode";
 import { parseProjectTypeBody } from "@/lib/project-type";
 import { parseClientName, parseProjectCredential, parseScopeItems } from "@/lib/project-scope";
 import { parseWorkPhaseBody } from "@/lib/project-work-phase";
@@ -121,6 +122,9 @@ export async function PUT(req: Request, { params }: Ctx) {
       update.expectedPaymentMethod =
         parsePaymentMethodBody(body.paymentMethod ?? body.expectedPaymentMethod) ?? "unspecified";
     }
+    if (body?.billingMode !== undefined) {
+      update.billingMode = normalizeBillingMode(body.billingMode);
+    }
     if (body?.projectType !== undefined) {
       update.projectType = parseProjectTypeBody(body.projectType) ?? "normal";
     }
@@ -166,7 +170,9 @@ export async function PUT(req: Request, { params }: Ctx) {
     );
 
     const markingDelivered =
-      nextWorkPhase === "delivered" && existing.workPhase !== "delivered";
+      nextWorkPhase === "delivered" &&
+      existing.workPhase !== "delivered" &&
+      !isRetainerMode(existing.billingMode);
 
     if (markingDelivered) {
       const remaining = await remainingBalanceForJob(user.id, existing.toObject() as never);
@@ -210,7 +216,9 @@ export async function PUT(req: Request, { params }: Ctx) {
       }).sort({ date: -1 });
       if (pendingPayout) {
         if (body?.name != null) pendingPayout.name = job.name;
-        if (body?.agreedAmount != null || body?.currency != null) pendingPayout.amount = job.agreedAmount;
+        if ((body?.agreedAmount != null || body?.currency != null) && !isRetainerMode(job.billingMode)) {
+          pendingPayout.amount = job.agreedAmount;
+        }
         if (body?.paymentMethod != null || body?.expectedPaymentMethod != null) {
           pendingPayout.paymentMethod = job.expectedPaymentMethod;
         }
