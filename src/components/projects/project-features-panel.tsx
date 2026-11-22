@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { jsonFetch } from "@/lib/fetcher";
 import { formatMoney } from "@/lib/format";
+import { defaultFormDateYmd } from "@/lib/ymd";
 import type { FeatureDto, FeatureTaskDto } from "@/types/feature";
 
 type Props = { projectId: string };
@@ -39,7 +41,6 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
   const [pricingMode, setPricingMode] = useState<FeatureDto["pricingMode"]>("pricing_pending");
   const [featureType, setFeatureType] = useState<FeatureDto["type"]>("new_feature");
   const [hourlyRate, setHourlyRate] = useState("500");
-  const [estimatedMinutes, setEstimatedMinutes] = useState("");
   const [approvedPrice, setApprovedPrice] = useState("");
   const [taskTitle, setTaskTitle] = useState("");
   const [now, setNow] = useState(() => Date.now());
@@ -62,8 +63,7 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
         pricingMode,
         type: featureType,
         hourlyRateEgp: Number(hourlyRate) || 500,
-        estimatedMinutes: estimatedMinutes ? Number(estimatedMinutes) : null,
-        approvedPriceEgp: approvedPrice ? Number(approvedPrice) : null,
+        approvedPriceEgp: pricingMode === "fixed" && approvedPrice ? Number(approvedPrice) : null,
       }),
     }),
     onSuccess: () => {
@@ -72,7 +72,6 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
       setPricingMode("pricing_pending");
       setFeatureType("new_feature");
       setHourlyRate("500");
-      setEstimatedMinutes("");
       setApprovedPrice("");
       setShowCreate(false);
       refresh();
@@ -120,14 +119,19 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
           <h2 className="font-medium text-sm">{t("featuresTitle")}</h2>
           <p className="text-xs text-muted-foreground">{t("featuresHint")}</p>
         </div>
-        <Button type="button" size="sm" variant="outline" onClick={() => setShowCreate((value) => !value)}>
+        <Button type="button" size="sm" variant="outline" onClick={() => setShowCreate(true)}>
           <Plus className="me-1.5 size-3.5" />
           {t("addFeature")}
         </Button>
       </div>
 
-      {showCreate && (
-        <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 sm:grid-cols-2">
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("addFeatureTitle")}</DialogTitle>
+            <DialogDescription>{t("addFeatureHint")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1 sm:col-span-2">
             <Label>{t("featureName")}</Label>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("featureNamePh")} />
@@ -160,22 +164,22 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
             <Label>{t("hourlyRate")}</Label>
             <Input type="number" min="0" value={hourlyRate} onChange={(event) => setHourlyRate(event.target.value)} />
           </div>
-          <div className="space-y-1">
-            <Label>{t("estimatedMinutes")}</Label>
-            <Input type="number" min="0" value={estimatedMinutes} onChange={(event) => setEstimatedMinutes(event.target.value)} placeholder={t("optional")} />
+          {pricingMode === "fixed" && (
+            <div className="space-y-1 sm:col-span-2">
+              <Label>{t("approvedPriceEgp")}</Label>
+              <Input autoFocus type="number" min="0" value={approvedPrice} onChange={(event) => setApprovedPrice(event.target.value)} placeholder={t("fixedPricePh")} />
+              <p className="text-xs text-muted-foreground">{t("fixedPriceHint")}</p>
+            </div>
+          )}
           </div>
-          <div className="space-y-1">
-            <Label>{t("approvedPriceEgp")}</Label>
-            <Input type="number" min="0" value={approvedPrice} onChange={(event) => setApprovedPrice(event.target.value)} placeholder={t("optional")} />
-          </div>
-          <div className="flex items-end gap-2 sm:col-span-2">
-            <Button type="button" size="sm" disabled={!title.trim() || createFeature.isPending} onClick={() => createFeature.mutate()}>
+          <DialogFooter>
+            <Button type="button" disabled={!title.trim() || (pricingMode === "fixed" && !approvedPrice) || createFeature.isPending} onClick={() => createFeature.mutate()}>
               {createFeature.isPending ? t("savingFeature") : t("saveFeature")}
             </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setShowCreate(false)}>{t("cancelFeature")}</Button>
-          </div>
-        </div>
-      )}
+            <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>{t("cancelFeature")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {featuresQ.isLoading ? <p className="text-sm text-muted-foreground">{t("loadingFeatures")}</p> : null}
       {!featuresQ.isLoading && features.length === 0 ? <p className="text-sm text-muted-foreground">{t("noFeatures")}</p> : null}
@@ -234,12 +238,16 @@ type FeaturePayment = {
   isCollected: boolean;
   paymentMethod: "cash" | "card" | "unspecified";
   date: string;
+  collectedAt: string | null;
 };
 
 function FeaturePriceAndPayments({ feature, onRefresh, t }: { feature: FeatureDto; onRefresh: () => void; t: (key: string) => string }) {
   const [price, setPrice] = useState(feature.approvedPriceEgp?.toString() ?? "");
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState(() => defaultFormDateYmd());
   const [collectedNow, setCollectedNow] = useState(false);
+  const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
+  const [collectMethod, setCollectMethod] = useState<"cash" | "card">("cash");
   const paymentsQ = useQuery({
     queryKey: ["feature-payments", feature.id],
     queryFn: () => jsonFetch<{ data: FeaturePayment[] }>(`/api/features/${feature.id}/payments`),
@@ -254,16 +262,20 @@ function FeaturePriceAndPayments({ feature, onRefresh, t }: { feature: FeatureDt
   const addPayment = useMutation({
     mutationFn: () => jsonFetch(`/api/features/${feature.id}/payments`, {
       method: "POST",
-      body: JSON.stringify({ amount: Number(paymentAmount), isCollected: collectedNow, paymentMethod: collectedNow ? "cash" : "unspecified" }),
+      body: JSON.stringify({ amount: Number(paymentAmount), date: new Date(paymentDate).toISOString(), isCollected: collectedNow, paymentMethod: collectedNow ? collectMethod : "unspecified" }),
     }),
-    onSuccess: () => { setPaymentAmount(""); setCollectedNow(false); onRefresh(); void paymentsQ.refetch(); },
+    onSuccess: () => { setPaymentAmount(""); setCollectedNow(false); setPaymentDate(defaultFormDateYmd()); onRefresh(); void paymentsQ.refetch(); },
   });
   const collect = useMutation({
-    mutationFn: (id: string) => jsonFetch(`/api/feature-payments/${id}`, { method: "POST", body: JSON.stringify({ action: "collect", paymentMethod: "cash" }) }),
+    mutationFn: (id: string) => jsonFetch(`/api/feature-payments/${id}`, { method: "POST", body: JSON.stringify({ action: "collect", date: new Date(collectDate).toISOString(), paymentMethod: collectMethod }) }),
     onSuccess: () => { onRefresh(); void paymentsQ.refetch(); },
   });
   return (
     <div className="space-y-2 rounded-md border border-dashed border-border/60 p-2">
+      <div>
+        <p className="text-xs font-medium">{t("featurePaymentsTitle")}</p>
+        <p className="text-[11px] text-muted-foreground">{t("featurePaymentsHint")}</p>
+      </div>
       {feature.pricingMode !== "free" && feature.approvedPriceEgp == null ? (
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-40 flex-1 space-y-1"><Label className="text-xs">{t("approvedPriceEgp")}</Label><Input type="number" min="0" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="EGP" /></div>
@@ -273,14 +285,21 @@ function FeaturePriceAndPayments({ feature, onRefresh, t }: { feature: FeatureDt
       {feature.approvedPriceEgp != null && feature.pricingMode !== "free" ? (
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-32 flex-1 space-y-1"><Label className="text-xs">{t("featurePaymentAmount")}</Label><Input type="number" min="0" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} placeholder={t("amountPlaceholder")} /></div>
+          <div className="space-y-1"><Label className="text-xs">{t("paymentDate")}</Label><Input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></div>
           <label className="flex h-9 items-center gap-1.5 text-xs"><input type="checkbox" checked={collectedNow} onChange={(event) => setCollectedNow(event.target.checked)} />{t("collectNow")}</label>
           <Button type="button" size="sm" disabled={!paymentAmount || addPayment.isPending} onClick={() => addPayment.mutate()}>{t("addFeaturePayment")}</Button>
         </div>
       ) : null}
       {(paymentsQ.data?.data ?? []).map((payment) => (
-        <div key={payment.id} className="flex items-center justify-between gap-2 text-xs">
-          <span>{formatMoney(payment.amountEgp)} · {payment.isCollected ? t("statusCollected") : t("statusPending")}</span>
-          {!payment.isCollected ? <Button type="button" size="sm" variant="ghost" disabled={collect.isPending} onClick={() => collect.mutate(payment.id)}>{t("collectBtn")}</Button> : null}
+        <div key={payment.id} className="flex flex-col gap-2 rounded border border-border/50 px-2 py-1.5 text-xs sm:flex-row sm:items-center sm:justify-between">
+          <span>{formatMoney(payment.amountEgp)} · {payment.isCollected ? t("statusCollected") : t("statusPending")} · {payment.isCollected ? (payment.collectedAt ?? payment.date).slice(0, 10) : payment.date.slice(0, 10)}</span>
+          {!payment.isCollected ? (
+            <div className="flex items-center gap-1">
+              <Input className="h-7 w-32" type="date" value={collectDate} onChange={(event) => setCollectDate(event.target.value)} aria-label={t("collectionDate")} />
+              <select className="h-7 rounded border bg-background px-1 text-xs" value={collectMethod} onChange={(event) => setCollectMethod(event.target.value as "cash" | "card")}><option value="cash">{t("projectReportCash")}</option><option value="card">{t("projectReportCard")}</option></select>
+              <Button type="button" size="sm" variant="ghost" disabled={collect.isPending} onClick={() => collect.mutate(payment.id)}>{t("collectBtn")}</Button>
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
