@@ -114,6 +114,7 @@ export async function addInstallment(
     name: job.name,
     amount,
     date: input.dueDate,
+    dueDate: input.dueDate,
     isCollected: false,
     collectedAt: null,
     paymentMethod: "unspecified",
@@ -124,16 +125,6 @@ export async function addInstallment(
   await normalizePendingInstallments(userId, job);
   await syncJobStatus(String(job._id), userId);
   return doc;
-}
-
-export async function remainingBalanceForJob(
-  userId: string,
-  job: Pick<IFreelanceProject, "_id" | "agreedAmount">
-) {
-  const jobId =
-    typeof job._id === "string" ? new mongoose.Types.ObjectId(job._id) : job._id;
-  const collected = await sumCollected(userId, jobId);
-  return Math.max(0, job.agreedAmount - collected);
 }
 
 export async function collectProjectPayment(
@@ -151,6 +142,11 @@ export async function collectProjectPayment(
   const retainer = isRetainerMode(job.billingMode);
   const collectedBefore = await sumCollected(userId, jobId);
   const remaining = Math.max(0, job.agreedAmount - collectedBefore);
+  const scheduledDate = (row: { dueDate?: Date | null; date: Date; note?: string }) => {
+    if (row.dueDate) return row.dueDate;
+    if (row.note === "Remaining balance" || row.note === "Pending collection") return job.expectedPaymentDate;
+    return row.date;
+  };
   if (!retainer && remaining <= 0.005) {
     throw new Error("Nothing left to collect");
   }
@@ -161,9 +157,11 @@ export async function collectProjectPayment(
       userId,
       freelanceProjectId: jobId,
       isCollected: false,
+      lineKind: { $in: ["installment", null] },
     });
     if (!row) throw new Error("Installment not found");
     row.isCollected = true;
+    row.dueDate = scheduledDate(row);
     row.collectedAt = input.date;
     row.date = input.date;
     row.paymentMethod = input.paymentMethod;
@@ -183,6 +181,7 @@ export async function collectProjectPayment(
 
     if (pending && Math.abs(pending.amount - amount) < 0.01) {
       pending.isCollected = true;
+      pending.dueDate = scheduledDate(pending);
       pending.collectedAt = input.date;
       pending.date = input.date;
       pending.paymentMethod = input.paymentMethod;
@@ -196,10 +195,11 @@ export async function collectProjectPayment(
         name: job.name,
         amount,
         date: input.date,
+        dueDate: scheduledDate(pending),
         isCollected: true,
         collectedAt: input.date,
         paymentMethod: input.paymentMethod,
-        note: "Partial collection",
+        note: collectedNote(pending.note),
         lineKind: "installment",
       });
     } else {
@@ -241,6 +241,7 @@ export async function createInstallmentSchedule(
       name: job.name,
       amount: amt,
       date: inst.dueDate,
+      dueDate: inst.dueDate,
       isCollected: false,
       collectedAt: null,
       paymentMethod: "unspecified",

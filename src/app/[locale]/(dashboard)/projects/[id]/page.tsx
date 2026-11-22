@@ -39,11 +39,11 @@ import type { PaymentMethod } from "@/lib/payment-method";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { PaymentMethodLabel } from "@/components/forms/payment-method-label";
 import { ProjectPeriodReport } from "@/components/projects/project-period-report";
-import { downloadInvoicePdf } from "@/lib/project-document-actions";
+import { ProjectInvoiceDialog } from "@/components/projects/project-invoice-dialog";
+import type { ProjectInvoiceScope } from "@/lib/project-billing";
 import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { useCallback, useState } from "react";
 import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
 import { ProjectFeaturesPanel } from "@/components/projects/project-features-panel";
@@ -68,7 +68,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
   const [collectMethod, setCollectMethod] = useState<PaymentMethod>("cash");
   const [collectPayoutId, setCollectPayoutId] = useState<string | undefined>();
-  const [pdfBusy, setPdfBusy] = useState(false);
+  const [invoiceScope, setInvoiceScope] = useState<ProjectInvoiceScope | null>(null);
   const [instOpen, setInstOpen] = useState(false);
   const [instAmount, setInstAmount] = useState("");
   const [instDue, setInstDue] = useState(() => defaultFormDateYmd());
@@ -100,23 +100,6 @@ export default function ProjectJobDetailPage({ params }: Props) {
       setCollectOpen(true);
     },
     [job]
-  );
-
-  const runPdfDownload = useCallback(
-    async (task: () => Promise<string>) => {
-      if (pdfBusy) return;
-      setPdfBusy(true);
-      const toastId = toast.loading(t("pdfBuilding"));
-      try {
-        const filename = await task();
-        toast.success(t("pdfDownloadOk", { name: filename }), { id: toastId });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e), { id: toastId });
-      } finally {
-        setPdfBusy(false);
-      }
-    },
-    [pdfBusy, t]
   );
 
   const addInstallment = useMutation({
@@ -370,8 +353,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
           type="button"
           size="sm"
           variant="secondary"
-          disabled={pdfBusy}
-          onClick={() => void runPdfDownload(() => downloadInvoicePdf(job, locale, t))}
+          onClick={() => setInvoiceScope("project")}
         >
           <FileText className="me-1.5 size-3.5" />
           {t("invoicePdf")}
@@ -453,6 +435,10 @@ export default function ProjectJobDetailPage({ params }: Props) {
         {supportListOpen && (
         <>
         <p className="mb-3 mt-2 text-xs text-muted-foreground">{t("supportSectionHint")}</p>
+        <Button type="button" size="sm" variant="outline" className="mb-3" onClick={() => setInvoiceScope("support")}>
+          <FileText className="size-3.5" />
+          {t("invoiceSupportButton")}
+        </Button>
         {job.payouts.some((p) => p.lineKind === "support") ? (
           <ul className="space-y-2">
             {job.payouts.filter((p) => p.lineKind === "support").map((p) => (
@@ -504,7 +490,11 @@ export default function ProjectJobDetailPage({ params }: Props) {
         )}
       </div>
 
-      <ProjectFeaturesPanel projectId={job.id} />
+      <ProjectFeaturesPanel projectId={job.id} onInvoice={(featureId) => setInvoiceScope(`feature:${featureId}`)} />
+
+      {invoiceScope && (
+        <ProjectInvoiceDialog projectId={job.id} initialScope={invoiceScope} onClose={() => setInvoiceScope(null)} />
+      )}
 
       {job.costs.length > 0 && (
         <div className="rounded-xl border border-border/60 bg-card p-3">

@@ -6,7 +6,7 @@ import {
   buildProjectJobDto,
   syncJobStatus,
 } from "@/lib/services/freelance-project-service";
-import { isWalletPaymentMethod, normalizePaymentMethod, parsePaymentMethodBody, type PaymentMethod } from "@/lib/payment-method";
+import { isWalletPaymentMethod, parsePaymentMethodBody } from "@/lib/payment-method";
 import { isRetainerMode, normalizeBillingMode } from "@/lib/billing-mode";
 import { parseProjectTypeBody } from "@/lib/project-type";
 import { parseClientName, parseProjectCredential, parseScopeItems } from "@/lib/project-scope";
@@ -14,7 +14,6 @@ import { parseWorkPhaseBody } from "@/lib/project-work-phase";
 import { ensureClientPhone } from "@/lib/services/client-profile-service";
 import {
   assertJobNotCancelled,
-  autoCollectRemainingOnDelivered,
   parseCancellationReason,
   PAYMENT_METHOD_REQUIRED_MSG,
   JOB_CANCELLED_MSG,
@@ -24,7 +23,6 @@ import { queueAfterExpense, queueAfterProject } from "@/lib/services/activity-no
 import {
   addInstallment,
   collectProjectPayment,
-  remainingBalanceForJob,
 } from "@/lib/services/project-payout-service";
 import {
   cloneFreelanceProject,
@@ -162,42 +160,6 @@ export async function PUT(req: Request, { params }: Ctx) {
       update.status = body.status;
       if (body.status !== "cancelled") {
         update.cancellationReason = "";
-      }
-    }
-
-    const effectivePaymentMethod = normalizePaymentMethod(
-      (update.expectedPaymentMethod as PaymentMethod | undefined) ?? existing.expectedPaymentMethod
-    );
-
-    const markingDelivered =
-      nextWorkPhase === "delivered" &&
-      existing.workPhase !== "delivered" &&
-      !isRetainerMode(existing.billingMode);
-
-    if (markingDelivered) {
-      const remaining = await remainingBalanceForJob(user.id, existing.toObject() as never);
-      if (remaining > 0.005) {
-        let paymentMethod;
-        try {
-          paymentMethod = resolveCollectPaymentMethod(undefined, effectivePaymentMethod);
-        } catch (e) {
-          return NextResponse.json(
-            { error: e instanceof Error ? e.message : PAYMENT_METHOD_REQUIRED_MSG },
-            { status: 400 }
-          );
-        }
-        const jobSnap = existing.toObject() as never;
-        if (update.expectedPaymentMethod) {
-          existing.expectedPaymentMethod = effectivePaymentMethod as never;
-        }
-        try {
-          await autoCollectRemainingOnDelivered(user.id, jobSnap, paymentMethod);
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : "Collection failed";
-          if (msg !== "Nothing left to collect") {
-            return NextResponse.json({ error: msg }, { status: 400 });
-          }
-        }
       }
     }
 
@@ -505,6 +467,7 @@ export async function POST(req: Request, { params }: Ctx) {
         name: job.name,
         amount,
         date,
+        dueDate: isCollected ? null : date,
         isCollected,
         collectedAt: isCollected ? date : null,
         paymentMethod: isCollected ? paymentMethod : "unspecified",

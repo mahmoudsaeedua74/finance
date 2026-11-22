@@ -7,13 +7,14 @@ import { createFeature, listFeatures } from "@/lib/services/feature-service";
 export const dynamic = "force-dynamic";
 type Ctx = { params: { id: string } };
 
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
   const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
   if (!mongoose.isValidObjectId(params.id)) return NextResponse.json({ error: "Invalid project id" }, { status: 400 });
   try {
     await connectDB();
-    return NextResponse.json({ data: await listFeatures(user.id, params.id) });
+    const includeArchived = new URL(req.url).searchParams.get("includeArchived") === "true";
+    return NextResponse.json({ data: await listFeatures(user.id, params.id, includeArchived) });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 400 });
   }

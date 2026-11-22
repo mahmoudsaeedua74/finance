@@ -15,6 +15,7 @@ import {
 } from "@/components/projects/project-jobs-list-skeleton";
 import { ProjectJobsKanban } from "@/components/projects/project-jobs-kanban";
 import { ProjectJobCard } from "@/components/projects/project-job-card";
+import { ProjectInvoiceDialog } from "@/components/projects/project-invoice-dialog";
 import { ProjectBulkActionBar } from "@/components/projects/project-bulk-action-bar";
 import { ProjectScopeEditor } from "@/components/projects/project-scope-editor";
 import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
@@ -36,7 +37,6 @@ import { isDetailedProjectType, sumScopeItemAmounts, type ProjectScopeItem } fro
 import {
   canBulkCollect,
   canBulkStatement,
-  downloadInvoicePdf,
   downloadStatementPdf,
 } from "@/lib/project-document-actions";
 import { canDeleteProjectJob } from "@/lib/project-job-rules";
@@ -139,6 +139,7 @@ export default function ProjectsPage() {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [editJob, setEditJob] = useState<ProjectJobDto | null>(null);
   const [detailJob, setDetailJob] = useState<ProjectJobDto | null>(null);
+  const [invoiceProjectId, setInvoiceProjectId] = useState<string | null>(null);
   const [collectJob, setCollectJob] = useState<ProjectJobDto | null>(null);
   const [collectPayoutId, setCollectPayoutId] = useState<string | undefined>();
   const [installmentJob, setInstallmentJob] = useState<ProjectJobDto | null>(null);
@@ -669,11 +670,9 @@ export default function ProjectsPage() {
     [deleteJob, t]
   );
 
-  const handleInvoicePdf = useCallback(
-    (job: ProjectJobDto) => {
-      void runPdfDownload(() => downloadInvoicePdf(job, locale, t));
-    },
-    [runPdfDownload, locale, t]
+  const handleInvoicePdf = (job: ProjectJobDto) => setInvoiceProjectId(job.id);
+  const invoiceDialog = invoiceProjectId && (
+    <ProjectInvoiceDialog projectId={invoiceProjectId} onClose={() => setInvoiceProjectId(null)} />
   );
 
   const openDetailById = useCallback(
@@ -731,6 +730,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="store-section w-full space-y-4">
+      {!detailJob && invoiceDialog}
       <PageHeader
         title={t("title")}
         icon={<FolderKanban className="size-5" />}
@@ -1348,7 +1348,7 @@ export default function ProjectsPage() {
                 ))}
               </select>
               {editWorkPhase === "delivered" && editJob?.workPhase !== "delivered" && (
-                <p className="text-xs text-muted-foreground">{t("deliveredAutoCollectHint")}</p>
+                <p className="text-xs text-muted-foreground">{t("deliveredPaymentHint")}</p>
               )}
             </div>
           </div>
@@ -1502,6 +1502,7 @@ export default function ProjectsPage() {
       {/* Detail */}
       <Dialog open={!!detailJob} onOpenChange={(o) => !o && setDetailJob(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          {invoiceDialog}
           <DialogHeader>
             <DialogTitle>{detailJob?.name}</DialogTitle>
             <DialogDescription>{detailJob?.notes || t("detailsDesc")}</DialogDescription>
@@ -1550,9 +1551,8 @@ export default function ProjectsPage() {
                   type="button"
                   size="sm"
                   variant="secondary"
-                  disabled={pdfBusy}
                   onClick={() => {
-                    void runPdfDownload(() => downloadInvoicePdf({ ...detailJob, clientName: detailClientName, scopeItems: detailScopeItems }, locale, t));
+                    handleInvoicePdf(detailJob);
                   }}
                 >
                   <FileText className="me-1.5 size-3.5" />

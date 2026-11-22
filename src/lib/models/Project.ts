@@ -9,6 +9,8 @@ export interface IProject {
   name: string;
   amount: number;
   date: Date;
+  /** Scheduled date retained when date becomes the cash receipt date. */
+  dueDate?: Date | null;
   /** When false, payout is planned but not yet received (excluded from income reports). */
   isCollected: boolean;
   collectedAt: Date | null;
@@ -39,6 +41,7 @@ const ProjectSchema = new Schema<IProject>(
     name: { type: String, required: true, trim: true },
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
+    dueDate: { type: Date, default: null },
     isCollected: { type: Boolean, default: true },
     collectedAt: { type: Date, default: null },
     paymentMethod: {

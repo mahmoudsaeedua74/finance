@@ -210,9 +210,13 @@ function pricingSnapshot(input: FeatureInput, project: { currency?: ProjectCurre
   };
 }
 
-export async function listFeatures(userId: string, projectId: string) {
+export async function listFeatures(userId: string, projectId: string, includeArchived = false) {
   await assertProject(userId, projectId);
-  const rows = await Feature.find({ userId, freelanceProjectId: oid(projectId), isArchived: { $ne: true } }).sort({ createdAt: -1 }).lean();
+  const rows = await Feature.find({
+    userId,
+    freelanceProjectId: oid(projectId),
+    ...(includeArchived ? {} : { isArchived: { $ne: true } }),
+  }).sort({ createdAt: -1 }).lean();
   return Promise.all(rows.map((row) => buildFeatureDto(row as never, userId)));
 }
 

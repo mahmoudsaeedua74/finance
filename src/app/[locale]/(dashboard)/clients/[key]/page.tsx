@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowLeft, FolderKanban, Phone, Users } from "lucide-react";
+import { ArrowLeft, Download, FolderKanban, Phone, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,13 @@ export default function ClientDetailPage({ params }: Props) {
 
   const detail = data?.data;
   const projectsHref = `/projects${buildProjectJobsFilterQueryString({ client: clientName })}`;
+  const statementExport = useMutation({
+    mutationFn: async (client: ClientDetail) => {
+      const { exportClientStatementExcel } = await import("@/lib/export-excel");
+      await exportClientStatementExcel(client.clientName, client.projects.map((project) => project.id));
+    },
+    ...mergeMutationToasts({ loading: tC("loading"), success: t("statementExported") }),
+  });
 
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -96,6 +103,12 @@ export default function ClientDetailPage({ params }: Props) {
         icon={<Users className="size-5" />}
         action={
           <div className="flex flex-wrap gap-2">
+            {detail && detail.projects.length > 0 && (
+              <Button type="button" variant="outline" size="sm" disabled={statementExport.isPending} onClick={() => statementExport.mutate(detail)}>
+                <Download className="me-1.5 size-4" />
+                {t("statementExcel")}
+              </Button>
+            )}
             <Link href="/clients" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-9")}>
               <ArrowLeft className="me-1.5 size-4" />
               {t("back")}
@@ -211,7 +224,7 @@ export default function ClientDetailPage({ params }: Props) {
                       </span>
                     )}
                     <Link
-                      href={projectsHref}
+                      href={`/projects/${p.id}`}
                       className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-8")}
                     >
                       {t("openProject")}

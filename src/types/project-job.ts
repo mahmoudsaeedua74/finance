@@ -53,6 +53,7 @@ export type ProjectJobDto = {
     id: string;
     amount: number;
     date: string;
+    dueDate?: string | null;
     isCollected: boolean;
     collectedAt: string | null;
     paymentMethod: PaymentMethod;

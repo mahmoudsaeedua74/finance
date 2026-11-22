@@ -1,29 +1,113 @@
 import { describe, expect, it } from "vitest";
-import { buildInvoiceHtml } from "@/lib/project-document-html";
+import { billingDay, billingTotals, buildProjectBillingLines, selectInvoiceLines } from "@/lib/project-billing";
+import { buildInvoiceHtml } from "@/lib/project-invoice-html";
+import type { ProjectJobDto } from "@/types/project-job";
 
-describe("project invoice html", () => {
-  it("keeps approved additions and paid/due payment states in the invoice", () => {
-    const html = buildInvoiceHtml({
-      invoiceNumber: "INV-123",
-      dateLabel: "22 / 11 / 2026",
-      clientName: "Client",
-      projectName: "Project",
-      currency: "EGP",
-      lines: [
-        { title: "Project", amount: 5000 },
-        { title: "Feature", description: "Approved addition", amount: 1000 },
+type Payout = ProjectJobDto["payouts"][number];
+
+function installment(id: string, date: string, paidOn?: string, amount = 20_000): Payout {
+  return {
+    id, date: paidOn ?? date, dueDate: date, collectedAt: paidOn ?? null, isCollected: Boolean(paidOn),
+    amount, paymentMethod: paidOn ? "cash" : "unspecified", note: "", lineKind: "installment",
+  };
+}
+
+describe("project payment claims", () => {
+  it("builds an outstanding-only claim and separates amounts due now from scheduled amounts", () => {
+    const lines = buildProjectBillingLines({
+      name: "متجر <ألف>",
+      billingMode: "retainer",
+      agreedAmount: 20_000,
+      expectedPaymentDate: null,
+      status: "partial",
+      scopeItems: [],
+      payouts: [
+        installment("1", "2026-10-01", "2026-11-04"),
+        installment("2", "2026-11-01"),
+        installment("3", "2026-12-01"),
       ],
-      payments: [
-        { description: "Original installment", date: "22 / 11 / 2026", amount: 2000, collected: true },
-        { description: "Feature payment", date: "22 / 12 / 2026", amount: 1000, collected: false },
-      ],
+    }, []);
+
+    expect(lines[0]).toMatchObject({ dueDate: "2026-10-01", paidOn: "2026-11-04", paid: 20_000 });
+    expect(billingTotals(lines, "2026-11-22")).toEqual({
+      total: 60_000, paid: 20_000, due: 20_000, future: 20_000, nextDueDate: "2026-11-01",
     });
 
-    expect(html).toContain("INV-123");
-    expect(html).toContain("Approved addition");
-    expect(html).toContain("مدفوع");
+    const html = buildInvoiceHtml({
+      invoiceNumber: "INV-123",
+      issuedOn: billingDay("2026-11-21T23:30:00Z"),
+      clientName: "Client",
+      projectName: "متجر <ألف>",
+      scopeLabel: "المشروع كله",
+      mode: "outstanding",
+      lines: selectInvoiceLines(lines, "project", "outstanding"),
+    });
+    expect(html).toContain("متجر &lt;ألف&gt;");
+    expect(html).not.toContain("04 / 11 / 2026");
     expect(html).toContain("مستحق");
-    expect(html).toContain("المدفوع حتى الآن");
-    expect(html).toContain("المتبقي المستحق");
+    expect(html).toContain("دفعات مجدولة لاحقًا");
+    expect(html).toMatch(/إجمالي المبلغ المتبقي<\/dt><dd class="numeric">EGP\s+40,000\.00/);
+    expect(html).toContain("22 / 11 / 2026");
+  });
+
+  it("includes archived additions with payment history and caps fixed contract schedules at the agreed amount", () => {
+    const lines = buildProjectBillingLines({
+      name: "Project",
+      billingMode: "fixed",
+      agreedAmount: 1000,
+      expectedPaymentDate: null,
+      status: "partial",
+      scopeItems: [],
+      payouts: [
+        installment("1", "2026-10-01", "2026-10-10", 700),
+        installment("2", "2026-11-01", undefined, 500),
+        { ...installment("3", "2026-11-01", "2026-11-10", 100), lineKind: "feature", featureId: "feature" },
+      ],
+    }, [
+      { id: "feature", title: "Archived addition", description: "", approvedPriceEgp: 200, status: "completed", isArchived: true, type: "new_feature" },
+    ]);
+    expect(billingTotals(lines, "2026-11-22")).toMatchObject({ total: 1200, paid: 800, due: 400, future: 0 });
+  });
+
+  it("scopes a part-paid addition and produces a separate collected statement with receipt dates", () => {
+    const lines = buildProjectBillingLines({
+      name: "Base project",
+      agreedAmount: 5000,
+      billingMode: "fixed",
+      expectedPaymentDate: null,
+      status: "collected",
+      scopeItems: [],
+      payouts: [
+        installment("base", "2026-10-01", "2026-10-10", 5000),
+        { ...installment("partial", "2026-11-23", "2026-11-18", 400), lineKind: "feature", featureId: "form" },
+        { ...installment("planned", "2026-12-23", undefined, 1000), lineKind: "feature", featureId: "other" },
+        { ...installment("support", "2026-09-10", "2026-09-11", 600), lineKind: "support" },
+      ],
+    }, [
+      { id: "form", title: "New form", description: "", approvedPriceEgp: 1000, status: "completed", isArchived: false, type: "new_feature" },
+      { id: "other", title: "Other feature", description: "", approvedPriceEgp: 1000, status: "pending", isArchived: false, type: "new_feature" },
+      { id: "tech", title: "Technical support", description: "", approvedPriceEgp: 200, status: "completed", isArchived: false, type: "technical_support" },
+    ]);
+    const claim = selectInvoiceLines(lines, "feature:form", "outstanding");
+    const received = selectInvoiceLines(lines, "feature:form", "collected");
+    expect(claim).toEqual([expect.objectContaining({ title: "New form", amount: 600, paid: 0, paidOn: null })]);
+    expect(received).toEqual([expect.objectContaining({ title: "New form", amount: 400, paidOn: "2026-11-18" })]);
+    expect(selectInvoiceLines(lines, "support", "outstanding").map((line) => line.amount)).toEqual([200]);
+    expect(selectInvoiceLines(lines, "support", "collected").map((line) => line.amount)).toEqual([600]);
+    expect(selectInvoiceLines(lines, "project", "collected").map((line) => line.amount)).toEqual([600, 5000, 400]);
+
+    const html = buildInvoiceHtml({
+      invoiceNumber: "RCT-124",
+      clientName: "Client",
+      projectName: "Base project",
+      scopeLabel: "New form",
+      mode: "collected",
+      issuedOn: "2026-11-22",
+      lines: received,
+    });
+    expect(html).toContain("18 / 11 / 2026");
+    expect(html).toMatch(/إجمالي المبالغ المحصّلة<\/dt><dd class="numeric">EGP\s+400\.00/);
+    expect(html).not.toContain("بيانات التحويل البنكي");
+    expect(html).not.toContain("Other feature");
   });
 });

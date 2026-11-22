@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock3, Pause, Pencil, Play, Plus, Square, TimerReset } from "lucide-react";
+import { Check, Clock3, FileText, Pause, Pencil, Play, Plus, Square, TimerReset } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { defaultFormDateYmd } from "@/lib/ymd";
 import type { FeatureDto, FeatureTaskDto } from "@/types/feature";
 
-type Props = { projectId: string };
+type Props = { projectId: string; onInvoice: (featureId: string) => void };
 
 function formatSeconds(seconds: number) {
   const total = Math.max(0, Math.floor(seconds));
@@ -30,7 +30,7 @@ function liveSeconds(session: FeatureTaskDto["activeSession"], now: number) {
   return session.elapsedSeconds + Math.max(0, Math.floor((now - new Date(session.activeStartedAt).getTime()) / 1000));
 }
 
-export function ProjectFeaturesPanel({ projectId }: Props) {
+export function ProjectFeaturesPanel({ projectId, onInvoice }: Props) {
   const t = useTranslations("projects");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -220,6 +220,10 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
                     </div>
                   )}
                   <FeaturePriceAndPayments feature={feature} onRefresh={refresh} t={t} />
+                  <Button type="button" variant="outline" size="sm" onClick={() => onInvoice(feature.id)}>
+                    <FileText className="size-3.5" />
+                    {t("invoiceFeatureButton")}
+                  </Button>
                   {feature.tasks.map((task) => <TaskRow key={task.id} task={task} now={now} onTimer={(action, sessionId, elapsedSeconds, reason) => timer.mutate({ task, action, sessionId, elapsedSeconds, reason })} busy={timer.isPending} t={t} />)}
                   {feature.tasks.length === 0 ? <p className="text-xs text-muted-foreground">{t("noTasks")}</p> : null}
                 </div>

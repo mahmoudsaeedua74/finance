@@ -5,7 +5,6 @@ import {
   normalizePaymentMethod,
   type PaymentMethod,
 } from "@/lib/payment-method";
-import { collectProjectPayment } from "@/lib/services/project-payout-service";
 
 export const PAYMENT_METHOD_REQUIRED_MSG =
   "حدّد طريقة التحصيل (كاش أو فيزا) في المشروع أولاً. · Set payment method (cash or card) on the project first.";
@@ -49,17 +48,4 @@ export async function markWorkPhaseDelivered(
     { _id: jid, userId: uid },
     { $set: { workPhase: "delivered" } }
   );
-}
-
-/** Collect any remaining balance when user marks the job as delivered. */
-export async function autoCollectRemainingOnDelivered(
-  userId: string,
-  job: IFreelanceProject & { _id: mongoose.Types.ObjectId | string },
-  paymentMethod: PaymentMethod,
-  date: Date = new Date()
-) {
-  await collectProjectPayment(userId, job, {
-    date,
-    paymentMethod,
-  });
 }

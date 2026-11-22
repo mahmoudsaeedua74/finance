@@ -1,14 +1,13 @@
 import { format } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import {
-  buildInvoiceHtml,
   buildStatementHtml,
   type DocumentAudience,
 } from "@/lib/project-document-html";
-import { downloadHtmlAsPdf, pdfFilename } from "@/lib/project-document-pdf";
+import { buildInvoiceHtml } from "@/lib/project-invoice-html";
+import { billingDay, type ProjectBillingLine, type ProjectInvoiceMode, type ProjectInvoiceScope } from "@/lib/project-billing";
+import { downloadHtmlAsPdf, pdfFilename, printHtmlDocument } from "@/lib/project-document-pdf";
 import type { ProjectJobDto } from "@/types/project-job";
-import type { FeatureDto } from "@/types/feature";
-import { jsonFetch } from "@/lib/fetcher";
 
 function docDateLabel(locale: string): string {
   const loc = locale === "ar" ? ar : enUS;
@@ -22,70 +21,21 @@ function statusLabel(job: ProjectJobDto, t: (k: string) => string): string {
   return t("statusPending");
 }
 
-/** Build the client invoice from the current project, Features, and payment ledger. */
-export async function downloadInvoicePdf(
-  job: ProjectJobDto,
-  locale: string,
-  t: (k: string) => string
-): Promise<string> {
-  const [detailResponse, featureResponse] = await Promise.all([
-    jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${job.id}`),
-    jsonFetch<{ data: FeatureDto[] }>(`/api/project-jobs/${job.id}/features`),
-  ]);
-  const detail = detailResponse.data;
-  const features = featureResponse.data ?? [];
-  const lines = [
-    {
-      title: detail.name,
-      description: detail.notes || "المشروع الأساسي حسب الاتفاق",
-      amount: detail.agreedAmount,
-    },
-    ...features
-      .filter((feature) => !feature.isArchived && feature.approvedPriceEgp != null)
-      .map((feature) => ({
-        title: feature.title,
-        description:
-          feature.description ||
-          (feature.pricingMode === "free" ? "Feature مجانية" : "إضافة معتمدة ضمن المشروع"),
-        amount: feature.approvedPriceEgp ?? 0,
-      })),
-    ...detail.payouts
-      .filter((payout) => payout.lineKind === "support")
-      .map((payout) => ({
-        title: "دعم شهري",
-        description: payout.note || "دعم إضافي للمشروع",
-        amount: payout.amount,
-      })),
-  ];
-  const featureNames = new Map(features.map((feature) => [feature.id, feature.title]));
-  const payments = detail.payouts.map((payout) => ({
-    description:
-      payout.lineKind === "feature"
-        ? featureNames.get(payout.featureId ?? "") || "Feature إضافية"
-        : payout.lineKind === "support"
-          ? "دعم شهري"
-          : "دفعة من المشروع الأساسي",
-    date: format(new Date(payout.collectedAt || payout.date), "dd / MM / yyyy"),
-    amount: payout.amount,
-    collected: payout.isCollected,
+export async function printProjectInvoice(
+  job: Pick<ProjectJobDto, "id" | "clientName" | "name" | "currency">,
+  options: { scope: ProjectInvoiceScope; scopeLabel: string; mode: ProjectInvoiceMode; lines: ProjectBillingLine[]; footerNote?: string },
+) {
+  const { scope, mode, ...document } = options;
+  const prefix = mode === "collected" ? "RCT" : "CLM";
+  const suffix = scope.startsWith("feature:") ? `F-${scope.slice(-8).toUpperCase()}` : scope.toUpperCase();
+  await printHtmlDocument(buildInvoiceHtml({
+    ...document,
+    mode,
+    invoiceNumber: `${prefix}-${job.id.slice(-8).toUpperCase()}-${suffix}`,
+    issuedOn: billingDay(new Date()),
+    clientName: job.clientName,
+    projectName: job.name,
   }));
-  const invoiceNumber = `INV-${detail.id.slice(-8).toUpperCase()}`;
-  const html = buildInvoiceHtml({
-    invoiceNumber,
-    dateLabel: format(new Date(), "dd / MM / yyyy"),
-    clientName: detail.clientName,
-    projectName: detail.name,
-    currency: "EGP",
-    lines,
-    payments,
-    footerNote:
-      detail.currency === "SAR"
-        ? "تم عرض القيم بالجنيه المصري كقيمة محاسبية مثبتة داخل النظام."
-        : t("invoiceFooterNote"),
-  });
-  const filename = pdfFilename(detail.name, "invoice");
-  await downloadHtmlAsPdf(html, filename);
-  return filename;
 }
 
 export async function downloadStatementPdf(

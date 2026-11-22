@@ -93,6 +93,21 @@ export async function downloadHtmlAsPdf(html: string, filename: string): Promise
   }
 }
 
+/** Print using the browser's A4 layout and text engine. */
+export async function printHtmlDocument(html: string): Promise<void> {
+  const iframe = mountHtmlDocument(html);
+  try {
+    await waitForDocumentReady(iframe);
+    const frame = iframe.contentWindow;
+    if (!frame) throw new Error("Unable to open the print preview");
+    frame.addEventListener("afterprint", () => iframe.remove(), { once: true });
+    frame.print();
+  } catch (error) {
+    iframe.remove();
+    throw error;
+  }
+}
+
 export function pdfFilename(base: string, suffix?: string): string {
   const slug = base
     .trim()

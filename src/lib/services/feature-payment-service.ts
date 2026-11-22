@@ -83,6 +83,7 @@ export async function createFeaturePayment(
     currency: money.currency,
     exchangeRateToEgp: money.exchangeRateToEgp,
     date,
+    dueDate: isCollected ? null : date,
     isCollected,
     collectedAt: isCollected ? date : null,
     paymentMethod: isCollected ? paymentMethod : "unspecified",
@@ -100,6 +101,7 @@ export async function collectFeaturePayment(userId: string, paymentId: string, i
   const date = input.date ? new Date(String(input.date)) : new Date();
   if (Number.isNaN(date.getTime())) throw new Error("Invalid payment date");
   row.isCollected = true;
+  row.dueDate ??= row.date;
   row.collectedAt = date;
   row.date = date;
   row.paymentMethod = paymentMethod;
@@ -117,6 +119,7 @@ export async function updateFeaturePayment(userId: string, paymentId: string, in
     if (Number.isNaN(date.getTime())) throw new Error("Invalid payment date");
     row.date = date;
     if (row.isCollected !== false) row.collectedAt = date;
+    else row.dueDate = date;
   }
   if (input.amount !== undefined) {
     const next = Number(input.amount);
