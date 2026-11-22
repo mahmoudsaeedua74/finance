@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import { defaultFormDateYmd, toLocalYmd } from "@/lib/ymd";
 import type { ProjectJobDto } from "@/types/project-job";
+import { summarizeProjectOutstanding, type ProjectBillingLine } from "@/lib/project-billing";
+import { roundMoney } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 type Payout = ProjectJobDto["payouts"][number];
@@ -41,9 +43,13 @@ function sumMethod(rows: { amount: number; paymentMethod?: string }[], method: "
 export function ProjectPeriodReport({
   payouts,
   costs,
+  outstandingLines,
+  outstandingStatus,
 }: {
   payouts: Payout[];
   costs: Cost[];
+  outstandingLines: ProjectBillingLine[];
+  outstandingStatus: "loading" | "error" | null;
 }) {
   const t = useTranslations("projects");
   const locale = useLocale();
@@ -76,31 +82,45 @@ export function ProjectPeriodReport({
   const installments = collected.filter((p) => p.lineKind === "installment");
   const support = collected.filter((p) => p.lineKind === "support");
   const features = collected.filter((p) => p.lineKind === "feature");
+  const outstanding = summarizeProjectOutstanding(
+    outstandingLines,
+    bounds ? { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) } : undefined,
+  );
 
   const months = useMemo(() => {
-    const map = new Map<string, { installments: number; support: number; features: number; spent: number }>();
+    const map = new Map<string, { installments: number; support: number; features: number; spent: number; outstanding: number }>();
+    function getMonth(key: string) {
+      const existing = map.get(key);
+      if (existing) return existing;
+      const row = { installments: 0, support: 0, features: 0, spent: 0, outstanding: 0 };
+      map.set(key, row);
+      return row;
+    }
     for (const p of collected) {
-      const key = monthKey(p.collectedAt || p.date);
-      const row = map.get(key) ?? { installments: 0, support: 0, features: 0, spent: 0 };
+      const row = getMonth(monthKey(p.collectedAt || p.date));
       if (p.lineKind === "support") row.support += p.amount;
       else if (p.lineKind === "feature") row.features += p.amount;
       else row.installments += p.amount;
-      map.set(key, row);
     }
     for (const c of spent) {
-      const key = monthKey(c.date);
-      const row = map.get(key) ?? { installments: 0, support: 0, features: 0, spent: 0 };
-      row.spent += c.amount;
-      map.set(key, row);
+      getMonth(monthKey(c.date)).spent += c.amount;
+    }
+    for (const line of outstanding.lines) {
+      getMonth(line.dueDate?.slice(0, 7) ?? "undated").outstanding += line.amount;
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [collected, spent]);
+  }, [collected, spent, outstanding.lines]);
 
   const incomeTotal = collected.reduce((s, p) => s + p.amount, 0);
   const installmentTotal = installments.reduce((s, p) => s + p.amount, 0);
   const supportTotal = support.reduce((s, p) => s + p.amount, 0);
   const featureTotal = features.reduce((s, p) => s + p.amount, 0);
   const spentTotal = spent.reduce((s, c) => s + c.amount, 0);
+  const receiptsByKind = [
+    { key: "installments", title: t("projectReportInstallments"), total: installmentTotal, rows: installments },
+    { key: "support", title: t("supportSection"), total: supportTotal, rows: support },
+    { key: "features", title: t("featuresTitle"), total: featureTotal, rows: features },
+  ] as const;
   const elsewhere = collectedAll
     .filter((p) => !collected.some((row) => row.id === p.id))
     .map((p) => monthKey(p.collectedAt || p.date));
@@ -193,33 +213,25 @@ export function ProjectPeriodReport({
       )}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-lg border border-border/60 p-2">
-          <p className="text-[11px] text-muted-foreground">{t("projectReportInstallments")}</p>
-          <p className="font-mono text-base font-semibold tabular-nums">{formatMoney(installmentTotal)}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t("projectReportCash")} {formatMoney(sumMethod(installments, "cash"))}
-            {" · "}
-            {t("projectReportCard")} {formatMoney(sumMethod(installments, "card"))}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border/60 p-2">
-          <p className="text-[11px] text-muted-foreground">{t("supportSection")}</p>
-          <p className="font-mono text-base font-semibold tabular-nums">{formatMoney(supportTotal)}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t("projectReportCash")} {formatMoney(sumMethod(support, "cash"))}
-            {" · "}
-            {t("projectReportCard")} {formatMoney(sumMethod(support, "card"))}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border/60 p-2">
-          <p className="text-[11px] text-muted-foreground">{t("featuresTitle")}</p>
-          <p className="font-mono text-base font-semibold tabular-nums">{formatMoney(featureTotal)}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t("projectReportCash")} {formatMoney(sumMethod(features, "cash"))}
-            {" · "}
-            {t("projectReportCard")} {formatMoney(sumMethod(features, "card"))}
-          </p>
-        </div>
+        {receiptsByKind.map(({ key, title, total, rows }) => (
+          <div key={key} className="rounded-lg border border-border/60 p-2">
+            <p className="text-[11px] text-muted-foreground">{title}</p>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground">{t("projectReportCollected")}</span>
+              <bdi className="font-mono text-base font-semibold tabular-nums">{formatMoney(total)}</bdi>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t("projectReportCash")} {formatMoney(sumMethod(rows, "cash"))}
+              {" · "}{t("projectReportCard")} {formatMoney(sumMethod(rows, "card"))}
+            </p>
+            <div className={cn("mt-2 flex items-baseline justify-between gap-2 border-t border-border/50 pt-1.5 text-xs",
+              outstanding[key] > 0 && "text-amber-700 dark:text-amber-400",
+            )}>
+              <span>{t("supportDue")}</span>
+              <bdi className="font-mono font-semibold tabular-nums">{formatMoney(outstanding[key])}</bdi>
+            </div>
+          </div>
+        ))}
         <div className="rounded-lg border border-border/60 p-2">
           <p className="text-[11px] text-muted-foreground">{t("projectReportSpent")}</p>
           <p className="font-mono text-base font-semibold tabular-nums">{formatMoney(spentTotal)}</p>
@@ -237,6 +249,18 @@ export function ProjectPeriodReport({
         </div>
       </div>
 
+      {outstanding.lines.length > 0 && (
+        <div className="flex justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+          <span>{t("projectOutstandingTotal")}</span>
+          <bdi className="font-mono font-semibold tabular-nums text-amber-700 dark:text-amber-400">{formatMoney(outstanding.total)}</bdi>
+        </div>
+      )}
+      {outstandingStatus && (
+        <p className="text-xs text-muted-foreground">
+          {t(outstandingStatus === "loading" ? "loadingFeatures" : "projectOutstandingFeaturesError")}
+        </p>
+      )}
+
       {incomeTotal === 0 && elsewhereLabel && (
         <p className="text-sm text-muted-foreground">
           {t("projectReportElsewhere", { months: elsewhereLabel })}
@@ -252,13 +276,14 @@ export function ProjectPeriodReport({
                 <th className="py-1 pe-3 text-end font-medium">{t("projectReportInstallments")}</th>
                 <th className="py-1 pe-3 text-end font-medium">{t("supportSection")}</th>
                 <th className="py-1 pe-3 text-end font-medium">{t("featuresTitle")}</th>
+                <th className="py-1 pe-3 text-end font-medium">{t("supportDue")}</th>
                 <th className="py-1 text-end font-medium">{t("projectReportSpent")}</th>
               </tr>
             </thead>
             <tbody>
               {months.map(([key, row]) => {
                 const [y, m] = key.split("-").map(Number);
-                const label = new Intl.DateTimeFormat(locale, {
+                const label = key === "undated" ? t("projectOutstandingUndated") : new Intl.DateTimeFormat(locale, {
                   month: "long",
                   year: "numeric",
                 }).format(new Date(y, (m || 1) - 1, 1));
@@ -268,6 +293,9 @@ export function ProjectPeriodReport({
                     <td className="py-1.5 pe-3 text-end font-mono tabular-nums">{formatMoney(row.installments)}</td>
                     <td className="py-1.5 pe-3 text-end font-mono tabular-nums">{formatMoney(row.support)}</td>
                     <td className="py-1.5 pe-3 text-end font-mono tabular-nums">{formatMoney(row.features)}</td>
+                    <td className={cn("py-1.5 pe-3 text-end font-mono tabular-nums", row.outstanding > 0 && "text-amber-700 dark:text-amber-400")}>
+                      {formatMoney(roundMoney(row.outstanding))}
+                    </td>
                     <td className="py-1.5 text-end font-mono tabular-nums">{formatMoney(row.spent)}</td>
                   </tr>
                 );
@@ -277,10 +305,20 @@ export function ProjectPeriodReport({
         </div>
       )}
 
-      {collected.length === 0 && spent.length === 0 ? (
+      {collected.length === 0 && spent.length === 0 && outstanding.lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("projectReportEmpty")}</p>
       ) : (
         <ul className="space-y-1">
+          {outstanding.lines.map((line, index) => (
+            <li key={`outstanding-${index}`} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 truncate text-muted-foreground">
+                {t("supportDue")} · {line.title}
+                {line.dueDate ? ` · ${formatDateLong(new Date(`${line.dueDate}T12:00:00`), locale)}` : ""}
+                {line.detail ? ` · ${line.detail}` : ""}
+              </span>
+              <bdi className="shrink-0 font-mono tabular-nums text-amber-700 dark:text-amber-400">{formatMoney(line.amount)}</bdi>
+            </li>
+          ))}
           {collected.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
               <span className="min-w-0 truncate text-muted-foreground">

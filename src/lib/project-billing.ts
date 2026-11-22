@@ -35,10 +35,17 @@ export function billingDay(value: string | Date) {
   return cairoDate.format(new Date(value));
 }
 
+export async function loadProjectFeatures(projectId: string) {
+  const { data } = await jsonFetch<{ data: FeatureDto[] }>(
+    `/api/project-jobs/${projectId}/features?includeArchived=true`, { cache: "no-store" },
+  );
+  return data;
+}
+
 export async function loadProjectBilling(projectId: string) {
-  const [{ data: job }, { data: features }] = await Promise.all([
+  const [{ data: job }, features] = await Promise.all([
     jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${projectId}`, { cache: "no-store" }),
-    jsonFetch<{ data: FeatureDto[] }>(`/api/project-jobs/${projectId}/features?includeArchived=true`, { cache: "no-store" }),
+    loadProjectFeatures(projectId),
   ]);
   return { job, features, lines: buildProjectBillingLines(job, features) };
 }
@@ -203,4 +210,29 @@ export function billingTotals(lines: ProjectBillingLine[], today: string) {
     if (line.dueDate && (!nextDueDate || line.dueDate < nextDueDate)) nextDueDate = line.dueDate;
   }
   return { total: roundMoney(total), paid: roundMoney(paid), due: roundMoney(due), future: roundMoney(future), nextDueDate };
+}
+
+/** Summarize outstanding-only invoice lines for project screens and period reports. */
+export function summarizeProjectOutstanding(
+  lines: ProjectBillingLine[],
+  range?: { from: string; to: string },
+) {
+  const visible = range
+    ? lines.filter((line) => line.dueDate && line.dueDate >= range.from && line.dueDate <= range.to)
+    : lines;
+  let installments = 0;
+  let support = 0;
+  let features = 0;
+  for (const line of visible) {
+    if (line.source === "contract") installments += line.amount;
+    else if (line.source === "support" && !line.featureId) support += line.amount;
+    else features += line.amount;
+  }
+  return {
+    lines: visible,
+    installments: roundMoney(installments),
+    support: roundMoney(support),
+    features: roundMoney(features),
+    total: roundMoney(installments + support + features),
+  };
 }

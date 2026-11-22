@@ -19,7 +19,14 @@ import { roundMoney } from "@/lib/currency";
 import { newEntryId } from "@/lib/client-entry-id";
 import type { FeatureDto, FeatureTaskDto } from "@/types/feature";
 
-type Props = { projectId: string; onInvoice: (featureId: string) => void };
+type Props = {
+  projectId: string;
+  projectFeatures?: FeatureDto[];
+  featuresLoading: boolean;
+  featuresError: Error | null;
+  featuresUpdatedAt: number;
+  onInvoice: (featureId: string) => void;
+};
 type TimerCommand =
   | { action: "start" | "pause" | "resume" | "stop"; sessionId?: string }
   | { action: "manual"; sessionId?: string; entryId?: string; elapsedSeconds: number; reason: string };
@@ -32,7 +39,9 @@ function formatSeconds(seconds: number) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-export function ProjectFeaturesPanel({ projectId, onInvoice }: Props) {
+export function ProjectFeaturesPanel({
+  projectId, projectFeatures, featuresLoading, featuresError, featuresUpdatedAt, onInvoice,
+}: Props) {
   const t = useTranslations("projects");
   const qc = useQueryClient();
   const { invalidateProjects } = useFinanceInvalidation();
@@ -50,11 +59,6 @@ export function ProjectFeaturesPanel({ projectId, onInvoice }: Props) {
   const [collectTask, setCollectTask] = useState<FeatureTaskDto | null>(null);
   const [taskCollectionDate, setTaskCollectionDate] = useState("");
   const [taskPaymentMethod, setTaskPaymentMethod] = useState<"cash" | "card">("cash");
-
-  const featuresQ = useQuery({
-    queryKey: ["project-features", projectId],
-    queryFn: () => jsonFetch<{ data: FeatureDto[] }>(`/api/project-jobs/${projectId}/features`),
-  });
 
   const refresh = () => {
     return qc.invalidateQueries({ queryKey: ["project-features", projectId] });
@@ -142,18 +146,14 @@ export function ProjectFeaturesPanel({ projectId, onInvoice }: Props) {
     setCollectTask(task);
   }
 
-  const hasRunning = useMemo(
-    () => (featuresQ.data?.data ?? []).some((feature) => feature.tasks.some((task) => task.activeSession?.status === "running")),
-    [featuresQ.data]
-  );
+  const features = useMemo(() => (projectFeatures ?? []).filter((feature) => !feature.isArchived), [projectFeatures]);
+  const hasRunning = features.some((feature) => feature.tasks.some((task) => task.activeSession?.status === "running"));
 
   useEffect(() => {
     if (!hasRunning) return;
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [hasRunning]);
-
-  const features = featuresQ.data?.data ?? [];
 
   return (
     <section className="space-y-3 rounded-xl border border-border/60 bg-card p-3">
@@ -224,8 +224,11 @@ export function ProjectFeaturesPanel({ projectId, onInvoice }: Props) {
         </DialogContent>
       </Dialog>
 
-      {featuresQ.isLoading ? <p className="text-sm text-muted-foreground">{t("loadingFeatures")}</p> : null}
-      {!featuresQ.isLoading && features.length === 0 ? <p className="text-sm text-muted-foreground">{t("noFeatures")}</p> : null}
+      {featuresLoading && <p className="text-sm text-muted-foreground">{t("loadingFeatures")}</p>}
+      {featuresError && <p role="alert" className="text-sm text-destructive">{featuresError.message}</p>}
+      {!featuresLoading && !featuresError && features.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t("noFeatures")}</p>
+      )}
 
       <div className="space-y-2">
         {features.map((feature) => {
@@ -272,7 +275,7 @@ export function ProjectFeaturesPanel({ projectId, onInvoice }: Props) {
                     <TaskRow
                       key={task.id}
                       task={task}
-                      liveExtraSeconds={Math.max(0, Math.floor((now - featuresQ.dataUpdatedAt) / 1000))}
+                      liveExtraSeconds={Math.max(0, Math.floor((now - featuresUpdatedAt) / 1000))}
                       onTimer={(command) => timer.mutate({ taskId: task.id, command })}
                       onManualTime={(command) => timer.mutateAsync({ taskId: task.id, command })}
                       onCollect={openTaskCollection}

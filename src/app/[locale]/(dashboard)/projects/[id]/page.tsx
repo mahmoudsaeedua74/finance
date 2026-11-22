@@ -41,7 +41,13 @@ import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { PaymentMethodLabel } from "@/components/forms/payment-method-label";
 import { ProjectPeriodReport } from "@/components/projects/project-period-report";
 import { ProjectInvoiceDialog } from "@/components/projects/project-invoice-dialog";
-import type { ProjectInvoiceScope } from "@/lib/project-billing";
+import {
+  buildProjectBillingLines,
+  loadProjectFeatures,
+  selectInvoiceLines,
+  summarizeProjectOutstanding,
+  type ProjectInvoiceScope,
+} from "@/lib/project-billing";
 import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { cn } from "@/lib/utils";
@@ -63,6 +69,11 @@ export default function ProjectJobDetailPage({ params }: Props) {
     queryFn: () => jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${params.id}`),
   });
   const job = data?.data;
+  const features = useQuery({
+    queryKey: ["project-features", params.id],
+    queryFn: () => loadProjectFeatures(params.id),
+    enabled: Boolean(job),
+  });
 
   const [collectOpen, setCollectOpen] = useState(false);
   const [collectAmount, setCollectAmount] = useState("");
@@ -274,6 +285,9 @@ export default function ProjectJobDetailPage({ params }: Props) {
 
   const collectionPct =
     job.agreedAmount > 0 ? Math.min(100, (job.originalCollectedAmount / job.agreedAmount) * 100) : 0;
+  const outstandingLines = selectInvoiceLines(buildProjectBillingLines(job, features.data ?? []), "project", "outstanding");
+  const outstanding = summarizeProjectOutstanding(outstandingLines);
+  const outstandingStatus = features.isPending ? "loading" : features.error ? "error" : null;
 
   return (
     <div className="store-section w-full space-y-4">
@@ -298,14 +312,24 @@ export default function ProjectJobDetailPage({ params }: Props) {
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="text-xs text-muted-foreground">{t("totalCollected")}</p>
           <p className="font-mono text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-            {formatMoney(job.originalCollectedAmount)}
+            {formatMoney(job.totalCollectedRevenue)}
           </p>
         </div>
         <div className="rounded-xl border border-border/60 bg-card p-3">
-          <p className="text-xs text-muted-foreground">{t("pendingAmount")}</p>
+          <p className="text-xs text-muted-foreground">{t("projectOutstandingTotal")}</p>
           <p className="font-mono text-lg font-bold tabular-nums text-amber-600 dark:text-amber-400">
-            {formatMoney(job.pendingAmount)}
+            {formatMoney(outstanding.total)}
           </p>
+          {outstanding.support > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("projectOutstandingSupport", { amount: formatMoney(outstanding.support) })}
+            </p>
+          )}
+          {outstandingStatus && (
+            <p role="status" className="mt-1 text-xs text-muted-foreground">
+              {t(outstandingStatus === "loading" ? "loadingFeatures" : "projectOutstandingFeaturesError")}
+            </p>
+          )}
         </div>
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="text-xs text-muted-foreground">{t("netProfit")}</p>
@@ -508,7 +532,14 @@ export default function ProjectJobDetailPage({ params }: Props) {
         )}
       </div>
 
-      <ProjectFeaturesPanel projectId={job.id} onInvoice={(featureId) => setInvoiceScope(`feature:${featureId}`)} />
+      <ProjectFeaturesPanel
+        projectId={job.id}
+        projectFeatures={features.data}
+        featuresLoading={features.isPending}
+        featuresError={features.error}
+        featuresUpdatedAt={features.dataUpdatedAt}
+        onInvoice={(featureId) => setInvoiceScope(`feature:${featureId}`)}
+      />
 
       {invoiceScope && (
         <ProjectInvoiceDialog projectId={job.id} initialScope={invoiceScope} onClose={() => setInvoiceScope(null)} />
@@ -531,7 +562,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
         </div>
       )}
 
-      <ProjectPeriodReport payouts={job.payouts} costs={job.costs} />
+      <ProjectPeriodReport payouts={job.payouts} costs={job.costs}
+        outstandingLines={outstandingLines} outstandingStatus={outstandingStatus} />
 
       <Dialog open={collectOpen} onOpenChange={(o) => { if (!o) { setCollectOpen(false); setCollectPayout(undefined); } }}>
         <DialogContent className="sm:max-w-md">

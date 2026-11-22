@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { billingDay, billingTotals, buildProjectBillingLines, selectInvoiceLines } from "@/lib/project-billing";
+import { billingDay, billingTotals, buildProjectBillingLines, selectInvoiceLines, summarizeProjectOutstanding } from "@/lib/project-billing";
 import { buildInvoiceHtml } from "@/lib/project-invoice-html";
 import type { ProjectJobDto } from "@/types/project-job";
 
@@ -26,9 +26,13 @@ describe("project payment claims", () => {
         { ...installment("received", "2026-11-01", "2026-11-17", 1000), lineKind: "support" },
       ],
     }, []);
-    expect(selectInvoiceLines(lines, "project", "outstanding")).toEqual([
+    const outstanding = selectInvoiceLines(lines, "project", "outstanding");
+    expect(outstanding).toEqual([
       expect.objectContaining({ amount: 4000, dueDate: "2026-12-01", source: "support" }),
     ]);
+    expect(summarizeProjectOutstanding(outstanding)).toMatchObject({ installments: 0, support: 4000, total: 4000 });
+    expect(summarizeProjectOutstanding(outstanding, { from: "2026-11-01", to: "2026-11-30" }).total).toBe(0);
+    expect(summarizeProjectOutstanding(outstanding, { from: "2026-12-01", to: "2026-12-31" }).total).toBe(4000);
     expect(selectInvoiceLines(lines, "support", "collected")).toEqual([
       expect.objectContaining({ amount: 1000, paidOn: "2026-11-17" }),
     ]);
@@ -73,6 +77,7 @@ describe("project payment claims", () => {
     const lines = buildProjectBillingLines(job, [{ ...feature, tasks: [...feature.tasks] }]);
     const unpaid = selectInvoiceLines(lines, "project", "outstanding");
     expect(unpaid).toEqual([expect.objectContaining({ title: "Unpaid task", amount: 500 })]);
+    expect(summarizeProjectOutstanding(unpaid)).toMatchObject({ installments: 0, features: 500, total: 500 });
     expect(selectInvoiceLines(lines, "project", "collected")).toContainEqual(
       expect.objectContaining({ title: "Paid task", amount: 500 }),
     );
