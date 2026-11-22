@@ -42,8 +42,7 @@ type Props = {
   onEdit: (job: ProjectJobDto) => void;
   onArchive: (job: ProjectJobDto) => void;
   onDelete: (job: ProjectJobDto) => void;
-  onPdfClient: (job: ProjectJobDto) => void;
-  onPdfInternal: (job: ProjectJobDto) => void;
+  onInvoicePdf: (job: ProjectJobDto) => void;
 };
 
 function phaseTone(phase: WorkPhase) {
@@ -70,8 +69,7 @@ export function ProjectJobCard({
   onEdit,
   onArchive,
   onDelete,
-  onPdfClient,
-  onPdfInternal,
+  onInvoicePdf,
 }: Props) {
   const t = useTranslations("projects");
   const locale = useLocale();
@@ -155,13 +153,9 @@ export function ProjectJobCard({
                   <EllipsisVertical className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem onClick={() => onPdfClient(job)}>
+                  <DropdownMenuItem onClick={() => onInvoicePdf(job)}>
                     <FileText className="size-3.5" />
-                    {t("pdfForClient")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onPdfInternal(job)}>
-                    <FileText className="size-3.5" />
-                    {t("pdfWithDetails")}
+                    {t("invoicePdf")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onEdit(job)}>

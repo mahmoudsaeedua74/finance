@@ -39,7 +39,7 @@ import type { PaymentMethod } from "@/lib/payment-method";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
 import { PaymentMethodLabel } from "@/components/forms/payment-method-label";
 import { ProjectPeriodReport } from "@/components/projects/project-period-report";
-import { downloadProposalPdf } from "@/lib/project-document-actions";
+import { downloadInvoicePdf } from "@/lib/project-document-actions";
 import { mergeMutationToasts } from "@/features/_lib/mutation-toast";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { cn } from "@/lib/utils";
@@ -371,20 +371,10 @@ export default function ProjectJobDetailPage({ params }: Props) {
           size="sm"
           variant="secondary"
           disabled={pdfBusy}
-          onClick={() => void runPdfDownload(() => downloadProposalPdf(job, "client", locale, t))}
+          onClick={() => void runPdfDownload(() => downloadInvoicePdf(job, locale, t))}
         >
           <FileText className="me-1.5 size-3.5" />
-          {t("pdfForClient")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={pdfBusy}
-          onClick={() => void runPdfDownload(() => downloadProposalPdf(job, "internal", locale, t))}
-        >
-          <FileText className="me-1.5 size-3.5" />
-          {t("pdfWithDetails")}
+          {t("invoicePdf")}
         </Button>
       </div>
 

@@ -1,13 +1,14 @@
 import { format } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import {
-  buildProposalHtml,
+  buildInvoiceHtml,
   buildStatementHtml,
   type DocumentAudience,
 } from "@/lib/project-document-html";
 import { downloadHtmlAsPdf, pdfFilename } from "@/lib/project-document-pdf";
-import { isDetailedProjectType, sumScopeItemAmounts } from "@/lib/project-scope";
 import type { ProjectJobDto } from "@/types/project-job";
+import type { FeatureDto } from "@/types/feature";
+import { jsonFetch } from "@/lib/fetcher";
 
 function docDateLabel(locale: string): string {
   const loc = locale === "ar" ? ar : enUS;
@@ -21,38 +22,68 @@ function statusLabel(job: ProjectJobDto, t: (k: string) => string): string {
   return t("statusPending");
 }
 
-export async function downloadProposalPdf(
+/** Build the client invoice from the current project, Features, and payment ledger. */
+export async function downloadInvoicePdf(
   job: ProjectJobDto,
-  audience: DocumentAudience,
   locale: string,
   t: (k: string) => string
 ): Promise<string> {
-  const currency = job.currency === "SAR" ? "SAR" : "EGP";
-  const projectTotal = currency === "SAR" ? job.originalAmount : job.agreedAmount;
-  const scopeSum = sumScopeItemAmounts(job.scopeItems ?? []);
-  const total = scopeSum > 0 ? scopeSum : projectTotal;
-
-  const html = buildProposalHtml({
-    title: job.name,
-    subtitle: isDetailedProjectType(job.projectType)
-      ? t(`type.${job.projectType}`)
-      : undefined,
-    clientName: job.clientName,
-    dateLabel: docDateLabel(locale),
-    total,
-    currency,
-    items: job.scopeItems,
-    audience,
-    collected: job.originalCollectedAmount,
-    pending: job.pendingAmount,
-    statusLabel: statusLabel(job, t),
+  const [detailResponse, featureResponse] = await Promise.all([
+    jsonFetch<{ data: ProjectJobDto }>(`/api/project-jobs/${job.id}`),
+    jsonFetch<{ data: FeatureDto[] }>(`/api/project-jobs/${job.id}/features`),
+  ]);
+  const detail = detailResponse.data;
+  const features = featureResponse.data ?? [];
+  const lines = [
+    {
+      title: detail.name,
+      description: detail.notes || "المشروع الأساسي حسب الاتفاق",
+      amount: detail.agreedAmount,
+    },
+    ...features
+      .filter((feature) => !feature.isArchived && feature.approvedPriceEgp != null)
+      .map((feature) => ({
+        title: feature.title,
+        description:
+          feature.description ||
+          (feature.pricingMode === "free" ? "Feature مجانية" : "إضافة معتمدة ضمن المشروع"),
+        amount: feature.approvedPriceEgp ?? 0,
+      })),
+    ...detail.payouts
+      .filter((payout) => payout.lineKind === "support")
+      .map((payout) => ({
+        title: "دعم شهري",
+        description: payout.note || "دعم إضافي للمشروع",
+        amount: payout.amount,
+      })),
+  ];
+  const featureNames = new Map(features.map((feature) => [feature.id, feature.title]));
+  const payments = detail.payouts.map((payout) => ({
+    description:
+      payout.lineKind === "feature"
+        ? featureNames.get(payout.featureId ?? "") || "Feature إضافية"
+        : payout.lineKind === "support"
+          ? "دعم شهري"
+          : "دفعة من المشروع الأساسي",
+    date: format(new Date(payout.collectedAt || payout.date), "dd / MM / yyyy"),
+    amount: payout.amount,
+    collected: payout.isCollected,
+  }));
+  const invoiceNumber = `INV-${detail.id.slice(-8).toUpperCase()}`;
+  const html = buildInvoiceHtml({
+    invoiceNumber,
+    dateLabel: format(new Date(), "dd / MM / yyyy"),
+    clientName: detail.clientName,
+    projectName: detail.name,
+    currency: "EGP",
+    lines,
+    payments,
     footerNote:
-      audience === "client" ? t("docFooterProposalClient") : t("docFooterProposalInternal"),
+      detail.currency === "SAR"
+        ? "تم عرض القيم بالجنيه المصري كقيمة محاسبية مثبتة داخل النظام."
+        : t("invoiceFooterNote"),
   });
-  const filename = pdfFilename(
-    job.name,
-    audience === "client" ? "proposal" : "proposal-internal"
-  );
+  const filename = pdfFilename(detail.name, "invoice");
   await downloadHtmlAsPdf(html, filename);
   return filename;
 }

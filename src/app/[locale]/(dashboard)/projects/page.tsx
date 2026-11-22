@@ -36,7 +36,7 @@ import { isDetailedProjectType, sumScopeItemAmounts, type ProjectScopeItem } fro
 import {
   canBulkCollect,
   canBulkStatement,
-  downloadProposalPdf,
+  downloadInvoicePdf,
   downloadStatementPdf,
 } from "@/lib/project-document-actions";
 import { canDeleteProjectJob } from "@/lib/project-job-rules";
@@ -669,16 +669,9 @@ export default function ProjectsPage() {
     [deleteJob, t]
   );
 
-  const handlePdfClient = useCallback(
+  const handleInvoicePdf = useCallback(
     (job: ProjectJobDto) => {
-      void runPdfDownload(() => downloadProposalPdf(job, "client", locale, t));
-    },
-    [runPdfDownload, locale, t]
-  );
-
-  const handlePdfInternal = useCallback(
-    (job: ProjectJobDto) => {
-      void runPdfDownload(() => downloadProposalPdf(job, "internal", locale, t));
+      void runPdfDownload(() => downloadInvoicePdf(job, locale, t));
     },
     [runPdfDownload, locale, t]
   );
@@ -733,8 +726,7 @@ export default function ProjectsPage() {
     onEdit: openEdit,
     onArchive: handleArchive,
     onDelete: handleDelete,
-    onPdfClient: handlePdfClient,
-    onPdfInternal: handlePdfInternal,
+    onInvoicePdf: handleInvoicePdf,
   };
 
   return (
@@ -794,8 +786,8 @@ export default function ProjectsPage() {
           clear: t("bulkClear"),
           collectAll: t("bulkCollect"),
           pdfMenu: t("bulkPdfMenu"),
-          pdfClient: t("pdfForClient"),
-          pdfInternal: t("pdfWithDetails"),
+          pdfClient: t("pdfStatementOne"),
+          pdfInternal: t("statementPdfInternal"),
         }}
       />
       )}
@@ -1560,37 +1552,11 @@ export default function ProjectsPage() {
                   variant="secondary"
                   disabled={pdfBusy}
                   onClick={() => {
-                    void runPdfDownload(() =>
-                      downloadProposalPdf(
-                        { ...detailJob, clientName: detailClientName, scopeItems: detailScopeItems },
-                        "client",
-                        locale,
-                        t
-                      )
-                    );
+                    void runPdfDownload(() => downloadInvoicePdf({ ...detailJob, clientName: detailClientName, scopeItems: detailScopeItems }, locale, t));
                   }}
                 >
                   <FileText className="me-1.5 size-3.5" />
-                  {t("pdfForClient")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pdfBusy}
-                  onClick={() => {
-                    void runPdfDownload(() =>
-                      downloadProposalPdf(
-                        { ...detailJob, clientName: detailClientName, scopeItems: detailScopeItems },
-                        "internal",
-                        locale,
-                        t
-                      )
-                    );
-                  }}
-                >
-                  <FileText className="me-1.5 size-3.5" />
-                  {t("pdfWithDetails")}
+                  {t("invoicePdf")}
                 </Button>
               </div>
 

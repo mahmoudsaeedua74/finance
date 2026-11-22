@@ -16,8 +16,7 @@ type Props = {
   onEdit: (job: ProjectJobDto) => void;
   onArchive: (job: ProjectJobDto) => void;
   onDelete: (job: ProjectJobDto) => void;
-  onPdfClient: (job: ProjectJobDto) => void;
-  onPdfInternal: (job: ProjectJobDto) => void;
+  onInvoicePdf: (job: ProjectJobDto) => void;
 };
 
 export function ProjectJobsKanban({
@@ -30,8 +29,7 @@ export function ProjectJobsKanban({
   onEdit,
   onArchive,
   onDelete,
-  onPdfClient,
-  onPdfInternal,
+  onInvoicePdf,
 }: Props) {
   const t = useTranslations("projects");
 
@@ -77,8 +75,7 @@ export function ProjectJobsKanban({
                   onEdit={onEdit}
                   onArchive={onArchive}
                   onDelete={onDelete}
-                  onPdfClient={onPdfClient}
-                  onPdfInternal={onPdfInternal}
+                  onInvoicePdf={onInvoicePdf}
                 />
               ))
             )}
