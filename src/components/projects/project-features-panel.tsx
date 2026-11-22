@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock3, Pause, Play, Plus, Square, TimerReset } from "lucide-react";
+import { Check, Clock3, Pause, Pencil, Play, Plus, Square, TimerReset } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,10 +91,10 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
   });
 
   const timer = useMutation({
-    mutationFn: ({ task, action, sessionId }: { task: FeatureTaskDto; action: string; sessionId?: string }) =>
+    mutationFn: ({ task, action, sessionId, elapsedSeconds, reason }: { task: FeatureTaskDto; action: string; sessionId?: string; elapsedSeconds?: number; reason?: string }) =>
       jsonFetch(`/api/tasks/${task.id}/timer`, {
         method: "POST",
-        body: JSON.stringify({ action, sessionId }),
+        body: JSON.stringify({ action, sessionId, elapsedSeconds, reason }),
       }),
     onSuccess: refresh,
   });
@@ -216,11 +216,11 @@ export function ProjectFeaturesPanel({ projectId }: Props) {
                   {taskFeatureId === feature.id && (
                     <div className="flex gap-2">
                       <Input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder={t("taskNamePh")} />
-                      <Button type="button" size="sm" disabled={!taskTitle.trim() || addTask.isPending} onClick={() => addTask.mutate(feature.id)}>{t("add")}</Button>
+                      <Button type="button" size="sm" disabled={!taskTitle.trim() || addTask.isPending} onClick={() => addTask.mutate(feature.id)}>{t("saveTask")}</Button>
                     </div>
                   )}
                   <FeaturePriceAndPayments feature={feature} onRefresh={refresh} t={t} />
-                  {feature.tasks.map((task) => <TaskRow key={task.id} task={task} now={now} onTimer={(action, sessionId) => timer.mutate({ task, action, sessionId })} busy={timer.isPending} t={t} />)}
+                  {feature.tasks.map((task) => <TaskRow key={task.id} task={task} now={now} onTimer={(action, sessionId, elapsedSeconds, reason) => timer.mutate({ task, action, sessionId, elapsedSeconds, reason })} busy={timer.isPending} t={t} />)}
                   {feature.tasks.length === 0 ? <p className="text-xs text-muted-foreground">{t("noTasks")}</p> : null}
                 </div>
               )}
@@ -287,6 +287,7 @@ function FeaturePriceAndPayments({ feature, onRefresh, t }: { feature: FeatureDt
           <div className="min-w-32 flex-1 space-y-1"><Label className="text-xs">{t("featurePaymentAmount")}</Label><Input type="number" min="0" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} placeholder={t("amountPlaceholder")} /></div>
           <div className="space-y-1"><Label className="text-xs">{t("paymentDate")}</Label><Input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></div>
           <label className="flex h-9 items-center gap-1.5 text-xs"><input type="checkbox" checked={collectedNow} onChange={(event) => setCollectedNow(event.target.checked)} />{t("collectNow")}</label>
+          {collectedNow ? <div className="flex h-9 items-center gap-1"><Button type="button" size="sm" variant={collectMethod === "cash" ? "secondary" : "outline"} onClick={() => setCollectMethod("cash")}>{t("collectCash")}</Button><Button type="button" size="sm" variant={collectMethod === "card" ? "secondary" : "outline"} onClick={() => setCollectMethod("card")}>{t("collectCard")}</Button></div> : null}
           <Button type="button" size="sm" disabled={!paymentAmount || addPayment.isPending} onClick={() => addPayment.mutate()}>{t("addFeaturePayment")}</Button>
         </div>
       ) : null}
@@ -296,8 +297,8 @@ function FeaturePriceAndPayments({ feature, onRefresh, t }: { feature: FeatureDt
           {!payment.isCollected ? (
             <div className="flex items-center gap-1">
               <Input className="h-7 w-32" type="date" value={collectDate} onChange={(event) => setCollectDate(event.target.value)} aria-label={t("collectionDate")} />
-              <select className="h-7 rounded border bg-background px-1 text-xs" value={collectMethod} onChange={(event) => setCollectMethod(event.target.value as "cash" | "card")}><option value="cash">{t("projectReportCash")}</option><option value="card">{t("projectReportCard")}</option></select>
-              <Button type="button" size="sm" variant="ghost" disabled={collect.isPending} onClick={() => collect.mutate(payment.id)}>{t("collectBtn")}</Button>
+              <Button type="button" size="sm" variant={collectMethod === "cash" ? "secondary" : "outline"} disabled={collect.isPending} onClick={() => { setCollectMethod("cash"); collect.mutate(payment.id); }}>{t("collectCash")}</Button>
+              <Button type="button" size="sm" variant={collectMethod === "card" ? "secondary" : "outline"} disabled={collect.isPending} onClick={() => { setCollectMethod("card"); collect.mutate(payment.id); }}>{t("collectCard")}</Button>
             </div>
           ) : null}
         </div>
@@ -306,10 +307,31 @@ function FeaturePriceAndPayments({ feature, onRefresh, t }: { feature: FeatureDt
   );
 }
 
-function TaskRow({ task, now, onTimer, busy, t }: { task: FeatureTaskDto; now: number; onTimer: (action: string, sessionId?: string) => void; busy: boolean; t: (key: string) => string }) {
+function TaskRow({ task, now, onTimer, busy, t }: { task: FeatureTaskDto; now: number; onTimer: (action: string, sessionId?: string, elapsedSeconds?: number, reason?: string) => void; busy: boolean; t: (key: string) => string }) {
   const running = task.activeSession?.status === "running";
   const last = task.lastSession;
   const elapsed = running ? liveSeconds(task.activeSession, now) : last?.elapsedSeconds ?? task.trackedSeconds;
+  const [editOpen, setEditOpen] = useState(false);
+  const [editHours, setEditHours] = useState("0");
+  const [editMinutes, setEditMinutes] = useState("0");
+  const [editSeconds, setEditSeconds] = useState("0");
+  const [editReason, setEditReason] = useState("");
+
+  const openEdit = () => {
+    if (!last || last.status === "running") return;
+    setEditHours(String(Math.floor(last.elapsedSeconds / 3600)));
+    setEditMinutes(String(Math.floor((last.elapsedSeconds % 3600) / 60)));
+    setEditSeconds(String(last.elapsedSeconds % 60));
+    setEditReason("");
+    setEditOpen(true);
+  };
+
+  const saveEdit = () => {
+    if (!last) return;
+    const seconds = Math.max(0, Number(editHours) * 3600 + Number(editMinutes) * 60 + Number(editSeconds));
+    onTimer("manual", last.id, seconds, editReason);
+    setEditOpen(false);
+  };
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/50 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -331,8 +353,21 @@ function TaskRow({ task, now, onTimer, busy, t }: { task: FeatureTaskDto; now: n
         ) : (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onTimer("start")}><Play className="me-1 size-3.5" />{t("startTimer")}</Button>
         )}
+        {!running && last ? <Button type="button" size="icon-sm" variant="ghost" disabled={busy} title={t("editTime")} onClick={openEdit}><Pencil className="size-3.5" /></Button> : null}
         {task.status === "completed" ? <Check className="ms-1 size-4 text-emerald-600" /> : null}
       </div>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{t("editTimeTitle")}</DialogTitle><DialogDescription>{task.title}</DialogDescription></DialogHeader>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1"><Label>{t("hours")}</Label><Input type="number" min="0" value={editHours} onChange={(event) => setEditHours(event.target.value)} /></div>
+            <div className="space-y-1"><Label>{t("minutes")}</Label><Input type="number" min="0" max="59" value={editMinutes} onChange={(event) => setEditMinutes(event.target.value)} /></div>
+            <div className="space-y-1"><Label>{t("seconds")}</Label><Input type="number" min="0" max="59" value={editSeconds} onChange={(event) => setEditSeconds(event.target.value)} /></div>
+          </div>
+          <div className="space-y-1"><Label>{t("editTimeReason")}</Label><Input value={editReason} onChange={(event) => setEditReason(event.target.value)} placeholder={t("editTimeReasonPh")} /></div>
+          <DialogFooter><Button type="button" onClick={saveEdit} disabled={busy}>{t("saveTime")}</Button><Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>{t("cancelFeature")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
