@@ -564,6 +564,9 @@ export function buildInvoiceHtml(input: InvoiceDocInput): string {
     :root { --brand:#4E45E4; --brand-dark:#4237CA; --ink:#1A1A1A; --muted:#6B7280; --line:#E5E7EB; --bg:#FAFAFA; --white:#fff; --paid:#047857; --due:#B45309; }
     * { box-sizing:border-box; margin:0; padding:0; }
     body { background:#ececec; font-family:"IBM Plex Sans Arabic",Tahoma,sans-serif; color:var(--ink); font-size:13px; line-height:1.55; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .tok { display:inline-block; white-space:nowrap; letter-spacing:0; unicode-bidi:isolate; }
+    .tok + .tok { margin-inline-start:.35em; }
+    bdi.tok { direction:ltr; }
     .sheet { width:210mm; min-height:297mm; margin:16px auto; background:var(--white); box-shadow:0 4px 24px rgba(0,0,0,.08); display:flex; flex-direction:column; padding:16mm 16mm 14mm; }
     .top { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; padding-bottom:14px; border-bottom:2px solid var(--brand); }
     .brand .who { font-size:20px; font-weight:700; letter-spacing:.04em; direction:ltr; text-align:right; }
@@ -614,7 +617,6 @@ export function buildInvoiceHtml(input: InvoiceDocInput): string {
     .foot .brand-mini { font-weight:700; letter-spacing:.04em; color:var(--ink); direction:ltr; margin-bottom:2px; }
     @page { size:A4; margin:0; }
     @media print { body{background:#fff;} .sheet{margin:0; box-shadow:none; width:210mm; min-height:297mm;} }
-    @media screen and (max-width:850px) { .sheet{zoom:.65; margin:12px auto;} }
   </style>
 </head>
 <body>
