@@ -60,6 +60,7 @@ export type ProjectJobDto = {
     note: string;
     lineKind: "installment" | "support" | "feature";
     featureId?: string | null;
+    taskId?: string | null;
   }[];
   costs: {
     id: string;

@@ -1,10 +1,13 @@
 import { roundMoney } from "@/lib/currency";
 import { jsonFetch } from "@/lib/fetcher";
+import { calculateHourlyTaskBalances } from "@/lib/feature-pricing";
 import type { FeatureDto } from "@/types/feature";
 import type { ProjectJobDto } from "@/types/project-job";
 
 type Payout = ProjectJobDto["payouts"][number];
-type BillableFeature = Pick<FeatureDto, "id" | "title" | "description" | "approvedPriceEgp" | "isArchived" | "status" | "type">;
+type BillableFeature = Pick<FeatureDto, "id" | "title" | "description" | "approvedPriceEgp" | "isArchived" | "status" | "type">
+  & Partial<Pick<FeatureDto, "pricingMode" | "hourlyRateEgp">>
+  & { tasks?: Pick<FeatureDto["tasks"][number], "id" | "title" | "billableSecondsForPayment">[] };
 type BillableProject = Pick<ProjectJobDto, "name" | "agreedAmount" | "billingMode" | "expectedPaymentDate" | "payouts" | "scopeItems" | "status">;
 
 export type ProjectBillingLine = {
@@ -45,10 +48,11 @@ export function buildProjectBillingLines(job: BillableProject, features: Billabl
     approved: number;
     dueDate?: string | null;
     payouts: Payout[];
+    taskTitles?: Map<string, string>;
   };
   const lines: ProjectBillingLine[] = [];
 
-  function addGroup({ approved, dueDate, payouts, ...identity }: Group) {
+  function addGroup({ approved, dueDate, payouts, taskTitles, ...identity }: Group) {
     const paidRows = payouts.filter((p) => p.isCollected);
     const openRows = payouts.filter((p) => !p.isCollected)
       .sort((a, b) => (a.dueDate ?? a.date).localeCompare(b.dueDate ?? b.date));
@@ -63,9 +67,11 @@ export function buildProjectBillingLines(job: BillableProject, features: Billabl
       const scheduled = payout.dueDate ?? (payout.isCollected ? null : legacyDueDate);
       const note = payout.note && !["Pending collection", "Remaining balance", "Partial collection"].includes(payout.note)
         ? payout.note : "";
+      const taskTitle = payout.taskId ? taskTitles?.get(payout.taskId) ?? note : "";
       lines.push({
         ...identity,
-        detail: note || identity.detail,
+        title: taskTitle || identity.title,
+        detail: taskTitle ? identity.title : note || identity.detail,
         dueDate: scheduled ? billingDay(scheduled) : null,
         paidOn,
         amount,
@@ -103,14 +109,40 @@ export function buildProjectBillingLines(job: BillableProject, features: Billabl
     payoutsByFeature.delete(feature.id);
     const withdrawn = cancelled || feature.status === "cancelled";
     const payouts = withdrawn ? matching.filter((p) => p.isCollected) : matching;
-    if ((feature.isArchived || withdrawn || feature.approvedPriceEgp == null) && payouts.length === 0) continue;
-    addGroup({
-      source: feature.type === "technical_support" ? "support" : "feature",
+    const tasks = feature.tasks ?? [];
+    const hourly = feature.pricingMode === "hourly" && !withdrawn && !feature.isArchived;
+    const balances = hourly
+      ? calculateHourlyTaskBalances(tasks, payouts, feature.hourlyRateEgp ?? 0, feature.approvedPriceEgp)
+      : [];
+    const taskTotal = balances.reduce((total, task) => total + task.collectableAmountEgp, 0);
+    if ((feature.isArchived || withdrawn || feature.approvedPriceEgp == null) && payouts.length === 0 && taskTotal <= 0) continue;
+    const identity = {
+      source: feature.type === "technical_support" ? "support" as const : "feature" as const,
       featureId: feature.id,
+    };
+    const recordedAmount = sum(payouts);
+    const featureAmount = withdrawn || feature.approvedPriceEgp == null
+      ? recordedAmount
+      : Math.max(0, roundMoney(feature.approvedPriceEgp - taskTotal));
+    if (featureAmount > 0 || payouts.length > 0) addGroup({
+      ...identity,
       title: feature.title,
       detail: feature.description,
-      approved: withdrawn ? sum(payouts) : feature.approvedPriceEgp ?? sum(payouts),
+      approved: featureAmount,
       payouts,
+      taskTitles: new Map(tasks.map((task) => [task.id, task.title])),
+    });
+    balances.forEach((balance, index) => {
+      if (balance.collectableAmountEgp <= 0) return;
+      lines.push({
+        ...identity,
+        title: tasks[index].title,
+        detail: feature.title,
+        dueDate: null,
+        paidOn: null,
+        amount: balance.collectableAmountEgp,
+        paid: 0,
+      });
     });
   }
   for (const [featureId, payouts] of Array.from(payoutsByFeature.entries())) {

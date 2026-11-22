@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { FreelanceProject, type IFreelanceProject } from "@/lib/models";
+import { FreelanceProject } from "@/lib/models";
 import {
   isWalletPaymentMethod,
   normalizePaymentMethod,

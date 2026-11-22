@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { AuditLog, Feature, Project } from "@/lib/models";
 import { roundMoney, toEgpAmount, type ProjectCurrency } from "@/lib/currency";
+import { buildFeatureDto } from "@/lib/services/feature-service";
 
 function oid(value: string) {
   if (!mongoose.isValidObjectId(value)) throw new Error("Invalid id");
@@ -42,6 +43,7 @@ export async function listFeaturePayments(userId: string, featureId: string) {
   return rows.map((row) => ({
     id: String(row._id),
     featureId: String(row.featureId),
+    taskId: row.taskId ? String(row.taskId) : null,
     amountEgp: row.amount,
     originalAmount: row.originalAmount ?? row.amount,
     currency: row.currency ?? "EGP",
@@ -57,26 +59,64 @@ export async function listFeaturePayments(userId: string, featureId: string) {
 export async function createFeaturePayment(
   userId: string,
   featureId: string,
-  input: { amount?: unknown; originalAmount?: unknown; currency?: unknown; exchangeRateToEgp?: unknown; date?: unknown; isCollected?: unknown; paymentMethod?: unknown; note?: unknown }
+  input: { entryId?: unknown; taskId?: unknown; amount?: unknown; originalAmount?: unknown; currency?: unknown; exchangeRateToEgp?: unknown; date?: unknown; isCollected?: unknown; paymentMethod?: unknown; note?: unknown }
 ) {
   const feature = await assertFeature(userId, featureId);
-  if (feature.approvedPriceEgp == null && feature.pricingMode !== "free") {
+  if (input.entryId !== undefined && (typeof input.entryId !== "string" || !mongoose.isObjectIdOrHexString(input.entryId))) {
+    throw new Error("Invalid payment entry ID");
+  }
+  const entryId = typeof input.entryId === "string" ? input.entryId : undefined;
+  if (input.taskId !== undefined && (typeof input.taskId !== "string" || !mongoose.isObjectIdOrHexString(input.taskId))) {
+    throw new Error("Invalid task ID");
+  }
+  const taskId = typeof input.taskId === "string" ? input.taskId : undefined;
+  const retryFilter = entryId
+    ? { _id: entryId, userId, featureId: oid(featureId), lineKind: "feature" as const, ...(taskId ? { taskId: oid(taskId) } : {}) }
+    : null;
+  const receipt = (row: { _id: unknown; amount: number; isCollected: boolean }) => ({
+    id: String(row._id), amountEgp: row.amount, isCollected: row.isCollected !== false,
+  });
+  if (retryFilter) {
+    const existing = await Project.findOne(retryFilter).lean();
+    if (existing) return receipt(existing);
+  }
+  if (!taskId && feature.approvedPriceEgp == null && feature.pricingMode !== "free") {
     throw new Error("Approve the Feature price before creating a payment");
   }
   const money = paymentAmount(input);
   const isCollected = input.isCollected === true;
-  const totals = await featurePaymentTotals(userId, oid(String(feature._id)));
-  if (feature.approvedPriceEgp != null && totals.scheduled + money.amountEgp > feature.approvedPriceEgp + 0.01) {
-    throw new Error("Feature payment exceeds the approved price");
-  }
   const date = input.date ? new Date(String(input.date)) : new Date();
   if (Number.isNaN(date.getTime())) throw new Error("Invalid payment date");
   const paymentMethod = input.paymentMethod === "cash" || input.paymentMethod === "card" ? input.paymentMethod : "unspecified";
   if (isCollected && paymentMethod === "unspecified") throw new Error("Payment method is required for collected payments");
-  const row = await Project.create({
+  let taskTitle: string | undefined;
+  if (taskId) {
+    if (feature.pricingMode !== "hourly" || !isCollected || money.currency !== "EGP" || !entryId) {
+      throw new Error("Task collection requires recorded hourly work");
+    }
+    const detail = await buildFeatureDto(feature, userId);
+    const task = detail.tasks.find((item) => item.id === taskId);
+    if (!task?.billing || task.activeSession) throw new Error("Stop or pause the task timer before collecting");
+    if (task.billing.entryId !== entryId || task.billing.collectableAmountEgp !== money.amountEgp || money.amountEgp <= 0) {
+      const existing = retryFilter && await Project.findOne(retryFilter).lean();
+      if (existing) return receipt(existing);
+      throw new Error("Task balance changed. Refresh the feature and try again.");
+    }
+    taskTitle = task.title;
+  } else {
+    const totals = await featurePaymentTotals(userId, oid(String(feature._id)));
+    const recorded = entryId && totals.rows.find((row) => String(row._id) === entryId);
+    if (recorded) return receipt(recorded);
+    if (feature.approvedPriceEgp != null && totals.scheduled + money.amountEgp > feature.approvedPriceEgp + 0.01) {
+      throw new Error("Feature payment exceeds the approved price");
+    }
+  }
+  const fields = {
+    ...(entryId ? { _id: entryId } : {}),
     userId,
     freelanceProjectId: feature.freelanceProjectId,
     featureId: feature._id,
+    ...(taskId ? { taskId: oid(taskId) } : {}),
     name: feature.title,
     amount: money.amountEgp,
     originalAmount: money.originalAmount,
@@ -87,26 +127,40 @@ export async function createFeaturePayment(
     isCollected,
     collectedAt: isCollected ? date : null,
     paymentMethod: isCollected ? paymentMethod : "unspecified",
-    note: typeof input.note === "string" ? input.note.trim().slice(0, 500) : "",
-    lineKind: "feature",
-  });
-  return { id: String(row._id), amountEgp: row.amount, isCollected: row.isCollected !== false };
+    note: taskTitle ?? (typeof input.note === "string" ? input.note.trim().slice(0, 500) : ""),
+    lineKind: "feature" as const,
+  };
+  try {
+    return receipt(await Project.create(fields));
+  } catch (error) {
+    if (retryFilter && (error as { code?: number }).code === 11000) {
+      const existing = await Project.findOne(retryFilter).lean();
+      if (existing) return receipt(existing);
+    }
+    throw error;
+  }
 }
 
 export async function collectFeaturePayment(userId: string, paymentId: string, input: { date?: unknown; paymentMethod?: unknown }) {
-  const row = await Project.findOne({ _id: paymentId, userId, lineKind: "feature", isCollected: false });
-  if (!row) throw new Error("Pending Feature payment not found");
   const paymentMethod = input.paymentMethod === "cash" || input.paymentMethod === "card" ? input.paymentMethod : "unspecified";
   if (paymentMethod === "unspecified") throw new Error("Payment method is required");
   const date = input.date ? new Date(String(input.date)) : new Date();
   if (Number.isNaN(date.getTime())) throw new Error("Invalid payment date");
-  row.isCollected = true;
-  row.dueDate ??= row.date;
-  row.collectedAt = date;
-  row.date = date;
-  row.paymentMethod = paymentMethod;
-  await row.save();
-  return { id: String(row._id), amountEgp: row.amount, isCollected: true };
+  const filter = { _id: paymentId, userId, lineKind: "feature" as const };
+  const row = await Project.findOne(filter).lean();
+  if (!row) throw new Error("Feature payment not found");
+  if (row.isCollected !== false) return { id: String(row._id), amountEgp: row.amount, isCollected: true };
+  const collected = await Project.findOneAndUpdate(
+    { ...filter, isCollected: false },
+    { $set: { isCollected: true, dueDate: row.dueDate ?? row.date, collectedAt: date, date, paymentMethod } },
+    { returnDocument: "after" },
+  ).lean();
+  if (!collected) {
+    const existing = await Project.findOne({ ...filter, isCollected: true }).lean();
+    if (!existing) throw new Error("Feature payment not found");
+    return { id: String(existing._id), amountEgp: existing.amount, isCollected: true };
+  }
+  return { id: String(collected._id), amountEgp: collected.amount, isCollected: true };
 }
 
 export async function updateFeaturePayment(userId: string, paymentId: string, input: { note?: unknown; date?: unknown; amount?: unknown }) {
@@ -122,6 +176,7 @@ export async function updateFeaturePayment(userId: string, paymentId: string, in
     else row.dueDate = date;
   }
   if (input.amount !== undefined) {
+    if (row.taskId) throw new Error("The amount of an hourly task collection is fixed");
     const next = Number(input.amount);
     if (!Number.isFinite(next) || next <= 0) throw new Error("Invalid payment amount");
     const totals = await featurePaymentTotals(userId, row.featureId!);

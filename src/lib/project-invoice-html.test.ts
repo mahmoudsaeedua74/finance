@@ -13,6 +13,57 @@ function installment(id: string, date: string, paidOn?: string, amount = 20_000)
 }
 
 describe("project payment claims", () => {
+  it("claims every unpaid hourly task without price approval and excludes prior collections", () => {
+    const feature = {
+      id: "hourly",
+      title: "Store changes",
+      description: "",
+      approvedPriceEgp: null,
+      status: "in_progress",
+      isArchived: false,
+      type: "new_feature",
+      pricingMode: "hourly",
+      hourlyRateEgp: 500,
+      tasks: [
+        { id: "legacy", title: "Legacy task", billableSecondsForPayment: 3600 },
+        { id: "paid", title: "Paid task", billableSecondsForPayment: 3600 },
+        { id: "unpaid", title: "Unpaid task", billableSecondsForPayment: 3600 },
+      ],
+    } as const;
+    const job = {
+      name: "Paid base contract",
+      agreedAmount: 10_000,
+      billingMode: "fixed",
+      expectedPaymentDate: null,
+      status: "collected",
+      scopeItems: [],
+      payouts: [
+        installment("base", "2026-10-01", "2026-10-10", 10_000),
+        {
+          ...installment("old", "2026-11-10", "2026-11-10", 500),
+          lineKind: "feature", featureId: feature.id,
+        },
+        {
+          ...installment("linked", "2026-11-21", "2026-11-21", 500),
+          lineKind: "feature", featureId: feature.id, taskId: "paid",
+        },
+      ],
+    } satisfies Parameters<typeof buildProjectBillingLines>[0];
+    const lines = buildProjectBillingLines(job, [{ ...feature, tasks: [...feature.tasks] }]);
+    const unpaid = selectInvoiceLines(lines, "project", "outstanding");
+    expect(unpaid).toEqual([expect.objectContaining({ title: "Unpaid task", amount: 500 })]);
+    expect(selectInvoiceLines(lines, "project", "collected")).toContainEqual(
+      expect.objectContaining({ title: "Paid task", amount: 500 }),
+    );
+    const html = buildInvoiceHtml({
+      invoiceNumber: "CLM-TEST", issuedOn: "2026-11-22", clientName: "عميل تجريبي",
+      projectName: job.name, scopeLabel: "المشروع كله", mode: "outstanding", lines: unpaid,
+    });
+    expect(html).toContain("Unpaid task");
+    expect(html).not.toContain("Paid task");
+    expect(html).not.toContain("10,000.00");
+  });
+
   it("builds an outstanding-only claim and separates amounts due now from scheduled amounts", () => {
     const lines = buildProjectBillingLines({
       name: "متجر <ألف>",

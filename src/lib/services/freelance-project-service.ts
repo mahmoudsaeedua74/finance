@@ -270,7 +270,7 @@ export async function buildProjectJobDto(
 
   const [payouts, costs, spentAgg] = await Promise.all([
     Project.find({ userId: uid, freelanceProjectId: jobId })
-      .select("amount date dueDate isCollected collectedAt paymentMethod note lineKind featureId")
+      .select("amount date dueDate isCollected collectedAt paymentMethod note lineKind featureId taskId")
       .sort({ date: -1 })
       .lean(),
     Expense.find(costMatch)
@@ -386,6 +386,7 @@ export async function buildProjectJobDto(
             ? "feature"
             : "installment") as "installment" | "support" | "feature",
         featureId: p.featureId ? String(p.featureId) : null,
+        taskId: p.taskId ? String(p.taskId) : null,
       }))
       .sort((a, b) => {
         if (a.isCollected !== b.isCollected) return a.isCollected ? 1 : -1;

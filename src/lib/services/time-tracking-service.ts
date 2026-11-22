@@ -134,8 +134,48 @@ export async function switchTimer(userId: string, featureId: string, taskId: str
   return startTimer(userId, featureId, taskId);
 }
 
-export async function editTimeSession(userId: string, sessionId: string, input: { elapsedSeconds?: unknown; startedAt?: unknown; endedAt?: unknown; reason?: unknown }) {
-  const session = await TimeSession.findOne({ _id: sessionId, userId, status: { $ne: "running" } });
+export async function logManualTime(
+  userId: string,
+  featureId: string,
+  taskId: string,
+  input: { entryId?: unknown; elapsedSeconds?: unknown; reason?: unknown },
+) {
+  if (typeof input.entryId !== "string" || !mongoose.isObjectIdOrHexString(input.entryId)) {
+    throw new Error("Invalid manual time entry ID");
+  }
+  const seconds = input.elapsedSeconds;
+  const endedAt = new Date();
+  if (typeof seconds !== "number" || !Number.isSafeInteger(seconds) || seconds <= 0 || seconds > endedAt.getTime() / 1000) {
+    throw new Error("Enter a positive duration");
+  }
+  const { feature, task } = await getFeatureForTimer(userId, featureId, taskId);
+  if (feature.isArchived) throw new Error("Feature is archived");
+
+  const session = await TimeSession.findOneAndUpdate(
+    { _id: input.entryId, userId, taskId: oid(taskId), source: "manual" },
+    { $setOnInsert: {
+      featureId: oid(featureId),
+      status: "stopped",
+      startedAt: new Date(endedAt.getTime() - seconds * 1000),
+      activeStartedAt: null,
+      endedAt,
+      elapsedSeconds: seconds,
+      billable: task.defaultBillable,
+      manualEditReason: typeof input.reason === "string" ? input.reason.trim().slice(0, 500) : "",
+    } },
+    { upsert: true, returnDocument: "after", runValidators: true },
+  ).lean();
+  if (!session) throw new Error("Could not save manual time");
+  await AuditLog.updateOne(
+    { userId, entityType: "time_session", entityId: session._id, action: "manual_time_added" },
+    { $setOnInsert: { after: { ...session }, reason: session.manualEditReason } },
+    { upsert: true },
+  );
+  return session;
+}
+
+export async function editTimeSession(userId: string, taskId: string, sessionId: string, input: { elapsedSeconds?: unknown; startedAt?: unknown; endedAt?: unknown; reason?: unknown }) {
+  const session = await TimeSession.findOne({ _id: sessionId, userId, taskId: oid(taskId), status: { $ne: "running" } });
   if (!session) throw new Error("Only paused or stopped sessions can be edited");
   const before = session.toObject();
   const nextStart = input.startedAt ? new Date(String(input.startedAt)) : session.startedAt;
@@ -168,7 +208,7 @@ export async function editTimeSession(userId: string, sessionId: string, input: 
 
 export async function listTaskSessions(userId: string, taskId: string) {
   await ensureTask(userId, taskId);
-  const rows = await TimeSession.find({ userId, taskId: oid(taskId) }).sort({ startedAt: -1 }).lean();
+  const rows = await TimeSession.find({ userId, taskId: oid(taskId) }).sort({ createdAt: -1 }).lean();
   return rows.map((row) => ({
     id: String(row._id),
     taskId: String(row.taskId),

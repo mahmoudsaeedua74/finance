@@ -21,6 +21,8 @@ export interface IProject {
   lineKind: "installment" | "support" | "feature";
   /** Optional Feature owner for new Feature payments. */
   featureId?: mongoose.Types.ObjectId | null;
+  /** Task covered by an hourly feature collection. */
+  taskId?: mongoose.Types.ObjectId | null;
   /** Optional original-currency snapshot for new payments. `amount` remains EGP. */
   originalAmount?: number | null;
   currency?: "EGP" | "SAR";
@@ -61,6 +63,7 @@ const ProjectSchema = new Schema<IProject>(
       default: null,
       index: true,
     },
+    taskId: { type: Schema.Types.ObjectId, ref: "FeatureTask", default: null },
     originalAmount: { type: Number, min: 0, default: null },
     currency: { type: String, enum: ["EGP", "SAR"], default: "EGP" },
     exchangeRateToEgp: { type: Number, min: 0, default: null },

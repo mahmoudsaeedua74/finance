@@ -26,8 +26,15 @@ export type FeatureTaskDto = {
   sortOrder: number;
   trackedSeconds: number;
   billableSeconds: number;
+  billableSecondsForPayment: number;
   activeSession: TimeSessionDto | null;
   lastSession: TimeSessionDto | null;
+  billing?: {
+    amountEgp: number;
+    collectedAmountEgp: number;
+    collectableAmountEgp: number;
+    entryId: string;
+  };
 };
 
 export type FeatureDto = {

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { requireAuthUser } from "@/lib/api-auth";
 import { connectDB } from "@/lib/mongodb";
 import { FeatureTask } from "@/lib/models";
-import { editTimeSession, listTaskSessions, pauseTimer, resumeTimer, startTimer, stopTimer, switchTimer } from "@/lib/services/time-tracking-service";
+import { editTimeSession, listTaskSessions, logManualTime, pauseTimer, resumeTimer, startTimer, stopTimer, switchTimer } from "@/lib/services/time-tracking-service";
 
 export const dynamic = "force-dynamic";
 type Ctx = { params: { id: string } };
@@ -34,6 +34,12 @@ export async function POST(req: Request, { params }: Ctx) {
     const task = await FeatureTask.findOne({ _id: params.id, userId: user.id, isArchived: { $ne: true } }).lean();
     if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
     const action = String(body?.action ?? "");
+    if (action === "manual") {
+      const data = body.sessionId
+        ? await editTimeSession(user.id, params.id, String(body.sessionId), body)
+        : await logManualTime(user.id, String(task.featureId), params.id, body);
+      return NextResponse.json({ data });
+    }
     const data = action === "start"
       ? await startTimer(user.id, String(task.featureId), params.id)
       : action === "switch"
@@ -44,10 +50,8 @@ export async function POST(req: Request, { params }: Ctx) {
             ? await resumeTimer(user.id, String(body?.sessionId ?? ""))
             : action === "stop"
               ? await stopTimer(user.id, String(body?.sessionId ?? ""))
-              : action === "manual"
-                ? await editTimeSession(user.id, String(body?.sessionId ?? ""), body ?? {})
-                : null;
-    if (!data) return NextResponse.json({ error: "Unknown timer action" }, { status: 400 });
+              : null;
+    if (!data && action !== "pause") return NextResponse.json({ error: "Unknown timer action" }, { status: 400 });
     return NextResponse.json({ data });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Timer action failed" }, { status: statusOf(e) });

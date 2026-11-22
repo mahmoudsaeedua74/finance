@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 
+export const dynamic = "force-dynamic";
+
 function sanitizeMongoUri(uri: string | undefined) {
   if (!uri) return null;
   // hide credentials if present: mongodb+srv://user:pass@host -> mongodb+srv://***:***@host

@@ -356,7 +356,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
           onClick={() => setInvoiceScope("project")}
         >
           <FileText className="me-1.5 size-3.5" />
-          {t("invoicePdf")}
+          {t("invoiceAllOutstanding")}
         </Button>
       </div>
 

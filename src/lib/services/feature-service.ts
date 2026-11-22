@@ -1,8 +1,10 @@
 import mongoose from "mongoose";
+import { createHash } from "node:crypto";
 import { AuditLog, Feature, FeatureTask, FreelanceProject, Project, TimeSession } from "@/lib/models";
 import { roundMoney, toEgpAmount, type ProjectCurrency } from "@/lib/currency";
 import {
   calculateFeatureCostEgp,
+  calculateHourlyTaskBalances,
   DEFAULT_FEATURE_HOURLY_RATE_EGP,
   DEFAULT_FEATURE_MINIMUM_PRICE_EGP,
   featurePaymentStatus,
@@ -69,7 +71,7 @@ export async function assertFeatureForRoute(userId: string, featureId: string) {
 async function taskDtos(userId: string, featureId: mongoose.Types.ObjectId): Promise<FeatureTaskDto[]> {
   const [tasks, sessions] = await Promise.all([
     FeatureTask.find({ userId, featureId, isArchived: { $ne: true } }).sort({ sortOrder: 1, createdAt: 1 }).lean(),
-    TimeSession.find({ userId, featureId }).sort({ startedAt: -1 }).lean(),
+    TimeSession.find({ userId, featureId }).sort({ createdAt: -1 }).lean(),
   ]);
   return tasks.map((task) => {
     const rows = sessions.filter((s) => String(s.taskId) === String(task._id));
@@ -90,6 +92,7 @@ async function taskDtos(userId: string, featureId: mongoose.Types.ObjectId): Pro
       sortOrder: task.sortOrder,
       trackedSeconds,
       billableSeconds,
+      billableSecondsForPayment: rows.reduce((sum, session) => sum + (session.billable ? session.elapsedSeconds : 0), 0),
       activeSession: active ? sessionDto(active) : null,
       lastSession: rows[0] ? sessionDto(rows[0]) : null,
     };
@@ -100,7 +103,7 @@ export async function buildFeatureDto(feature: IFeatureLike, userId: string): Pr
   const featureId = oid(String(feature._id));
   const [tasks, payments] = await Promise.all([
     taskDtos(userId, featureId),
-    Project.find({ userId, featureId, lineKind: "feature" }).select("amount isCollected").lean(),
+    Project.find({ userId, featureId, lineKind: "feature" }).select("amount isCollected taskId").lean(),
   ]);
   const trackedSeconds = tasks.reduce((sum, task) => sum + task.trackedSeconds, 0);
   const billableSeconds = tasks.reduce((sum, task) => sum + task.billableSeconds, 0);
@@ -109,9 +112,30 @@ export async function buildFeatureDto(feature: IFeatureLike, userId: string): Pr
     .filter((p) => p.isCollected !== false)
     .reduce((sum, p) => sum + p.amount, 0);
   const approvedPriceEgp = feature.approvedPriceEgp ?? null;
-  const outstandingAmountEgp = approvedPriceEgp == null
+  const hourlyBalances = feature.pricingMode === "hourly" && !feature.isArchived && feature.status !== "cancelled"
+    ? calculateHourlyTaskBalances(tasks, payments.map((payment) => ({
+        amount: payment.amount,
+        taskId: payment.taskId ? String(payment.taskId) : null,
+        isCollected: payment.isCollected !== false,
+      })), feature.hourlyRateEgp, approvedPriceEgp)
+    : [];
+  hourlyBalances.forEach((balance, index) => {
+    tasks[index].billing = {
+      amountEgp: balance.amountEgp,
+      collectedAmountEgp: balance.collectedAmountEgp,
+      collectableAmountEgp: balance.collectableAmountEgp,
+      // The same balance across tabs resolves to the same payout ID. Each additional receipt advances it.
+      entryId: createHash("sha256")
+        .update(`task-payment:${userId}:${featureId}:${balance.taskId}:${balance.paymentCount}`)
+        .digest("hex").slice(0, 24),
+    };
+  });
+  const recordedPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const billablePrice = approvedPriceEgp
+    ?? (hourlyBalances.length ? roundMoney(recordedPayments + hourlyBalances.reduce((sum, task) => sum + task.collectableAmountEgp, 0)) : null);
+  const outstandingAmountEgp = billablePrice == null
     ? 0
-    : Math.max(0, roundMoney(approvedPriceEgp - collectedAmountEgp));
+    : Math.max(0, roundMoney(billablePrice - collectedAmountEgp));
   return {
     id: String(feature._id),
     projectId: String(feature.freelanceProjectId),
@@ -132,7 +156,7 @@ export async function buildFeatureDto(feature: IFeatureLike, userId: string): Pr
     calculatedCostEgp,
     collectedAmountEgp,
     outstandingAmountEgp,
-    paymentStatus: featurePaymentStatus(feature.pricingMode, approvedPriceEgp, collectedAmountEgp),
+    paymentStatus: featurePaymentStatus(feature.pricingMode, billablePrice, collectedAmountEgp),
     isArchived: Boolean(feature.isArchived),
     createdAt: new Date(feature.createdAt).toISOString(),
     updatedAt: new Date(feature.updatedAt).toISOString(),
