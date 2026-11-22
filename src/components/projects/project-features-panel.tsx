@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodField } from "@/components/forms/payment-method-field";
+import { FeatureDescriptionContent, FeatureDescriptionEditor } from "@/components/projects/feature-description-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +51,7 @@ export function ProjectFeaturesPanel({
   const [taskFeatureId, setTaskFeatureId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState<Pick<FeatureDto, "id" | "title" | "description"> | null>(null);
   const [pricingMode, setPricingMode] = useState<FeatureDto["pricingMode"]>("hourly");
   const [featureType, setFeatureType] = useState<FeatureDto["type"]>("new_feature");
   const [hourlyRate, setHourlyRate] = useState("500");
@@ -85,6 +87,22 @@ export function ProjectFeaturesPanel({
       setApprovedPrice("");
       setShowCreate(false);
       refresh();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const updateDescription = useMutation({
+    mutationFn: ({ id, description }: Pick<FeatureDto, "id" | "description">) =>
+      jsonFetch<{ data: FeatureDto }>(`/api/features/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ description }),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        refresh(),
+        qc.invalidateQueries({ queryKey: ["project-invoice", projectId] }),
+      ]);
+      setDescriptionDraft(null);
     },
   });
 
@@ -169,7 +187,7 @@ export function ProjectFeaturesPanel({
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("addFeatureTitle")}</DialogTitle>
             <DialogDescription>{t("addFeatureHint")}</DialogDescription>
@@ -179,9 +197,8 @@ export function ProjectFeaturesPanel({
             <Label>{t("featureName")}</Label>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("featureNamePh")} />
           </div>
-          <div className="space-y-1 sm:col-span-2">
-            <Label>{t("featureDescription")}</Label>
-            <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("featureDescriptionPh")} />
+          <div className="sm:col-span-2">
+            <FeatureDescriptionEditor value={description} onChange={setDescription} disabled={createFeature.isPending} />
           </div>
           <div className="space-y-1">
             <Label>{t("featureType")}</Label>
@@ -254,6 +271,19 @@ export function ProjectFeaturesPanel({
               </div>
               {isOpen && (
                 <div className="mt-3 space-y-2 border-t border-border/50 pt-3">
+                  <div className="space-y-2 rounded-lg border border-border/60 p-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-xs font-medium">{t("featureDescription")}</h3>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => {
+                        updateDescription.reset();
+                        setDescriptionDraft({ id: feature.id, title: feature.title, description: feature.description });
+                      }}>
+                        <Pencil className="size-3.5" />
+                        {t(feature.description ? "editFeatureDescription" : "addFeatureDescription")}
+                      </Button>
+                    </div>
+                    {feature.description && <FeatureDescriptionContent value={feature.description} />}
+                  </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium">{t("tasks")}</span>
                     <Button type="button" size="sm" variant="ghost" onClick={() => setTaskFeatureId(taskFeatureId === feature.id ? null : feature.id)}>
@@ -290,6 +320,31 @@ export function ProjectFeaturesPanel({
           );
         })}
       </div>
+      <Dialog open={descriptionDraft !== null} onOpenChange={(open) => {
+        if (!open && !updateDescription.isPending) setDescriptionDraft(null);
+      }}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("editFeatureDescription")}</DialogTitle>
+            <DialogDescription>{descriptionDraft?.title}</DialogDescription>
+          </DialogHeader>
+          {descriptionDraft && (
+            <FeatureDescriptionEditor value={descriptionDraft.description} disabled={updateDescription.isPending}
+              onChange={(description) => setDescriptionDraft({ ...descriptionDraft, description })} />
+          )}
+          {updateDescription.error && <p role="alert" className="text-sm text-destructive">{updateDescription.error.message}</p>}
+          <DialogFooter>
+            <Button type="button" disabled={!descriptionDraft || updateDescription.isPending} onClick={() => {
+              if (descriptionDraft) updateDescription.mutate(descriptionDraft);
+            }}>
+              {updateDescription.isPending ? t("savingFeature") : t("saveFeatureDescription")}
+            </Button>
+            <Button type="button" variant="ghost" disabled={updateDescription.isPending} onClick={() => setDescriptionDraft(null)}>
+              {t("cancelFeature")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(collectTask)} onOpenChange={(open) => {
         if (!open && !collectTaskPayment.isPending) setCollectTask(null);
       }}>

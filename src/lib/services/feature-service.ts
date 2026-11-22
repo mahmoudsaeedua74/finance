@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { createHash } from "node:crypto";
 import { AuditLog, Feature, FeatureTask, FreelanceProject, Project, TimeSession } from "@/lib/models";
 import { roundMoney, toEgpAmount, type ProjectCurrency } from "@/lib/currency";
+import { FEATURE_DESCRIPTION_MAX_LENGTH } from "@/lib/feature-description";
 import {
   calculateFeatureCostEgp,
   calculateHourlyTaskBalances,
@@ -255,7 +256,7 @@ export async function createFeature(userId: string, projectId: string, input: Fe
     userId,
     freelanceProjectId: project._id,
     title,
-    description: typeof input.description === "string" ? input.description.trim().slice(0, 2000) : "",
+    description: typeof input.description === "string" ? input.description.trim().slice(0, FEATURE_DESCRIPTION_MAX_LENGTH) : "",
     type: normalizedType(input.type),
     status: normalizedStatus(input.status),
     pricingMode,
@@ -277,7 +278,7 @@ export async function updateFeature(userId: string, featureId: string, input: Fe
     if (!title) throw new Error("Feature title is required");
     feature.title = title;
   }
-  if (input.description !== undefined) feature.description = String(input.description ?? "").trim().slice(0, 2000);
+  if (input.description !== undefined) feature.description = String(input.description ?? "").trim().slice(0, FEATURE_DESCRIPTION_MAX_LENGTH);
   if (input.type !== undefined) feature.type = normalizedType(input.type);
   if (input.status !== undefined) {
     feature.status = normalizedStatus(input.status);

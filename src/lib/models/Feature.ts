@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
+import { FEATURE_DESCRIPTION_MAX_LENGTH } from "@/lib/feature-description";
 
 export const FEATURE_TYPES = [
   "new_feature",
@@ -41,7 +42,7 @@ const FeatureSchema = new Schema<IFeature>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     freelanceProjectId: { type: Schema.Types.ObjectId, ref: "FreelanceProject", required: true, index: true },
     title: { type: String, required: true, trim: true, maxlength: 200 },
-    description: { type: String, trim: true, default: "", maxlength: 2000 },
+    description: { type: String, trim: true, default: "", maxlength: FEATURE_DESCRIPTION_MAX_LENGTH },
     type: {
       type: String,
       enum: FEATURE_TYPES,
