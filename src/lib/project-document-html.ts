@@ -567,7 +567,7 @@ export function buildInvoiceHtml(input: InvoiceDocInput): string {
     .tok { display:inline-block; white-space:nowrap; letter-spacing:0; unicode-bidi:isolate; }
     .tok + .tok { margin-inline-start:.35em; }
     bdi.tok { direction:ltr; }
-    .sheet { width:210mm; min-height:297mm; margin:16px auto; background:var(--white); box-shadow:0 4px 24px rgba(0,0,0,.08); display:flex; flex-direction:column; padding:16mm 16mm 14mm; }
+    .sheet { width:210mm; min-height:297mm; height:auto; margin:16px auto; background:var(--white); box-shadow:0 4px 24px rgba(0,0,0,.08); display:flex; flex-direction:column; padding:16mm 16mm 14mm; }
     .top { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; padding-bottom:14px; border-bottom:2px solid var(--brand); }
     .brand .who { font-size:20px; font-weight:700; letter-spacing:.04em; direction:ltr; text-align:right; }
     .brand .role { font-size:11px; color:var(--muted); margin-top:2px; }
@@ -585,6 +585,7 @@ export function buildInvoiceHtml(input: InvoiceDocInput): string {
     table.items, table.payments { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:18px; }
     table.items thead th, table.payments thead th { background:var(--bg); border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:#374151; font-weight:700; padding:10px 12px; text-align:center; font-size:11px; }
     table.items tbody td, table.payments tbody td { padding:12px; border-bottom:1px solid var(--line); vertical-align:top; text-align:right; }
+    table.items, table.payments, tr, .pay, .totals, h2 { break-inside:avoid; page-break-inside:avoid; }
     table.items td.c, table.payments td.c { text-align:center; color:#555; }
     table.items td.amt, table.payments td.amt { text-align:center; direction:ltr; unicode-bidi:embed; font-weight:700; white-space:nowrap; }
     .item-title { font-weight:700; margin-bottom:5px; }
@@ -616,7 +617,7 @@ export function buildInvoiceHtml(input: InvoiceDocInput): string {
     .foot .thanks { color:var(--ink); font-weight:600; font-size:12px; margin-bottom:2px; }
     .foot .brand-mini { font-weight:700; letter-spacing:.04em; color:var(--ink); direction:ltr; margin-bottom:2px; }
     @page { size:A4; margin:0; }
-    @media print { body{background:#fff;} .sheet{margin:0; box-shadow:none; width:210mm; min-height:297mm;} }
+    @media print { body{background:#fff;} .sheet{margin:0; box-shadow:none; width:210mm; min-height:297mm; height:auto;} }
   </style>
 </head>
 <body>
