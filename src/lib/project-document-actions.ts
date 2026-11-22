@@ -43,7 +43,7 @@ export async function downloadProposalPdf(
     currency,
     items: job.scopeItems,
     audience,
-    collected: job.collectedAmount,
+    collected: job.originalCollectedAmount,
     pending: job.pendingAmount,
     statusLabel: statusLabel(job, t),
     footerNote:
@@ -74,7 +74,7 @@ export async function downloadStatementPdf(
     rows: jobs.map((j) => ({
       name: j.name,
       amount: j.agreedAmount,
-      collected: j.collectedAmount,
+      collected: j.originalCollectedAmount,
       pending: j.pendingAmount,
       statusLabel: statusLabel(j, t),
     })),

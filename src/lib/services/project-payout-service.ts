@@ -21,7 +21,7 @@ async function sumCollected(userId: string, jobId: mongoose.Types.ObjectId) {
     userId,
     freelanceProjectId: jobId,
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
-    lineKind: { $ne: "support" },
+    lineKind: { $in: ["installment", null] },
   }).lean();
   return rows.reduce((s, p) => s + p.amount, 0);
 }
@@ -43,7 +43,7 @@ export async function normalizePendingInstallments(
     userId: uid,
     freelanceProjectId: jobId,
     isCollected: false,
-    lineKind: { $ne: "support" },
+    lineKind: { $in: ["installment", null] },
   }).sort({ date: 1 });
 
   const pendingSum = pending.reduce((s, p) => s + p.amount, 0);
@@ -178,6 +178,7 @@ export async function collectProjectPayment(
       userId,
       freelanceProjectId: jobId,
       isCollected: false,
+      lineKind: { $in: ["installment", null] },
     }).sort({ date: 1 });
 
     if (pending && Math.abs(pending.amount - amount) < 0.01) {
@@ -199,6 +200,7 @@ export async function collectProjectPayment(
         collectedAt: input.date,
         paymentMethod: input.paymentMethod,
         note: "Partial collection",
+        lineKind: "installment",
       });
     } else {
       await Project.create({
@@ -210,6 +212,7 @@ export async function collectProjectPayment(
         isCollected: true,
         collectedAt: input.date,
         paymentMethod: input.paymentMethod,
+        lineKind: "installment",
       });
     }
   }
@@ -242,6 +245,7 @@ export async function createInstallmentSchedule(
       collectedAt: null,
       paymentMethod: "unspecified",
       note: inst.note?.trim().slice(0, 500) ?? "",
+      lineKind: "installment",
     });
   }
 

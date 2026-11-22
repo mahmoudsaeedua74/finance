@@ -11,7 +11,9 @@ import {
   FileText,
   FolderKanban,
   Loader2,
+  Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorAlert } from "@/components/dashboard/query-error-alert";
@@ -44,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCallback, useState } from "react";
 import { ProjectCredentialChips } from "@/components/projects/project-credential-chips";
+import { ProjectFeaturesPanel } from "@/components/projects/project-features-panel";
 
 type Props = { params: { id: string } };
 
@@ -75,6 +78,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [supportDate, setSupportDate] = useState(() => defaultFormDateYmd());
   const [supportNote, setSupportNote] = useState("");
   const [supportMethod, setSupportMethod] = useState<PaymentMethod>("cash");
+  const [supportEditingId, setSupportEditingId] = useState<string | null>(null);
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
   const [supportListOpen, setSupportListOpen] = useState(false);
 
@@ -170,6 +174,66 @@ export default function ProjectJobDetailPage({ params }: Props) {
     ),
   });
 
+  const updateSupport = useMutation({
+    mutationFn: () => {
+      if (!job || !supportEditingId) return Promise.reject(new Error("No support record"));
+      return jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "update_support",
+          supportId: supportEditingId,
+          amount: Number(supportAmount),
+          date: new Date(supportDate).toISOString(),
+          note: supportNote,
+          paymentMethod: supportMethod,
+        }),
+      });
+    },
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("supportUpdated") },
+      {
+        onSuccess: () => {
+          setSupportOpen(false);
+          setSupportEditingId(null);
+          invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+        },
+      }
+    ),
+  });
+
+  const deleteSupport = useMutation({
+    mutationFn: (supportId: string) => {
+      if (!job) return Promise.reject(new Error("No job"));
+      return jsonFetch(`/api/project-jobs/${job.id}`, {
+        method: "POST",
+        body: JSON.stringify({ action: "delete_support", supportId }),
+      });
+    },
+    ...mergeMutationToasts(
+      { loading: tC("saving"), success: t("supportDeleted") },
+      {
+        onSuccess: () => {
+          invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+        },
+      }
+    ),
+  });
+
+  const openSupportForm = useCallback(
+    (support?: ProjectJobDto["payouts"][number]) => {
+      const isEditing = support?.lineKind === "support";
+      setSupportEditingId(isEditing ? support.id : null);
+      setSupportAmount(isEditing ? String(support.amount) : "");
+      setSupportDate(isEditing ? new Date(support.date).toISOString().slice(0, 10) : defaultFormDateYmd());
+      setSupportNote(isEditing ? support.note : "");
+      setSupportMethod(isEditing ? support.paymentMethod : job?.expectedPaymentMethod === "card" ? "card" : "cash");
+      setSupportOpen(true);
+    },
+    [job]
+  );
+
   const collectMutation = useMutation({
     mutationFn: () => {
       if (!job) return Promise.reject(new Error("No job"));
@@ -216,7 +280,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
   }
 
   const collectionPct =
-    job.agreedAmount > 0 ? Math.min(100, (job.collectedAmount / job.agreedAmount) * 100) : 0;
+    job.agreedAmount > 0 ? Math.min(100, (job.originalCollectedAmount / job.agreedAmount) * 100) : 0;
 
   return (
     <div className="store-section w-full space-y-4">
@@ -241,7 +305,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <p className="text-xs text-muted-foreground">{t("totalCollected")}</p>
           <p className="font-mono text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-            {formatMoney(job.collectedAmount)}
+            {formatMoney(job.originalCollectedAmount)}
           </p>
         </div>
         <div className="rounded-xl border border-border/60 bg-card p-3">
@@ -296,11 +360,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => {
-              setSupportDate(defaultFormDateYmd());
-              setSupportMethod(job.expectedPaymentMethod === "card" ? "card" : "cash");
-              setSupportOpen(true);
-            }}
+            onClick={() => openSupportForm()}
           >
             <Plus className="me-1.5 size-3.5" />
             {t("addSupportBtn")}
@@ -328,7 +388,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
         </Button>
       </div>
 
-      {job.payouts.some((p) => p.lineKind !== "support") && (
+      {job.payouts.some((p) => p.lineKind === "installment") && (
         <div className="rounded-xl border border-border/60 bg-card p-3">
           <button
             type="button"
@@ -341,7 +401,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
           </button>
           {installmentsOpen && (
           <ul className="mt-2 space-y-2">
-            {job.payouts.filter((p) => p.lineKind !== "support").map((p) => (
+            {job.payouts.filter((p) => p.lineKind === "installment").map((p) => (
               <li
                 key={p.id}
                 className={cn(
@@ -394,7 +454,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
             <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition", supportListOpen && "rotate-180")} />
           </button>
           {job.status !== "cancelled" && (
-            <Button type="button" size="sm" variant="outline" onClick={() => setSupportOpen(true)}>
+            <Button type="button" size="sm" variant="outline" onClick={() => openSupportForm()}>
               <Plus className="me-1.5 size-3.5" />
               {t("addSupportBtn")}
             </Button>
@@ -417,6 +477,33 @@ export default function ProjectJobDetailPage({ params }: Props) {
                     {p.note ? ` · ${p.note}` : ""}
                   </p>
                 </div>
+                {job.status !== "cancelled" && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={tC("edit")}
+                      title={tC("edit")}
+                      onClick={() => openSupportForm(p)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={tC("delete")}
+                      title={tC("delete")}
+                      disabled={deleteSupport.isPending}
+                      onClick={() => {
+                        if (window.confirm(t("deleteSupportQ"))) deleteSupport.mutate(p.id);
+                      }}
+                    >
+                      <Trash2 className="size-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -426,6 +513,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
         </>
         )}
       </div>
+
+      <ProjectFeaturesPanel projectId={job.id} />
 
       {job.costs.length > 0 && (
         <div className="rounded-xl border border-border/60 bg-card p-3">
@@ -510,7 +599,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("addSupportTitle")}</DialogTitle>
+            <DialogTitle>{supportEditingId ? t("editSupportTitle") : t("addSupportTitle")}</DialogTitle>
             <DialogDescription>{t("supportSectionHint")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -532,10 +621,24 @@ export default function ProjectJobDetailPage({ params }: Props) {
             <Button type="button" variant="outline" onClick={() => setSupportOpen(false)}>{tC("cancel")}</Button>
             <Button
               type="button"
-              disabled={addSupport.isPending || !Number.isFinite(Number(supportAmount)) || Number(supportAmount) <= 0}
-              onClick={() => addSupport.mutate(undefined)}
+              disabled={
+                addSupport.isPending ||
+                updateSupport.isPending ||
+                !Number.isFinite(Number(supportAmount)) ||
+                Number(supportAmount) <= 0
+              }
+              onClick={() => {
+                if (supportEditingId) updateSupport.mutate(undefined);
+                else addSupport.mutate(undefined);
+              }}
             >
-              {addSupport.isPending ? <Loader2 className="size-4 animate-spin" /> : t("addSupportBtn")}
+              {addSupport.isPending || updateSupport.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : supportEditingId ? (
+                tC("save")
+              ) : (
+                t("addSupportBtn")
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { FreelanceProject, Project } from "@/lib/models";
+import { originalProjectLineFilter } from "@/lib/db-month-filters";
 import type { ProjectJobDto } from "@/types/project-job";
 
 export type ProjectAttentionKind =
@@ -50,6 +51,7 @@ async function collectedMap(userId: mongoose.Types.ObjectId) {
         userId,
         freelanceProjectId: { $ne: null },
         $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+        ...originalProjectLineFilter(),
       },
     },
     { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
@@ -83,6 +85,7 @@ export async function getProjectAttentionItems(
       isCollected: false,
       freelanceProjectId: { $ne: null },
       date: { $gte: today, $lt: weekEnd },
+      ...originalProjectLineFilter(),
     })
       .select("freelanceProjectId name amount date note")
       .lean(),

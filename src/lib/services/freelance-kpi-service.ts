@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { FreelanceProject, Project } from "@/lib/models";
-import { monthDateBoundsUTC } from "@/lib/db-month-filters";
+import { monthDateBoundsUTC, originalProjectLineFilter } from "@/lib/db-month-filters";
 import { listClientSummaries } from "@/lib/services/client-service";
 
 export type FreelanceKpis = {
@@ -53,6 +53,7 @@ export async function getFreelanceKpis(userId: string, year: number, month: numb
         userId: uid,
         isCollected: false,
         date: { $gte: today, $lt: weekEnd },
+        ...originalProjectLineFilter(),
       }).countDocuments(),
       FreelanceProject.countDocuments({
         userId: uid,
@@ -64,6 +65,7 @@ export async function getFreelanceKpis(userId: string, year: number, month: numb
   const collectedByJob = await Project.find({
     userId: uid,
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+    ...originalProjectLineFilter(),
   })
     .select("freelanceProjectId amount")
     .lean();

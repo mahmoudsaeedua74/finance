@@ -213,6 +213,7 @@ export async function PUT(req: Request, { params }: Ctx) {
         userId: user.id,
         freelanceProjectId: job._id,
         isCollected: false,
+        lineKind: { $in: ["installment", null] },
       }).sort({ date: -1 });
       if (pendingPayout) {
         if (body?.name != null) pendingPayout.name = job.name;
@@ -226,7 +227,7 @@ export async function PUT(req: Request, { params }: Ctx) {
       }
       if (body?.name != null) {
         await Project.updateMany(
-          { userId: user.id, freelanceProjectId: job._id },
+          { userId: user.id, freelanceProjectId: job._id, lineKind: { $in: ["installment", null] } },
           { $set: { name: job.name } }
         );
         await Expense.updateMany(
@@ -286,7 +287,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   }
 }
 
-/** POST body: { action: "collect" | "cancel" | "add_payout" | "add_cost", ... } */
+/** POST body: { action: "collect" | "cancel" | "add_payout" | "add_cost" | "add_support" | "update_support" | "delete_support", ... } */
 export async function POST(req: Request, { params }: Ctx) {
   const { unauthorized, user } = await requireAuthUser();
   if (unauthorized) return unauthorized;
@@ -431,6 +432,59 @@ export async function POST(req: Request, { params }: Ctx) {
       const refreshed = await FreelanceProject.findById(job._id);
       const dto = await buildProjectJobDto((refreshed ?? job).toObject() as never, user.id);
       return NextResponse.json({ data: dto }, { status: 201 });
+    }
+
+    if (action === "update_support" || action === "delete_support") {
+      const supportId = typeof body?.supportId === "string" ? body.supportId : "";
+      if (!mongoose.isValidObjectId(supportId)) {
+        return NextResponse.json({ error: "Invalid support id" }, { status: 400 });
+      }
+
+      const support = await Project.findOne({
+        _id: supportId,
+        userId: user.id,
+        freelanceProjectId: job._id,
+        lineKind: "support",
+      });
+      if (!support) return NextResponse.json({ error: "Support record not found" }, { status: 404 });
+
+      if (action === "delete_support") {
+        await Project.deleteOne({ _id: support._id, userId: user.id });
+      } else {
+        const amount = Number(body?.amount);
+        const date = body?.date ? new Date(String(body.date)) : new Date();
+        const note = typeof body?.note === "string" ? body.note.trim().slice(0, 500) : "";
+        let paymentMethod;
+        try {
+          paymentMethod = resolveCollectPaymentMethod(
+            parsePaymentMethodBody(body?.paymentMethod),
+            job.expectedPaymentMethod
+          );
+        } catch (e) {
+          return NextResponse.json(
+            { error: e instanceof Error ? e.message : PAYMENT_METHOD_REQUIRED_MSG },
+            { status: 400 }
+          );
+        }
+        if (!Number.isFinite(amount) || amount <= 0) {
+          return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+        }
+        if (Number.isNaN(date.getTime())) {
+          return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+        }
+        support.name = job.name;
+        support.amount = amount;
+        support.date = date;
+        support.collectedAt = date;
+        support.paymentMethod = paymentMethod;
+        support.note = note;
+        await support.save();
+      }
+
+      await syncJobStatus(String(job._id), user.id);
+      const refreshed = await FreelanceProject.findById(job._id);
+      const dto = await buildProjectJobDto((refreshed ?? job).toObject() as never, user.id);
+      return NextResponse.json({ data: dto });
     }
 
     if (action === "add_payout") {

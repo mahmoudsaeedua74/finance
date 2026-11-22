@@ -16,7 +16,13 @@ export interface IProject {
   /** Optional note (reason / details) for this payout line. */
   note?: string;
   /** Contract installment, or monthly support kept on the same project. */
-  lineKind: "installment" | "support";
+  lineKind: "installment" | "support" | "feature";
+  /** Optional Feature owner for new Feature payments. */
+  featureId?: mongoose.Types.ObjectId | null;
+  /** Optional original-currency snapshot for new payments. `amount` remains EGP. */
+  originalAmount?: number | null;
+  currency?: "EGP" | "SAR";
+  exchangeRateToEgp?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,9 +49,18 @@ const ProjectSchema = new Schema<IProject>(
     note: { type: String, trim: true, default: "" },
     lineKind: {
       type: String,
-      enum: ["installment", "support"],
+      enum: ["installment", "support", "feature"],
       default: "installment",
     },
+    featureId: {
+      type: Schema.Types.ObjectId,
+      ref: "Feature",
+      default: null,
+      index: true,
+    },
+    originalAmount: { type: Number, min: 0, default: null },
+    currency: { type: String, enum: ["EGP", "SAR"], default: "EGP" },
+    exchangeRateToEgp: { type: Number, min: 0, default: null },
   },
   { timestamps: true }
 );

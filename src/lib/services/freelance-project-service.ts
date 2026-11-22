@@ -6,7 +6,7 @@ import {
   type FreelanceProjectStatus,
   type IFreelanceProject,
 } from "@/lib/models";
-import { monthDateBoundsUTC } from "@/lib/db-month-filters";
+import { monthDateBoundsUTC, originalProjectLineFilter } from "@/lib/db-month-filters";
 import { normalizeBillingMode } from "@/lib/billing-mode";
 import { normalizePaymentMethod, type PaymentMethod } from "@/lib/payment-method";
 import { buildProjectTypeMongoFilter, normalizeProjectType } from "@/lib/project-type";
@@ -47,6 +47,7 @@ export async function repairAllProjectJobStates(userId: string) {
         userId: uid,
         freelanceProjectId: { $in: jobIds },
         $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+        ...originalProjectLineFilter(),
       },
     },
     { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
@@ -202,6 +203,7 @@ async function aggregateFilteredTotals(
           userId: uid,
           freelanceProjectId: { $in: jobIds },
           $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+          ...originalProjectLineFilter(),
         },
       },
       { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -236,6 +238,7 @@ export async function syncJobStatus(jobId: string, userId: string) {
     userId,
     freelanceProjectId: job._id,
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+    ...originalProjectLineFilter(),
   }).lean();
   const collected = payouts.reduce((s, p) => s + p.amount, 0);
   const status = derivePaymentStatus(job.agreedAmount, collected, job.billingMode);
@@ -267,7 +270,7 @@ export async function buildProjectJobDto(
 
   const [payouts, costs, spentAgg] = await Promise.all([
     Project.find({ userId: uid, freelanceProjectId: jobId })
-      .select("amount date isCollected collectedAt paymentMethod note lineKind")
+      .select("amount date isCollected collectedAt paymentMethod note lineKind featureId")
       .sort({ date: -1 })
       .lean(),
     Expense.find(costMatch)
@@ -281,18 +284,27 @@ export async function buildProjectJobDto(
     ]),
   ]);
 
-  const collectedAmount = payouts
+  const originalCollectedAmount = payouts
+    .filter((p) => p.isCollected !== false && (p.lineKind === "installment" || p.lineKind == null))
+    .reduce((s, p) => s + p.amount, 0);
+  const featureCollectedAmount = payouts
+    .filter((p) => p.isCollected !== false && p.lineKind === "feature")
+    .reduce((s, p) => s + p.amount, 0);
+  const legacySupportCollectedAmount = payouts
+    .filter((p) => p.isCollected !== false && p.lineKind === "support")
+    .reduce((s, p) => s + p.amount, 0);
+  const totalCollectedRevenue = payouts
     .filter((p) => p.isCollected !== false)
     .reduce((s, p) => s + p.amount, 0);
   const spentAmount = spentAgg[0]?.total ?? 0;
   const uncollectedAmount = payouts
-    .filter((p) => p.isCollected === false && p.lineKind !== "support")
+    .filter((p) => p.isCollected === false && (p.lineKind === "installment" || p.lineKind == null))
     .reduce((s, p) => s + p.amount, 0);
-  const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount, job.billingMode);
+  const derivedStatus = derivePaymentStatus(job.agreedAmount, originalCollectedAmount, job.billingMode);
   const derivedWorkPhase = effectiveWorkPhase(
     job.workPhase,
     job.agreedAmount,
-    collectedAmount,
+    originalCollectedAmount,
     job.billingMode
   );
 
@@ -324,8 +336,8 @@ export async function buildProjectJobDto(
     isArchived: Boolean(job.isArchived),
     archivedAt: job.archivedAt ? job.archivedAt.toISOString() : null,
     profitMarginPct:
-      collectedAmount > 0.005
-        ? Math.round(((collectedAmount - spentAmount) / collectedAmount) * 1000) / 10
+      totalCollectedRevenue > 0.005
+        ? Math.round(((totalCollectedRevenue - spentAmount) / totalCollectedRevenue) * 1000) / 10
         : null,
     notes: job.notes?.trim() ?? "",
     startDate: job.startDate.toISOString(),
@@ -345,15 +357,19 @@ export async function buildProjectJobDto(
       complexity: item.complexity,
       tech: item.tech?.trim() ?? "",
     })),
-    collectedAmount,
+    collectedAmount: totalCollectedRevenue,
+    originalCollectedAmount,
+    featureCollectedAmount,
+    legacySupportCollectedAmount,
+    totalCollectedRevenue,
     pendingAmount: pendingAmountForJob(
       job.agreedAmount,
-      collectedAmount,
+      originalCollectedAmount,
       uncollectedAmount,
       job.billingMode
     ),
     spentAmount,
-    netCollected: collectedAmount - spentAmount,
+    netCollected: totalCollectedRevenue - spentAmount,
     payouts: payouts
       .map((p) => ({
         id: String(p._id),
@@ -363,7 +379,12 @@ export async function buildProjectJobDto(
         collectedAt: p.collectedAt ? p.collectedAt.toISOString() : null,
         paymentMethod: normalizePaymentMethod(p.paymentMethod),
         note: p.isCollected !== false && p.note?.trim() === "Pending collection" ? "" : p.note?.trim() ?? "",
-        lineKind: (p.lineKind === "support" ? "support" : "installment") as "installment" | "support",
+        lineKind: (p.lineKind === "support"
+          ? "support"
+          : p.lineKind === "feature"
+            ? "feature"
+            : "installment") as "installment" | "support" | "feature",
+        featureId: p.featureId ? String(p.featureId) : null,
       }))
       .sort((a, b) => {
         if (a.isCollected !== b.isCollected) return a.isCollected ? 1 : -1;
@@ -398,6 +419,7 @@ async function buildProjectJobListDtos(
           userId: uid,
           freelanceProjectId: { $in: jobIds },
           $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+          ...originalProjectLineFilter(),
         },
       },
       { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
@@ -408,7 +430,7 @@ async function buildProjectJobListDtos(
           userId: uid,
           freelanceProjectId: { $in: jobIds },
           isCollected: false,
-          lineKind: { $ne: "support" },
+          ...originalProjectLineFilter(),
         },
       },
       { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },
@@ -430,14 +452,14 @@ async function buildProjectJobListDtos(
   const spentMap = new Map(expenseAgg.map((r) => [String(r._id), r.total]));
 
   return jobs.map((job) => {
-    const collectedAmount = collectedMap.get(String(job._id)) ?? 0;
+    const originalCollectedAmount = collectedMap.get(String(job._id)) ?? 0;
     const uncollectedAmount = uncollectedMap.get(String(job._id)) ?? 0;
     const spentAmount = spentMap.get(String(job._id)) ?? 0;
-    const derivedStatus = derivePaymentStatus(job.agreedAmount, collectedAmount, job.billingMode);
+    const derivedStatus = derivePaymentStatus(job.agreedAmount, originalCollectedAmount, job.billingMode);
     const derivedWorkPhase = effectiveWorkPhase(
       job.workPhase,
       job.agreedAmount,
-      collectedAmount,
+      originalCollectedAmount,
       job.billingMode
     );
     const currency = job.currency === "SAR" ? "SAR" : "EGP";
@@ -468,8 +490,8 @@ async function buildProjectJobListDtos(
       isArchived: Boolean(job.isArchived),
       archivedAt: job.archivedAt ? job.archivedAt.toISOString() : null,
       profitMarginPct:
-        collectedAmount > 0.005
-          ? Math.round(((collectedAmount - spentAmount) / collectedAmount) * 1000) / 10
+        originalCollectedAmount > 0.005
+          ? Math.round(((originalCollectedAmount - spentAmount) / originalCollectedAmount) * 1000) / 10
           : null,
       notes: "",
       startDate: job.startDate.toISOString(),
@@ -483,15 +505,19 @@ async function buildProjectJobListDtos(
       projectEmail: job.projectEmail?.trim() ?? "",
       projectPassword: job.projectPassword?.trim() ?? "",
       scopeItems: [],
-      collectedAmount,
+      collectedAmount: originalCollectedAmount,
+      originalCollectedAmount,
+      featureCollectedAmount: 0,
+      legacySupportCollectedAmount: 0,
+      totalCollectedRevenue: originalCollectedAmount,
       pendingAmount: pendingAmountForJob(
         job.agreedAmount,
-        collectedAmount,
+        originalCollectedAmount,
         uncollectedAmount,
         job.billingMode
       ),
       spentAmount,
-      netCollected: collectedAmount - spentAmount,
+      netCollected: originalCollectedAmount - spentAmount,
       payouts: [],
       costs: [],
     };
@@ -662,6 +688,7 @@ export async function getNormalProjectsSummary(userId: string): Promise<NormalPr
         userId: uid,
         freelanceProjectId: { $in: uncollectedIds },
         $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+          ...originalProjectLineFilter(),
       },
     },
     { $group: { _id: "$freelanceProjectId", total: { $sum: "$amount" } } },

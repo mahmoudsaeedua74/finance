@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { ClientProfile, FreelanceProject, Project } from "@/lib/models";
+import { originalProjectLineFilter } from "@/lib/db-month-filters";
 import { getClientProfile, upsertClientProfile } from "@/lib/services/client-profile-service";
 
 export type ClientOption = {
@@ -40,6 +41,7 @@ async function collectedByJobMap(userId: mongoose.Types.ObjectId) {
   const payouts = await Project.find({
     userId,
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
+    ...originalProjectLineFilter(),
   })
     .select("freelanceProjectId amount")
     .lean();

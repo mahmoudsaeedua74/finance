@@ -73,21 +73,23 @@ export function ProjectPeriodReport({
     ? collectedAll.filter((p) => inRange(p.collectedAt || p.date, bounds.start, bounds.end))
     : collectedAll;
   const spent = bounds ? costs.filter((c) => inRange(c.date, bounds.start, bounds.end)) : costs;
-  const installments = collected.filter((p) => p.lineKind !== "support");
+  const installments = collected.filter((p) => p.lineKind === "installment");
   const support = collected.filter((p) => p.lineKind === "support");
+  const features = collected.filter((p) => p.lineKind === "feature");
 
   const months = useMemo(() => {
-    const map = new Map<string, { installments: number; support: number; spent: number }>();
+    const map = new Map<string, { installments: number; support: number; features: number; spent: number }>();
     for (const p of collected) {
       const key = monthKey(p.collectedAt || p.date);
-      const row = map.get(key) ?? { installments: 0, support: 0, spent: 0 };
+      const row = map.get(key) ?? { installments: 0, support: 0, features: 0, spent: 0 };
       if (p.lineKind === "support") row.support += p.amount;
+      else if (p.lineKind === "feature") row.features += p.amount;
       else row.installments += p.amount;
       map.set(key, row);
     }
     for (const c of spent) {
       const key = monthKey(c.date);
-      const row = map.get(key) ?? { installments: 0, support: 0, spent: 0 };
+      const row = map.get(key) ?? { installments: 0, support: 0, features: 0, spent: 0 };
       row.spent += c.amount;
       map.set(key, row);
     }
@@ -97,6 +99,7 @@ export function ProjectPeriodReport({
   const incomeTotal = collected.reduce((s, p) => s + p.amount, 0);
   const installmentTotal = installments.reduce((s, p) => s + p.amount, 0);
   const supportTotal = support.reduce((s, p) => s + p.amount, 0);
+  const featureTotal = features.reduce((s, p) => s + p.amount, 0);
   const spentTotal = spent.reduce((s, c) => s + c.amount, 0);
   const elsewhere = collectedAll
     .filter((p) => !collected.some((row) => row.id === p.id))
@@ -189,7 +192,7 @@ export function ProjectPeriodReport({
         </div>
       )}
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-border/60 p-2">
           <p className="text-[11px] text-muted-foreground">{t("projectReportInstallments")}</p>
           <p className="font-mono text-base font-semibold tabular-nums">{formatMoney(installmentTotal)}</p>
@@ -206,6 +209,15 @@ export function ProjectPeriodReport({
             {t("projectReportCash")} {formatMoney(sumMethod(support, "cash"))}
             {" · "}
             {t("projectReportCard")} {formatMoney(sumMethod(support, "card"))}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border/60 p-2">
+          <p className="text-[11px] text-muted-foreground">{t("featuresTitle")}</p>
+          <p className="font-mono text-base font-semibold tabular-nums">{formatMoney(featureTotal)}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t("projectReportCash")} {formatMoney(sumMethod(features, "cash"))}
+            {" · "}
+            {t("projectReportCard")} {formatMoney(sumMethod(features, "card"))}
           </p>
         </div>
         <div className="rounded-lg border border-border/60 p-2">
@@ -239,6 +251,7 @@ export function ProjectPeriodReport({
                 <th className="py-1 pe-3 font-medium">{t("projectReportByMonth")}</th>
                 <th className="py-1 pe-3 text-end font-medium">{t("projectReportInstallments")}</th>
                 <th className="py-1 pe-3 text-end font-medium">{t("supportSection")}</th>
+                <th className="py-1 pe-3 text-end font-medium">{t("featuresTitle")}</th>
                 <th className="py-1 text-end font-medium">{t("projectReportSpent")}</th>
               </tr>
             </thead>
@@ -254,6 +267,7 @@ export function ProjectPeriodReport({
                     <td className="py-1.5 pe-3">{label}</td>
                     <td className="py-1.5 pe-3 text-end font-mono tabular-nums">{formatMoney(row.installments)}</td>
                     <td className="py-1.5 pe-3 text-end font-mono tabular-nums">{formatMoney(row.support)}</td>
+                    <td className="py-1.5 pe-3 text-end font-mono tabular-nums">{formatMoney(row.features)}</td>
                     <td className="py-1.5 text-end font-mono tabular-nums">{formatMoney(row.spent)}</td>
                   </tr>
                 );
@@ -272,7 +286,7 @@ export function ProjectPeriodReport({
               <span className="min-w-0 truncate text-muted-foreground">
                 {formatDateLong(new Date(p.collectedAt || p.date), locale)}
                 {" · "}
-                {p.lineKind === "support" ? t("supportSection") : t("installmentsList")}
+                {p.lineKind === "support" ? t("supportSection") : p.lineKind === "feature" ? t("featuresTitle") : t("installmentsList")}
                 {p.note ? ` · ${p.note}` : ""}
               </span>
               <span className="flex shrink-0 items-center gap-2">

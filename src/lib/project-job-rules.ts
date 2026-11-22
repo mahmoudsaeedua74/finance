@@ -42,10 +42,10 @@ export function pendingAmountForJob(
 }
 
 export function canDeleteProjectJob(
-  job: Pick<ProjectJobDto, "collectedAmount" | "status" | "cancellationReason">
+  job: Pick<ProjectJobDto, "originalCollectedAmount" | "status" | "cancellationReason">
 ): boolean {
   if (job.status === "cancelled") return false;
-  return job.collectedAmount <= 0.005;
+  return job.originalCollectedAmount <= 0.005;
 }
 
 export const DELETE_HAS_COLLECTION_MSG =

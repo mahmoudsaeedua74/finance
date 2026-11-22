@@ -78,7 +78,7 @@ export function ProjectJobCard({
 
   const phase = job.workPhase ?? "in_progress";
   const collectionPct =
-    job.agreedAmount > 0 ? Math.min(100, (job.collectedAmount / job.agreedAmount) * 100) : 0;
+    job.agreedAmount > 0 ? Math.min(100, (job.originalCollectedAmount / job.agreedAmount) * 100) : 0;
   const deletable = canDeleteProjectJob(job);
   const canCollect = job.status !== "cancelled" && job.pendingAmount > 0.005;
 
@@ -239,7 +239,7 @@ export function ProjectJobCard({
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-[10px] text-muted-foreground">{t("totalCollected")}</span>
               <span className="font-mono text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                {formatMoney(job.collectedAmount)}
+                {formatMoney(job.originalCollectedAmount)}
               </span>
             </div>
             {job.pendingAmount > 0.005 && (
@@ -284,7 +284,7 @@ export function ProjectJobCard({
               />
             </div>
             <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-              <span className="font-mono tabular-nums">{formatMoney(job.collectedAmount)}</span>
+              <span className="font-mono tabular-nums">{formatMoney(job.originalCollectedAmount)}</span>
               <span className="font-mono tabular-nums">{Math.round(collectionPct)}%</span>
               <span className="font-mono tabular-nums">{formatMoney(job.agreedAmount)}</span>
             </div>

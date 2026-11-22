@@ -38,6 +38,14 @@ export type ProjectJobDto = {
   expectedPaymentMethod: PaymentMethod;
   billingMode: BillingMode;
   collectedAmount: number;
+  /** Collected amount belonging to the original project contract only. */
+  originalCollectedAmount: number;
+  /** Revenue collected from new Features. */
+  featureCollectedAmount: number;
+  /** Historical support rows collected under the legacy support flow. */
+  legacySupportCollectedAmount: number;
+  /** All collected project-linked revenue, kept for backward-compatible summaries. */
+  totalCollectedRevenue: number;
   pendingAmount: number;
   spentAmount: number;
   netCollected: number;
@@ -49,7 +57,8 @@ export type ProjectJobDto = {
     collectedAt: string | null;
     paymentMethod: PaymentMethod;
     note: string;
-    lineKind: "installment" | "support";
+    lineKind: "installment" | "support" | "feature";
+    featureId?: string | null;
   }[];
   costs: {
     id: string;

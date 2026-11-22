@@ -63,3 +63,16 @@ export function projectCollectedFilter(userId: string) {
     $or: [{ isCollected: true }, { isCollected: { $exists: false } }],
   };
 }
+
+/** Original contract money only. Legacy rows without lineKind remain installments. */
+export function originalProjectLineFilter() {
+  return { lineKind: { $in: ["installment", null] } };
+}
+
+/** Feature money only, kept separate from the original contract balance. */
+export function featureProjectLineFilter(featureId?: string) {
+  return {
+    lineKind: "feature",
+    ...(featureId ? { featureId } : {}),
+  };
+}
