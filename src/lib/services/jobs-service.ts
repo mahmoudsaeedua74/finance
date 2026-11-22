@@ -276,7 +276,7 @@ async function notifyProjectPaymentReminders(
       isCollected: false,
       freelanceProjectId: { $ne: null },
     })
-      .select({ name: 1, amount: 1, date: 1, freelanceProjectId: 1, note: 1 })
+      .select({ name: 1, amount: 1, date: 1, freelanceProjectId: 1, note: 1, lineKind: 1 })
       .lean(),
   ]);
 
@@ -340,6 +340,7 @@ async function notifyProjectPaymentReminders(
   for (const inst of installments) {
     const due = new Date(inst.date);
     const label = inst.name?.trim() || "قسط مشروع";
+    const isSupport = inst.lineKind === "support";
     const amountStr = Number(inst.amount).toFixed(2);
 
     if (sameUtcDay(due, tomorrow)) {
@@ -349,8 +350,8 @@ async function notifyProjectPaymentReminders(
         {
           type: "project.installment_due_soon",
           severity: "info",
-          title: `غدًا قسط: ${label}`,
-          body: `${amountStr} — ${formatYmd(tomorrow)}${inst.note ? ` · ${inst.note}` : ""}. · Installment due tomorrow.`,
+          title: `غدًا ${isSupport ? "دفعة دعم" : "قسط"}: ${label}`,
+          body: `${amountStr} — ${formatYmd(tomorrow)}${inst.note ? ` · ${inst.note}` : ""}. · ${isSupport ? "Support payment" : "Installment"} due tomorrow.`,
           dedupKey: `inst-due-soon-${String(inst._id)}-${formatYmd(tomorrow)}`,
           dedupWindowHours: 36,
           meta: {
@@ -367,8 +368,8 @@ async function notifyProjectPaymentReminders(
         {
           type: "project.installment_due",
           severity: "warning",
-          title: `اليوم قسط: ${label}`,
-          body: `${amountStr} — ${formatYmd(today)}${inst.note ? ` · ${inst.note}` : ""}. · Installment due today.`,
+          title: `اليوم ${isSupport ? "دفعة دعم" : "قسط"}: ${label}`,
+          body: `${amountStr} — ${formatYmd(today)}${inst.note ? ` · ${inst.note}` : ""}. · ${isSupport ? "Support payment" : "Installment"} due today.`,
           dedupKey: `inst-due-${String(inst._id)}-${formatYmd(today)}`,
           dedupWindowHours: 36,
           meta: {

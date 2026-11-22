@@ -13,6 +13,27 @@ function installment(id: string, date: string, paidOn?: string, amount = 20_000)
 }
 
 describe("project payment claims", () => {
+  it("includes scheduled support in an outstanding invoice and collected support in the receipt", () => {
+    const lines = buildProjectBillingLines({
+      name: "Store",
+      billingMode: "fixed",
+      agreedAmount: 0,
+      expectedPaymentDate: null,
+      status: "pending",
+      scopeItems: [],
+      payouts: [
+        { ...installment("upcoming", "2026-12-01", undefined, 4000), lineKind: "support" },
+        { ...installment("received", "2026-11-01", "2026-11-17", 1000), lineKind: "support" },
+      ],
+    }, []);
+    expect(selectInvoiceLines(lines, "project", "outstanding")).toEqual([
+      expect.objectContaining({ amount: 4000, dueDate: "2026-12-01", source: "support" }),
+    ]);
+    expect(selectInvoiceLines(lines, "support", "collected")).toEqual([
+      expect.objectContaining({ amount: 1000, paidOn: "2026-11-17" }),
+    ]);
+  });
+
   it("claims every unpaid hourly task without price approval and excludes prior collections", () => {
     const feature = {
       id: "hourly",

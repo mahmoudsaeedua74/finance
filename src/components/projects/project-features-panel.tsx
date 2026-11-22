@@ -16,16 +16,13 @@ import { formatMoney } from "@/lib/format";
 import { defaultFormDateYmd } from "@/lib/ymd";
 import { useFinanceInvalidation } from "@/hooks/use-finance-invalidation";
 import { roundMoney } from "@/lib/currency";
+import { newEntryId } from "@/lib/client-entry-id";
 import type { FeatureDto, FeatureTaskDto } from "@/types/feature";
 
 type Props = { projectId: string; onInvoice: (featureId: string) => void };
 type TimerCommand =
   | { action: "start" | "pause" | "resume" | "stop"; sessionId?: string }
   | { action: "manual"; sessionId?: string; entryId?: string; elapsedSeconds: number; reason: string };
-
-function newEntryId() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(12)), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
 
 function formatSeconds(seconds: number) {
   const total = Math.max(0, Math.floor(seconds));

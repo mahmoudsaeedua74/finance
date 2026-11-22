@@ -142,6 +142,7 @@ export default function ProjectsPage() {
   const [invoiceProjectId, setInvoiceProjectId] = useState<string | null>(null);
   const [collectJob, setCollectJob] = useState<ProjectJobDto | null>(null);
   const [collectPayoutId, setCollectPayoutId] = useState<string | undefined>();
+  const collectingSupport = collectJob?.payouts.some((payout) => payout.id === collectPayoutId && payout.lineKind === "support") ?? false;
   const [installmentJob, setInstallmentJob] = useState<ProjectJobDto | null>(null);
   const [instAmount, setInstAmount] = useState("");
   const [instDue, setInstDue] = useState(() => defaultFormDateYmd());
@@ -431,25 +432,29 @@ export default function ProjectsPage() {
   });
 
   const collectMutation = useMutation({
-    mutationFn: ({ job, payoutId }: { job: ProjectJobDto; payoutId?: string }) =>
-      jsonFetch(`/api/project-jobs/${job.id}`, {
+    mutationFn: ({ job, payoutId }: { job: ProjectJobDto; payoutId?: string }) => {
+      const support = job.payouts.some((payout) => payout.id === payoutId && payout.lineKind === "support");
+      return jsonFetch(`/api/project-jobs/${job.id}`, {
         method: "POST",
         body: JSON.stringify({
-          action: "collect",
-          payoutId,
-          amount: payoutId ? undefined : Number(collectAmount) || job.pendingAmount,
+          action: support ? "collect_support" : "collect",
+          ...(support ? { supportId: payoutId } : { payoutId }),
+          amount: support || !payoutId ? Number(collectAmount) || job.pendingAmount : undefined,
           date: new Date(collectDate).toISOString(),
           paymentMethod: collectMethod,
         }),
-      }),
+      });
+    },
     ...mergeMutationToasts(
       { loading: t("loadingCollect"), success: t("collectedOk") },
       {
-        onSuccess: () => {
+        onSuccess: (_, { job }) => {
           playProjectActionSound();
           setCollectJob(null);
           setCollectPayoutId(undefined);
           invalidateProjects();
+          void qc.invalidateQueries({ queryKey: ["project-job", job.id] });
+          void qc.invalidateQueries({ queryKey: ["project-invoice", job.id] });
         },
       }
     ),
@@ -1377,7 +1382,7 @@ export default function ProjectsPage() {
       <Dialog open={!!collectJob} onOpenChange={(o) => { if (!o) { setCollectJob(null); setCollectPayoutId(undefined); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{collectPayoutId ? t("collectInstallmentTitle") : t("collectTitle")}</DialogTitle>
+            <DialogTitle>{t(collectingSupport ? "collectSupportTitle" : collectPayoutId ? "collectInstallmentTitle" : "collectTitle")}</DialogTitle>
             <DialogDescription>{collectJob?.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1392,13 +1397,14 @@ export default function ProjectsPage() {
             )}
             {collectPayoutId && collectJob && (
               <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2">
-                <p className="text-xs text-muted-foreground">{t("installmentAmount")}</p>
+                <p className="text-xs text-muted-foreground">{collectingSupport ? tC("amount") : t("installmentAmount")}</p>
                 <p className="font-mono text-lg font-bold tabular-nums">{formatMoney(Number(collectAmount))}</p>
               </div>
             )}
             <div className="space-y-2">
-              <Label>{tC("date")}</Label>
-              <Input type="date" className="h-11" value={collectDate} onChange={(e) => setCollectDate(e.target.value)} />
+              <Label>{t("collectionDate")}</Label>
+              <Input type="date" className="h-11" value={collectDate}
+                max={collectingSupport ? defaultFormDateYmd() : undefined} onChange={(e) => setCollectDate(e.target.value)} />
             </div>
             <PaymentMethodField value={collectMethod} onChange={setCollectMethod} optional={false} size="compact" />
           </div>
@@ -1407,7 +1413,7 @@ export default function ProjectsPage() {
             <Button
               type="button"
               onClick={() => collectJob && collectMutation.mutate({ job: collectJob, payoutId: collectPayoutId })}
-              disabled={collectMutation.isPending}
+              disabled={collectMutation.isPending || !collectDate || (collectingSupport && collectDate > defaultFormDateYmd())}
             >
               {t("collectBtn")}
             </Button>
@@ -1662,7 +1668,7 @@ export default function ProjectsPage() {
               )}
               {detailJob.payouts.length > 0 && (
                 <div>
-                  <p className="mb-2 font-medium">{t("installmentsList")}</p>
+                  <p className="mb-2 font-medium">{t("payoutsList")}</p>
                   <ul className="space-y-2">
                     {detailJob.payouts.map((p) => (
                       <li
@@ -1682,7 +1688,8 @@ export default function ProjectsPage() {
                               <Clock className="size-3.5 shrink-0 text-amber-600" />
                             )}
                             <span className="font-mono font-semibold tabular-nums">{formatMoney(p.amount)}</span>
-                            <PaymentMethodLabel method={p.paymentMethod} />
+                            {p.isCollected && <PaymentMethodLabel method={p.paymentMethod} />}
+                            {p.lineKind === "support" && <Badge variant="outline">{t("supportSection")}</Badge>}
                             <Badge variant={p.isCollected ? "default" : "secondary"} className="text-[0.65rem]">
                               {p.isCollected ? t("statusCollected") : t("statusPending")}
                             </Badge>
@@ -1693,7 +1700,7 @@ export default function ProjectsPage() {
                             {p.note ? ` · ${p.note}` : ""}
                           </p>
                         </div>
-                        {!p.isCollected && detailJob.status !== "cancelled" && (
+                        {!p.isCollected && p.lineKind !== "feature" && detailJob.status !== "cancelled" && (
                           <Button
                             type="button"
                             size="sm"

@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { jsonFetch } from "@/lib/fetcher";
+import { newEntryId } from "@/lib/client-entry-id";
 import { playProjectActionSound } from "@/lib/project-action-sound";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import { defaultFormDateYmd } from "@/lib/ymd";
@@ -67,7 +68,9 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [collectAmount, setCollectAmount] = useState("");
   const [collectDate, setCollectDate] = useState(() => defaultFormDateYmd());
   const [collectMethod, setCollectMethod] = useState<PaymentMethod>("cash");
-  const [collectPayoutId, setCollectPayoutId] = useState<string | undefined>();
+  const [collectPayout, setCollectPayout] = useState<ProjectJobDto["payouts"][number]>();
+  const collectPayoutId = collectPayout?.id;
+  const collectingSupport = collectPayout?.lineKind === "support";
   const [invoiceScope, setInvoiceScope] = useState<ProjectInvoiceScope | null>(null);
   const [instOpen, setInstOpen] = useState(false);
   const [instAmount, setInstAmount] = useState("");
@@ -79,13 +82,21 @@ export default function ProjectJobDetailPage({ params }: Props) {
   const [supportNote, setSupportNote] = useState("");
   const [supportMethod, setSupportMethod] = useState<PaymentMethod>("cash");
   const [supportEditingId, setSupportEditingId] = useState<string | null>(null);
+  const [supportCollected, setSupportCollected] = useState(false);
+  const [supportEntryId, setSupportEntryId] = useState("");
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
   const [supportListOpen, setSupportListOpen] = useState(false);
+
+  const refreshPayouts = () => {
+    invalidateProjects();
+    void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+    void qc.invalidateQueries({ queryKey: ["project-invoice", params.id] });
+  };
 
   const openCollect = useCallback(
     (payout?: ProjectJobDto["payouts"][number]) => {
       if (!job) return;
-      setCollectPayoutId(payout?.id);
+      setCollectPayout(payout);
       setCollectAmount(
         String(payout?.amount ?? (job.pendingAmount > 0 ? job.pendingAmount : job.agreedAmount))
       );
@@ -136,10 +147,12 @@ export default function ProjectJobDetailPage({ params }: Props) {
         method: "POST",
         body: JSON.stringify({
           action: "add_support",
+          entryId: supportEntryId,
           amount: Number(supportAmount),
-          date: new Date(supportDate).toISOString(),
+          date: supportDate,
           note: supportNote,
-          paymentMethod: supportMethod,
+          isCollected: supportCollected,
+          paymentMethod: supportCollected ? supportMethod : undefined,
         }),
       });
     },
@@ -150,8 +163,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
           setSupportOpen(false);
           setSupportAmount("");
           setSupportNote("");
-          invalidateProjects();
-          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+          setSupportListOpen(true);
+          refreshPayouts();
         },
       }
     ),
@@ -166,9 +179,9 @@ export default function ProjectJobDetailPage({ params }: Props) {
           action: "update_support",
           supportId: supportEditingId,
           amount: Number(supportAmount),
-          date: new Date(supportDate).toISOString(),
+          date: supportDate,
           note: supportNote,
-          paymentMethod: supportMethod,
+          paymentMethod: supportCollected ? supportMethod : undefined,
         }),
       });
     },
@@ -178,8 +191,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
         onSuccess: () => {
           setSupportOpen(false);
           setSupportEditingId(null);
-          invalidateProjects();
-          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
+          refreshPayouts();
         },
       }
     ),
@@ -196,10 +208,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
     ...mergeMutationToasts(
       { loading: tC("saving"), success: t("supportDeleted") },
       {
-        onSuccess: () => {
-          invalidateProjects();
-          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
-        },
+        onSuccess: refreshPayouts,
       }
     ),
   });
@@ -208,10 +217,13 @@ export default function ProjectJobDetailPage({ params }: Props) {
     (support?: ProjectJobDto["payouts"][number]) => {
       const isEditing = support?.lineKind === "support";
       setSupportEditingId(isEditing ? support.id : null);
+      setSupportEntryId(isEditing ? "" : newEntryId());
+      setSupportCollected(isEditing && support.isCollected);
       setSupportAmount(isEditing ? String(support.amount) : "");
-      setSupportDate(isEditing ? new Date(support.date).toISOString().slice(0, 10) : defaultFormDateYmd());
+      setSupportDate(isEditing ? (support.collectedAt ?? support.dueDate ?? support.date).slice(0, 10) : defaultFormDateYmd());
       setSupportNote(isEditing ? support.note : "");
-      setSupportMethod(isEditing ? support.paymentMethod : job?.expectedPaymentMethod === "card" ? "card" : "cash");
+      const preferredMethod = isEditing ? support.paymentMethod : job?.expectedPaymentMethod;
+      setSupportMethod(preferredMethod === "card" ? "card" : "cash");
       setSupportOpen(true);
     },
     [job]
@@ -223,9 +235,9 @@ export default function ProjectJobDetailPage({ params }: Props) {
       return jsonFetch(`/api/project-jobs/${job.id}`, {
         method: "POST",
         body: JSON.stringify({
-          action: "collect",
-          payoutId: collectPayoutId,
-          amount: collectPayoutId ? undefined : Number(collectAmount) || job.pendingAmount,
+          action: collectingSupport ? "collect_support" : "collect",
+          ...(collectingSupport ? { supportId: collectPayoutId } : { payoutId: collectPayoutId }),
+          amount: collectingSupport || !collectPayoutId ? Number(collectAmount) || job.pendingAmount : undefined,
           date: new Date(collectDate).toISOString(),
           paymentMethod: collectMethod,
         }),
@@ -237,10 +249,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
         onSuccess: () => {
           playProjectActionSound();
           setCollectOpen(false);
-          setCollectPayoutId(undefined);
-          invalidateProjects();
-          void qc.invalidateQueries({ queryKey: ["project-job", params.id] });
-          void qc.invalidateQueries({ queryKey: ["project-attention"] });
+          setCollectPayout(undefined);
+          refreshPayouts();
         },
       }
     ),
@@ -442,19 +452,27 @@ export default function ProjectJobDetailPage({ params }: Props) {
         {job.payouts.some((p) => p.lineKind === "support") ? (
           <ul className="space-y-2">
             {job.payouts.filter((p) => p.lineKind === "support").map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+              <li key={p.id} className={cn(
+                "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2",
+                p.isCollected ? "border-emerald-500/20 bg-emerald-500/5" : "border-amber-500/25 bg-amber-500/5",
+              )}>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-semibold tabular-nums">{formatMoney(p.amount)}</span>
-                    <PaymentMethodLabel method={p.paymentMethod} />
+                    {p.isCollected && <PaymentMethodLabel method={p.paymentMethod} />}
+                    <Badge variant={p.isCollected ? "default" : "secondary"}>
+                      {t(p.isCollected ? "statusCollected" : "supportDue")}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDateLong(new Date(p.collectedAt || p.date), locale)}
+                    {t(p.isCollected ? "collectedOn" : "dueOn")}{" "}
+                    {formatDateLong(new Date(p.isCollected ? p.collectedAt ?? p.date : p.dueDate ?? p.date), locale)}
                     {p.note ? ` · ${p.note}` : ""}
                   </p>
                 </div>
                 {job.status !== "cancelled" && (
                   <div className="flex shrink-0 items-center gap-1">
+                    {!p.isCollected && <Button type="button" size="sm" onClick={() => openCollect(p)}>{t("collectBtn")}</Button>}
                     <Button
                       type="button"
                       size="icon-sm"
@@ -515,10 +533,10 @@ export default function ProjectJobDetailPage({ params }: Props) {
 
       <ProjectPeriodReport payouts={job.payouts} costs={job.costs} />
 
-      <Dialog open={collectOpen} onOpenChange={(o) => { if (!o) { setCollectOpen(false); setCollectPayoutId(undefined); } }}>
+      <Dialog open={collectOpen} onOpenChange={(o) => { if (!o) { setCollectOpen(false); setCollectPayout(undefined); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{collectPayoutId ? t("collectInstallmentTitle") : t("collectTitle")}</DialogTitle>
+            <DialogTitle>{t(collectingSupport ? "collectSupportTitle" : collectPayoutId ? "collectInstallmentTitle" : "collectTitle")}</DialogTitle>
             <DialogDescription>{job.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -528,15 +546,22 @@ export default function ProjectJobDetailPage({ params }: Props) {
                 <Input type="number" step="0.01" className="h-11" value={collectAmount} onChange={(e) => setCollectAmount(e.target.value)} />
               </div>
             )}
+            {collectingSupport && (
+              <p className="rounded-md border border-border/60 p-2 text-sm">
+                {tC("amount")} <bdi className="font-semibold">{formatMoney(Number(collectAmount))}</bdi>
+              </p>
+            )}
             <div className="space-y-2">
-              <Label>{tC("date")}</Label>
-              <Input type="date" className="h-11" value={collectDate} onChange={(e) => setCollectDate(e.target.value)} />
+              <Label htmlFor="project-collection-date">{t("collectionDate")}</Label>
+              <Input id="project-collection-date" type="date" className="h-11" value={collectDate}
+                max={collectingSupport ? defaultFormDateYmd() : undefined} onChange={(e) => setCollectDate(e.target.value)} />
             </div>
             <PaymentMethodField value={collectMethod} onChange={setCollectMethod} optional={false} size="compact" />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setCollectOpen(false)}>{tC("cancel")}</Button>
-            <Button type="button" disabled={collectMutation.isPending} onClick={() => collectMutation.mutate(undefined)}>
+            <Button type="button" disabled={collectMutation.isPending || !collectDate || (collectingSupport && collectDate > defaultFormDateYmd())}
+              onClick={() => collectMutation.mutate(undefined)}>
               {collectMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : t("collectBtn")}
             </Button>
           </DialogFooter>
@@ -584,14 +609,21 @@ export default function ProjectJobDetailPage({ params }: Props) {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>{tC("amount")}</Label>
-              <Input type="number" step="0.01" className="h-11" value={supportAmount} onChange={(e) => setSupportAmount(e.target.value)} />
+              <Label htmlFor="support-amount">{tC("amount")}</Label>
+              <Input id="support-amount" type="number" min="0.01" step="0.01" className="h-11" value={supportAmount} onChange={(e) => setSupportAmount(e.target.value)} />
             </div>
+            {!supportEditingId && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={supportCollected} onChange={(event) => setSupportCollected(event.target.checked)} />
+                {t("supportCollectNow")}
+              </label>
+            )}
             <div className="space-y-2">
-              <Label>{tC("date")}</Label>
-              <Input type="date" className="h-11" value={supportDate} onChange={(e) => setSupportDate(e.target.value)} />
+              <Label htmlFor="support-payment-date">{t(supportCollected ? "collectionDate" : "paymentDate")}</Label>
+              <Input id="support-payment-date" type="date" className="h-11" value={supportDate}
+                max={supportCollected ? defaultFormDateYmd() : undefined} onChange={(e) => setSupportDate(e.target.value)} />
             </div>
-            <PaymentMethodField value={supportMethod} onChange={setSupportMethod} optional={false} size="compact" />
+            {supportCollected && <PaymentMethodField value={supportMethod} onChange={setSupportMethod} optional={false} size="compact" />}
             <div className="space-y-2">
               <Label>{t("installmentNote")}</Label>
               <Input className="h-11" value={supportNote} onChange={(e) => setSupportNote(e.target.value)} />
@@ -604,6 +636,8 @@ export default function ProjectJobDetailPage({ params }: Props) {
               disabled={
                 addSupport.isPending ||
                 updateSupport.isPending ||
+                !supportDate ||
+                (supportCollected && supportDate > defaultFormDateYmd()) ||
                 !Number.isFinite(Number(supportAmount)) ||
                 Number(supportAmount) <= 0
               }
@@ -617,7 +651,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
               ) : supportEditingId ? (
                 tC("save")
               ) : (
-                t("addSupportBtn")
+                t(supportCollected ? "supportSaveAndCollect" : "supportSavePending")
               )}
             </Button>
           </DialogFooter>
