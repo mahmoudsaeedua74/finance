@@ -563,7 +563,7 @@ export default function ProjectJobDetailPage({ params }: Props) {
       )}
 
       <ProjectPeriodReport payouts={job.payouts} costs={job.costs}
-        outstandingLines={outstandingLines} outstandingStatus={outstandingStatus} />
+        outstandingLines={outstandingLines} outstandingStatus={outstandingStatus} features={features.data} />
 
       <Dialog open={collectOpen} onOpenChange={(o) => { if (!o) { setCollectOpen(false); setCollectPayout(undefined); } }}>
         <DialogContent className="sm:max-w-md">

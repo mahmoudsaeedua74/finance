@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { formatDateLong, formatMoney } from "@/lib/format";
 import { defaultFormDateYmd, toLocalYmd } from "@/lib/ymd";
 import type { ProjectJobDto } from "@/types/project-job";
+import type { FeatureDto } from "@/types/feature";
 import { summarizeProjectOutstanding, type ProjectBillingLine } from "@/lib/project-billing";
 import { roundMoney } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -45,11 +46,13 @@ export function ProjectPeriodReport({
   costs,
   outstandingLines,
   outstandingStatus,
+  features,
 }: {
   payouts: Payout[];
   costs: Cost[];
   outstandingLines: ProjectBillingLine[];
   outstandingStatus: "loading" | "error" | null;
+  features?: Pick<FeatureDto, "id" | "title">[];
 }) {
   const t = useTranslations("projects");
   const locale = useLocale();
@@ -81,7 +84,8 @@ export function ProjectPeriodReport({
   const spent = bounds ? costs.filter((c) => inRange(c.date, bounds.start, bounds.end)) : costs;
   const installments = collected.filter((p) => p.lineKind === "installment");
   const support = collected.filter((p) => p.lineKind === "support");
-  const features = collected.filter((p) => p.lineKind === "feature");
+  const featureReceipts = collected.filter((p) => p.lineKind === "feature");
+  const featureTitles = new Map(features?.map((feature) => [feature.id, feature.title]));
   const outstanding = summarizeProjectOutstanding(
     outstandingLines,
     bounds ? { from: toLocalYmd(bounds.start), to: toLocalYmd(bounds.end) } : undefined,
@@ -114,12 +118,12 @@ export function ProjectPeriodReport({
   const incomeTotal = collected.reduce((s, p) => s + p.amount, 0);
   const installmentTotal = installments.reduce((s, p) => s + p.amount, 0);
   const supportTotal = support.reduce((s, p) => s + p.amount, 0);
-  const featureTotal = features.reduce((s, p) => s + p.amount, 0);
+  const featureTotal = featureReceipts.reduce((s, p) => s + p.amount, 0);
   const spentTotal = spent.reduce((s, c) => s + c.amount, 0);
   const receiptsByKind = [
     { key: "installments", title: t("projectReportInstallments"), total: installmentTotal, rows: installments },
     { key: "support", title: t("supportSection"), total: supportTotal, rows: support },
-    { key: "features", title: t("featuresTitle"), total: featureTotal, rows: features },
+    { key: "features", title: t("featuresTitle"), total: featureTotal, rows: featureReceipts },
   ] as const;
   const elsewhere = collectedAll
     .filter((p) => !collected.some((row) => row.id === p.id))
@@ -309,16 +313,20 @@ export function ProjectPeriodReport({
         <p className="text-sm text-muted-foreground">{t("projectReportEmpty")}</p>
       ) : (
         <ul className="space-y-1">
-          {outstanding.lines.map((line, index) => (
-            <li key={`outstanding-${index}`} className="flex items-center justify-between gap-2 text-sm">
-              <span className="min-w-0 truncate text-muted-foreground">
-                {t("supportDue")} · {line.title}
-                {line.dueDate ? ` · ${formatDateLong(new Date(`${line.dueDate}T12:00:00`), locale)}` : ""}
-                {line.detail ? ` · ${line.detail}` : ""}
-              </span>
-              <bdi className="shrink-0 font-mono tabular-nums text-amber-700 dark:text-amber-400">{formatMoney(line.amount)}</bdi>
-            </li>
-          ))}
+          {outstanding.lines.map((line, index) => {
+            const isFeature = Boolean(line.featureId) || line.source === "feature";
+            const title = (line.featureId && featureTitles.get(line.featureId)) || line.title;
+            return (
+              <li key={`outstanding-${index}`} className="flex items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {t("supportDue")} · {title}
+                  {line.dueDate ? ` · ${formatDateLong(new Date(`${line.dueDate}T12:00:00`), locale)}` : ""}
+                  {!isFeature && line.detail ? ` · ${line.detail}` : ""}
+                </span>
+                <bdi className="shrink-0 font-mono tabular-nums text-amber-700 dark:text-amber-400">{formatMoney(line.amount)}</bdi>
+              </li>
+            );
+          })}
           {collected.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
               <span className="min-w-0 truncate text-muted-foreground">
